@@ -14,16 +14,178 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contractor_profiles: {
+        Row: {
+          city: string | null
+          company_description: string | null
+          company_name: string
+          country: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          is_verified: boolean | null
+          suburb: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          city?: string | null
+          company_description?: string | null
+          company_name: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          is_verified?: boolean | null
+          suburb?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          city?: string | null
+          company_description?: string | null
+          company_name?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          is_verified?: boolean | null
+          suburb?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      employee_profiles: {
+        Row: {
+          availability: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          experience_years: number | null
+          headline: string | null
+          hourly_rate_max: number | null
+          hourly_rate_min: number | null
+          id: string
+          is_available: boolean | null
+          skills: string[] | null
+          suburb: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          experience_years?: number | null
+          headline?: string | null
+          hourly_rate_max?: number | null
+          hourly_rate_min?: number | null
+          id?: string
+          is_available?: boolean | null
+          skills?: string[] | null
+          suburb?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          experience_years?: number | null
+          headline?: string | null
+          hourly_rate_max?: number | null
+          hourly_rate_min?: number | null
+          id?: string
+          is_available?: boolean | null
+          skills?: string[] | null
+          suburb?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "contractor" | "employee" | "writer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +312,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "contractor", "employee", "writer"],
+    },
   },
 } as const
