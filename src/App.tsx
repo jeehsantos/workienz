@@ -9,6 +9,14 @@ import Pricing from "./pages/Pricing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import PostJob from "./pages/contractor/PostJob";
+import MyJobs from "./pages/contractor/MyJobs";
+import SearchWorkers from "./pages/contractor/SearchWorkers";
+import ContractorProfile from "./pages/contractor/ContractorProfile";
+import JobSearch from "./pages/employee/JobSearch";
+import EmployeeProfile from "./pages/employee/EmployeeProfile";
+import Articles from "./pages/employee/Articles";
+import JobDetail from "./pages/JobDetail";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +32,14 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/jobs" element={<JobSearch />} />
+            <Route path="/jobs/:id" element={<JobDetail />} />
+            <Route path="/articles" element={<Articles />} />
+            <Route path="/contractor/post-job" element={<PostJob />} />
+            <Route path="/contractor/jobs" element={<MyJobs />} />
+            <Route path="/contractor/profile" element={<ContractorProfile />} />
+            <Route path="/contractor/search-workers" element={<SearchWorkers />} />
+            <Route path="/employee/profile" element={<EmployeeProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
