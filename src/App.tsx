@@ -22,6 +22,7 @@ import NewArticle from "./pages/writer/NewArticle";
 import MyArticles from "./pages/writer/MyArticles";
 import WorkerProfile from "./pages/WorkerProfile";
 import Conversation from "./pages/Conversation";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/messages/:id" element={<Conversation />} />
             <Route path="/writer/new-article" element={<NewArticle />} />
             <Route path="/writer/articles" element={<MyArticles />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
