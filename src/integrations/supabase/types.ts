@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      contractor_packages: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          jobs_per_week: number
+          name: string
+          price_cents: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          jobs_per_week: number
+          name: string
+          price_cents: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          jobs_per_week?: number
+          name?: string
+          price_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contractor_profiles: {
         Row: {
           city: string | null
@@ -65,6 +98,7 @@ export type Database = {
           created_at: string
           id: string
           industry: string | null
+          is_entrepreneur: boolean | null
           is_verified: boolean | null
           phone: string | null
           suburb: string | null
@@ -80,6 +114,7 @@ export type Database = {
           created_at?: string
           id?: string
           industry?: string | null
+          is_entrepreneur?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
           suburb?: string | null
@@ -95,6 +130,7 @@ export type Database = {
           created_at?: string
           id?: string
           industry?: string | null
+          is_entrepreneur?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
           suburb?: string | null
@@ -103,6 +139,60 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      contractor_subscriptions: {
+        Row: {
+          contractor_profile_id: string
+          created_at: string
+          ends_at: string | null
+          id: string
+          jobs_posted_this_week: number | null
+          package_id: string
+          starts_at: string
+          status: string
+          updated_at: string
+          week_start_date: string
+        }
+        Insert: {
+          contractor_profile_id: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          jobs_posted_this_week?: number | null
+          package_id: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+          week_start_date?: string
+        }
+        Update: {
+          contractor_profile_id?: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          jobs_posted_this_week?: number | null
+          package_id?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_subscriptions_contractor_profile_id_fkey"
+            columns: ["contractor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_subscriptions_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_packages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {

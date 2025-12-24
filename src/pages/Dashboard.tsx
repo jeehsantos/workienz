@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, User, Briefcase, FileText, Settings, Users } from "lucide-react";
+import { Loader2, LogOut, User, Briefcase, FileText, Settings, Users, MessageCircle } from "lucide-react";
+import MyConversations from "@/components/dashboard/MyConversations";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -218,33 +219,18 @@ export default function Dashboard() {
 
           {/* Admin-specific */}
           {isAdmin() && (
-            <>
-              <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-                <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-destructive" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 font-display">Manage Users</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  View, approve, and manage user accounts.
-                </p>
-                <Button variant="outline" size="sm">
-                  View Users
-                </Button>
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-4">
+                <Settings className="w-6 h-6 text-destructive" />
               </div>
-
-              <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-                <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-4">
-                  <Settings className="w-6 h-6 text-destructive" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2 font-display">System Settings</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Configure platform settings and permissions.
-                </p>
-                <Button variant="outline" size="sm">
-                  Open Settings
-                </Button>
-              </div>
-            </>
+              <h3 className="text-lg font-semibold mb-2 font-display">Admin Dashboard</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Manage users, contractors, jobs, and subscriptions.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/admin">Open Admin</Link>
+              </Button>
+            </div>
           )}
 
           {/* Articles (for employees) */}
@@ -263,6 +249,19 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* My Conversations Section - for employees and contractors */}
+        {(isEmployee() || isContractor()) && user && (
+          <div className="mt-8">
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="flex items-center gap-2 mb-4">
+                <MessageCircle className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold font-display">My Conversations</h2>
+              </div>
+              <MyConversations userId={user.id} />
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
