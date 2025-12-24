@@ -66,6 +66,7 @@ export type Database = {
           id: string
           industry: string | null
           is_verified: boolean | null
+          phone: string | null
           suburb: string | null
           updated_at: string
           user_id: string
@@ -80,6 +81,7 @@ export type Database = {
           id?: string
           industry?: string | null
           is_verified?: boolean | null
+          phone?: string | null
           suburb?: string | null
           updated_at?: string
           user_id: string
@@ -94,12 +96,51 @@ export type Database = {
           id?: string
           industry?: string | null
           is_verified?: boolean | null
+          phone?: string | null
           suburb?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null
         }
         Relationships: []
+      }
+      conversations: {
+        Row: {
+          contractor_user_id: string
+          created_at: string
+          employee_user_id: string
+          id: string
+          job_application_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contractor_user_id: string
+          created_at?: string
+          employee_user_id: string
+          id?: string
+          job_application_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contractor_user_id?: string
+          created_at?: string
+          employee_user_id?: string
+          id?: string
+          job_application_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: true
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employee_profiles: {
         Row: {
@@ -113,6 +154,7 @@ export type Database = {
           hourly_rate_min: number | null
           id: string
           is_available: boolean | null
+          phone: string | null
           skills: string[] | null
           suburb: string | null
           updated_at: string
@@ -129,6 +171,7 @@ export type Database = {
           hourly_rate_min?: number | null
           id?: string
           is_available?: boolean | null
+          phone?: string | null
           skills?: string[] | null
           suburb?: string | null
           updated_at?: string
@@ -145,6 +188,7 @@ export type Database = {
           hourly_rate_min?: number | null
           id?: string
           is_available?: boolean | null
+          phone?: string | null
           skills?: string[] | null
           suburb?: string | null
           updated_at?: string
@@ -270,6 +314,38 @@ export type Database = {
             columns: ["contractor_id"]
             isOneToOne: false
             referencedRelation: "contractor_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_user_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]

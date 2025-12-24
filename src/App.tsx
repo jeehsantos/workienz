@@ -13,12 +13,15 @@ import PostJob from "./pages/contractor/PostJob";
 import MyJobs from "./pages/contractor/MyJobs";
 import SearchWorkers from "./pages/contractor/SearchWorkers";
 import ContractorProfile from "./pages/contractor/ContractorProfile";
+import JobApplicants from "./pages/contractor/JobApplicants";
 import JobSearch from "./pages/employee/JobSearch";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import Articles from "./pages/employee/Articles";
 import JobDetail from "./pages/JobDetail";
 import NewArticle from "./pages/writer/NewArticle";
 import MyArticles from "./pages/writer/MyArticles";
+import WorkerProfile from "./pages/WorkerProfile";
+import Conversation from "./pages/Conversation";
 
 const queryClient = new QueryClient();
 
@@ -39,9 +42,12 @@ const App = () => (
             <Route path="/articles" element={<Articles />} />
             <Route path="/contractor/post-job" element={<PostJob />} />
             <Route path="/contractor/jobs" element={<MyJobs />} />
+            <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
             <Route path="/contractor/search-workers" element={<SearchWorkers />} />
             <Route path="/employee/profile" element={<EmployeeProfile />} />
+            <Route path="/workers/:id" element={<WorkerProfile />} />
+            <Route path="/messages/:id" element={<Conversation />} />
             <Route path="/writer/new-article" element={<NewArticle />} />
             <Route path="/writer/articles" element={<MyArticles />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

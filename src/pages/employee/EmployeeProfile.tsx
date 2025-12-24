@@ -30,6 +30,7 @@ export default function EmployeeProfile() {
     hourly_rate_max: "",
     availability: "flexible",
     is_available: true,
+    phone: "",
   });
 
   const [skills, setSkills] = useState<string[]>([]);
@@ -65,6 +66,7 @@ export default function EmployeeProfile() {
           hourly_rate_max: data.hourly_rate_max?.toString() || "",
           availability: data.availability || "flexible",
           is_available: data.is_available ?? true,
+          phone: (data as any).phone || "",
         });
         setSkills(data.skills || []);
       }
@@ -106,6 +108,7 @@ export default function EmployeeProfile() {
       availability: formData.availability,
       is_available: formData.is_available,
       skills: skills.length > 0 ? skills : null,
+      phone: formData.phone || null,
     };
 
     let error;
@@ -276,6 +279,17 @@ export default function EmployeeProfile() {
                 placeholder="e.g., 40.00"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number (for employers to contact you)</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="e.g., +64 21 123 4567"
+            />
           </div>
 
           <div className="space-y-2">
