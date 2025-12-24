@@ -26,6 +26,7 @@ export default function ContractorProfile() {
     city: "",
     suburb: "",
     country: "New Zealand",
+    phone: "",
   });
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function ContractorProfile() {
           city: data.city || "",
           suburb: data.suburb || "",
           country: data.country || "New Zealand",
+          phone: (data as any).phone || "",
         });
       }
 
@@ -82,6 +84,7 @@ export default function ContractorProfile() {
       city: formData.city || null,
       suburb: formData.suburb || null,
       country: formData.country || null,
+      phone: formData.phone || null,
     };
 
     let error;
@@ -188,6 +191,17 @@ export default function ContractorProfile() {
                 placeholder="https://yourcompany.com"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Contact Phone</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="e.g., +64 9 123 4567"
+            />
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4">
