@@ -30,6 +30,7 @@ export default function PostJob() {
     duration: "",
     hourly_rate_min: "",
     hourly_rate_max: "",
+    positions_available: "1",
   });
 
   const [skills, setSkills] = useState<string[]>([]);
@@ -100,6 +101,7 @@ export default function PostJob() {
       hourly_rate_min: formData.hourly_rate_min ? parseFloat(formData.hourly_rate_min) : null,
       hourly_rate_max: formData.hourly_rate_max ? parseFloat(formData.hourly_rate_max) : null,
       skills_required: skills.length > 0 ? skills : null,
+      positions_available: parseInt(formData.positions_available) || 1,
       status,
     });
 
@@ -201,7 +203,7 @@ export default function PostJob() {
             />
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="job_type">Job Type</Label>
               <Select
@@ -226,6 +228,18 @@ export default function PostJob() {
                 value={formData.duration}
                 onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                 placeholder="e.g., 2 weeks, 1 month"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="positions_available">Positions Available *</Label>
+              <Input
+                id="positions_available"
+                type="number"
+                min="1"
+                value={formData.positions_available}
+                onChange={(e) => setFormData({ ...formData, positions_available: e.target.value })}
+                required
               />
             </div>
           </div>

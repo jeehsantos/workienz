@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type Job = {
@@ -20,6 +20,8 @@ type Job = {
   hourly_rate_min: number | null;
   hourly_rate_max: number | null;
   skills_required: string[] | null;
+  positions_available: number;
+  positions_filled: number;
   created_at: string;
   contractor: {
     company_name: string;
@@ -54,6 +56,8 @@ export default function JobSearch() {
           hourly_rate_min,
           hourly_rate_max,
           skills_required,
+          positions_available,
+          positions_filled,
           created_at,
           contractor_id
         `)
@@ -88,8 +92,12 @@ export default function JobSearch() {
         contractor: contractors?.find((c) => c.id === job.contractor_id) || null,
       })) || [];
 
+      // Filter out jobs where all positions are filled
+      let filtered = jobsWithContractor.filter(
+        (j) => j.positions_available > j.positions_filled
+      );
+
       // Client-side search filtering
-      let filtered = jobsWithContractor;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(
@@ -217,6 +225,10 @@ export default function JobSearch() {
                           {job.hourly_rate_min || "?"} - ${job.hourly_rate_max || "?"}/hr
                         </span>
                       )}
+                      <span className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        {job.positions_available - job.positions_filled} position{job.positions_available - job.positions_filled > 1 ? "s" : ""} left
+                      </span>
                     </div>
 
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-3">

@@ -211,6 +211,8 @@ export type Database = {
           location_city: string | null
           location_country: string | null
           location_suburb: string | null
+          positions_available: number
+          positions_filled: number
           requirements: string | null
           skills_required: string[] | null
           starts_at: string | null
@@ -231,6 +233,8 @@ export type Database = {
           location_city?: string | null
           location_country?: string | null
           location_suburb?: string | null
+          positions_available?: number
+          positions_filled?: number
           requirements?: string | null
           skills_required?: string[] | null
           starts_at?: string | null
@@ -251,6 +255,8 @@ export type Database = {
           location_city?: string | null
           location_country?: string | null
           location_suburb?: string | null
+          positions_available?: number
+          positions_filled?: number
           requirements?: string | null
           skills_required?: string[] | null
           starts_at?: string | null
