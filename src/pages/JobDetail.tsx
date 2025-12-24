@@ -15,6 +15,7 @@ import {
   Building2,
   Calendar,
   CheckCircle,
+  Users,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,6 +32,8 @@ type Job = {
   hourly_rate_min: number | null;
   hourly_rate_max: number | null;
   skills_required: string[] | null;
+  positions_available: number;
+  positions_filled: number;
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
@@ -75,6 +78,8 @@ export default function JobDetail() {
           hourly_rate_min,
           hourly_rate_max,
           skills_required,
+          positions_available,
+          positions_filled,
           starts_at,
           ends_at,
           created_at,
@@ -354,6 +359,10 @@ export default function JobDetail() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type</span>
                   <span className="capitalize">{job.job_type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Positions</span>
+                  <span>{job.positions_available - job.positions_filled} of {job.positions_available} available</span>
                 </div>
                 {job.duration && (
                   <div className="flex justify-between">

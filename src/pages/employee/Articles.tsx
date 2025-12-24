@@ -17,11 +17,31 @@ type Article = {
 };
 
 export default function Articles() {
-  const { user, isEmployee } = useAuthContext();
+  const { user, isEmployee, isLoading: authLoading } = useAuthContext();
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasSubscription, setHasSubscription] = useState(false);
+
+  // Redirect if not logged in as employee
+  if (!authLoading && (!user || !isEmployee())) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container-tight py-8">
+          <div className="text-center py-16 bg-card rounded-xl border border-border/50">
+            <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Login Required</h2>
+            <p className="text-muted-foreground mb-6">
+              Sign in as a job seeker to access the Learning Center.
+            </p>
+            <Button asChild>
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     async function fetchData() {

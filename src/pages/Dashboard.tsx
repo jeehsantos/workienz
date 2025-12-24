@@ -88,32 +88,82 @@ export default function Dashboard() {
 
         {/* Quick actions grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Profile Card */}
-          <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-              <User className="w-6 h-6 text-primary" />
+          {/* Profile Card - Employee */}
+          {isEmployee() && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                <User className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">My Profile</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Set up your profile so contractors can find you.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/employee/profile">Edit Profile</Link>
+              </Button>
             </div>
-            <h3 className="text-lg font-semibold mb-2 font-display">My Profile</h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              Update your profile information and preferences.
-            </p>
-            <Button variant="outline" size="sm">
-              Edit Profile
-            </Button>
-          </div>
+          )}
 
-          {/* Contractor-specific */}
+          {/* Profile Card - Contractor */}
+          {isContractor() && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
+                <User className="w-6 h-6 text-accent" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">Company Profile</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Update your company information.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/contractor/profile">Edit Profile</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Contractor: Post Jobs */}
           {isContractor() && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
                 <Briefcase className="w-6 h-6 text-accent" />
               </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">Post a Job</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Create a new job posting to find workers.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/contractor/post-job">Post Job</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Contractor: My Jobs */}
+          {isContractor() && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
+                <FileText className="w-6 h-6 text-accent" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">My Jobs</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                View and manage your job postings.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/contractor/jobs">View Jobs</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Contractor-specific: Find Workers */}
+          {isContractor() && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
+                <Users className="w-6 h-6 text-accent" />
+              </div>
               <h3 className="text-lg font-semibold mb-2 font-display">Find Workers</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Search through verified workers and fill positions quickly.
               </p>
-              <Button variant="outline" size="sm">
-                Browse Workers
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/contractor/search-workers">Browse Workers</Link>
               </Button>
             </div>
           )}
@@ -140,12 +190,28 @@ export default function Dashboard() {
               <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-secondary-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2 font-display">Manage Articles</h3>
+              <h3 className="text-lg font-semibold mb-2 font-display">Write Article</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Create and manage educational content for employees.
+                Create educational content for employees.
               </p>
-              <Button variant="outline" size="sm">
-                Write Article
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/writer/new-article">Write Article</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Writer: My Articles */}
+          {isWriter() && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
+                <FileText className="w-6 h-6 text-secondary-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">My Articles</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                View and manage your published articles.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/writer/articles">View Articles</Link>
               </Button>
             </div>
           )}
