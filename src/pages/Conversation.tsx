@@ -92,24 +92,26 @@ export default function Conversation() {
         return;
       }
 
-      // Fetch job application and job info
-      const { data: appData } = await supabase
-        .from("job_applications")
-        .select(`
-          id,
-          job_id
-        `)
-        .eq("id", convData.job_application_id)
-        .single();
-
-      let jobTitle = "Job";
-      if (appData) {
-        const { data: jobData } = await supabase
-          .from("jobs")
-          .select("title")
-          .eq("id", appData.job_id)
+      // Fetch job application and job info if exists
+      let jobTitle = "Direct Contact";
+      if (convData.job_application_id) {
+        const { data: appData } = await supabase
+          .from("job_applications")
+          .select(`
+            id,
+            job_id
+          `)
+          .eq("id", convData.job_application_id)
           .single();
-        if (jobData) jobTitle = jobData.title;
+
+        if (appData) {
+          const { data: jobData } = await supabase
+            .from("jobs")
+            .select("title")
+            .eq("id", appData.job_id)
+            .single();
+          if (jobData) jobTitle = jobData.title;
+        }
       }
 
       // Determine other party
@@ -149,7 +151,7 @@ export default function Conversation() {
 
       setConversation({
         ...convData,
-        job_application: appData ? { id: appData.id, job: { title: jobTitle } } : null,
+        job_application: convData.job_application_id ? { id: convData.job_application_id, job: { title: jobTitle } } : null,
         other_party: profileData ? { ...profileData, phone } : null,
       });
 
@@ -361,7 +363,7 @@ export default function Conversation() {
                   {conversation.other_party?.full_name || "User"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Re: {conversation.job_application?.job.title || "Job Application"}
+                  {conversation.job_application?.job.title || "Direct Contact"}
                 </p>
               </div>
             </div>
