@@ -98,7 +98,7 @@ export default function WorkerProfile() {
 
     setIsStartingChat(true);
 
-    // Check if there's already a conversation with this worker through any job application
+    // Check if there's already a conversation with this worker
     const { data: existingConversation } = await supabase
       .from("conversations")
       .select("id")
@@ -112,11 +112,39 @@ export default function WorkerProfile() {
       return;
     }
 
-    toast({
-      title: "No Active Application",
-      description: "You can start a conversation when a job seeker applies to your job.",
-    });
-    setIsStartingChat(false);
+    // Check if worker is available
+    if (!worker.is_available) {
+      toast({
+        title: "Not Available",
+        description: "This job seeker is not currently available for work.",
+      });
+      setIsStartingChat(false);
+      return;
+    }
+
+    // Create a direct conversation (without job application)
+    const { data: newConv, error } = await supabase
+      .from("conversations")
+      .insert({
+        contractor_user_id: user.id,
+        employee_user_id: worker.user_id,
+        job_application_id: null, // Direct contact - no application
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start conversation. Please try again.",
+        variant: "destructive",
+      });
+      setIsStartingChat(false);
+      return;
+    }
+
+    navigate(`/messages/${newConv.id}`);
   };
 
   if (isLoading) {
@@ -260,21 +288,29 @@ export default function WorkerProfile() {
             {user && isContractor() && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4">Contact</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  When a job seeker applies to your job, you can message them directly.
-                </p>
-                <Button 
-                  className="w-full" 
-                  onClick={handleStartConversation}
-                  disabled={isStartingChat}
-                >
-                  {isStartingChat ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                  )}
-                  View Messages
-                </Button>
+                {worker.is_available ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Start a conversation with this job seeker directly.
+                    </p>
+                    <Button 
+                      className="w-full" 
+                      onClick={handleStartConversation}
+                      disabled={isStartingChat}
+                    >
+                      {isStartingChat ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                      )}
+                      Start Conversation
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This job seeker is not currently available for work.
+                  </p>
+                )}
               </div>
             )}
 

@@ -200,7 +200,7 @@ export type Database = {
           created_at: string
           employee_user_id: string
           id: string
-          job_application_id: string
+          job_application_id: string | null
           status: string
           updated_at: string
         }
@@ -209,7 +209,7 @@ export type Database = {
           created_at?: string
           employee_user_id: string
           id?: string
-          job_application_id: string
+          job_application_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -218,7 +218,7 @@ export type Database = {
           created_at?: string
           employee_user_id?: string
           id?: string
-          job_application_id?: string
+          job_application_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -226,7 +226,7 @@ export type Database = {
           {
             foreignKeyName: "conversations_job_application_id_fkey"
             columns: ["job_application_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "job_applications"
             referencedColumns: ["id"]
           },

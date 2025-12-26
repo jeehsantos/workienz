@@ -46,21 +46,23 @@ export default function MyConversations({ userId }: MyConversationsProps) {
       // Enrich with job titles and other party names
       const enriched = await Promise.all(
         (convData || []).map(async (conv) => {
-          // Get job title through job application
-          let jobTitle = "Job Application";
-          const { data: appData } = await supabase
-            .from("job_applications")
-            .select("job_id")
-            .eq("id", conv.job_application_id)
-            .maybeSingle();
-
-          if (appData) {
-            const { data: jobData } = await supabase
-              .from("jobs")
-              .select("title")
-              .eq("id", appData.job_id)
+          // Get job title through job application (if exists)
+          let jobTitle = "Direct Contact";
+          if (conv.job_application_id) {
+            const { data: appData } = await supabase
+              .from("job_applications")
+              .select("job_id")
+              .eq("id", conv.job_application_id)
               .maybeSingle();
-            if (jobData) jobTitle = jobData.title;
+
+            if (appData) {
+              const { data: jobData } = await supabase
+                .from("jobs")
+                .select("title")
+                .eq("id", appData.job_id)
+                .maybeSingle();
+              if (jobData) jobTitle = jobData.title;
+            }
           }
 
           // Get other party name
