@@ -15,6 +15,7 @@ import {
   Crown,
   Star,
   Building,
+  HardHat,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -361,10 +362,19 @@ export default function AdminDashboard() {
     setUpdatingId(null);
   }
 
+
   const filteredUsers = users.filter(
     (u) =>
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter for employees specifically
+  const filteredEmployees = users.filter(
+    (u) =>
+      u.roles.includes("employee") &&
+      (u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const filteredContractors = contractors.filter(
@@ -405,10 +415,14 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsList className="grid grid-cols-4 w-full max-w-lg">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="employees" className="flex items-center gap-2">
+              <HardHat className="w-4 h-4" />
+              Employees
             </TabsTrigger>
             <TabsTrigger value="contractors" className="flex items-center gap-2">
               <Building className="w-4 h-4" />
@@ -484,6 +498,56 @@ export default function AdminDashboard() {
                           </TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+
+              {/* Employees Tab */}
+              <TabsContent value="employees" className="space-y-4">
+                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Premium</TableHead>
+                        <TableHead>Joined</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEmployees.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                            No employees found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredEmployees.map((u) => (
+                          <TableRow key={u.user_id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{u.full_name || "No name"}</p>
+                                <p className="text-sm text-muted-foreground">{u.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  checked={u.has_subscription}
+                                  onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)}
+                                  disabled={updatingId === u.user_id}
+                                />
+                                {u.has_subscription && (
+                                  <Crown className="w-4 h-4 text-yellow-500" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {new Date(u.created_at).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
