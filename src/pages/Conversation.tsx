@@ -231,9 +231,10 @@ export default function Conversation() {
 
     setIsClosing(true);
 
+    // Delete the conversation - the trigger will handle restoring positions
     const { error } = await supabase
       .from("conversations")
-      .update({ status: "closed" })
+      .delete()
       .eq("id", id);
 
     setIsClosing(false);
@@ -250,7 +251,7 @@ export default function Conversation() {
 
     toast({
       title: "Conversation Closed",
-      description: "This conversation has been closed.",
+      description: "This conversation has been closed and removed.",
     });
 
     navigate("/dashboard");
@@ -392,9 +393,8 @@ export default function Conversation() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Close this conversation?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          This will permanently close the chat. You won't be able to send
-                          or receive messages anymore. Make sure you've exchanged contact
-                          information if needed.
+                          This will permanently remove the chat. If this is linked to a job application, 
+                          the position will become available again for other applicants.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

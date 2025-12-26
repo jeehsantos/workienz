@@ -98,20 +98,6 @@ export default function WorkerProfile() {
 
     setIsStartingChat(true);
 
-    // Check if there's already a conversation with this worker
-    const { data: existingConversation } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("contractor_user_id", user.id)
-      .eq("employee_user_id", worker.user_id)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (existingConversation) {
-      navigate(`/messages/${existingConversation.id}`);
-      return;
-    }
-
     // Check if worker is available
     if (!worker.is_available) {
       toast({
