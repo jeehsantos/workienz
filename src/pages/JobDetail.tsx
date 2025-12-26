@@ -138,17 +138,16 @@ export default function JobDetail() {
   }, [user, id, isEmployee]);
 
   const handleApply = async () => {
-    if (!employeeProfileId || !id) return;
+    if (!employeeProfileId || !id || !user) return;
 
     setIsApplying(true);
 
-    const { error } = await supabase.from("job_applications").insert({
+    // Insert job application
+    const { data: appData, error } = await supabase.from("job_applications").insert({
       job_id: id,
       employee_id: employeeProfileId,
       cover_letter: coverLetter || null,
-    });
-
-    setIsApplying(false);
+    }).select("id").single();
 
     if (error) {
       console.error("Error applying:", error);
@@ -157,14 +156,35 @@ export default function JobDetail() {
         description: "Failed to submit application. Please try again.",
         variant: "destructive",
       });
+      setIsApplying(false);
       return;
     }
 
+    // Auto-create conversation for this application
+    if (appData && job?.contractor) {
+      // Get contractor's user_id
+      const { data: contractorData } = await supabase
+        .from("contractor_profiles")
+        .select("user_id")
+        .eq("id", job.contractor.id)
+        .single();
+
+      if (contractorData) {
+        // Create conversation
+        await supabase.from("conversations").insert({
+          job_application_id: appData.id,
+          contractor_user_id: contractorData.user_id,
+          employee_user_id: user.id,
+        });
+      }
+    }
+
+    setIsApplying(false);
     setHasApplied(true);
     setShowApplyForm(false);
     toast({
       title: "Application Submitted!",
-      description: "Your application has been sent to the employer.",
+      description: "Your application has been sent to the employer. They can now message you.",
     });
   };
 
