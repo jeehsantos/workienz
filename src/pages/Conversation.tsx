@@ -64,7 +64,6 @@ export default function Conversation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [showContact, setShowContact] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -255,6 +254,71 @@ export default function Conversation() {
     navigate("/dashboard");
   };
 
+  const handleShareContact = async () => {
+    if (!user || !id || conversation?.status !== "active") return;
+
+    setIsSending(true);
+
+    // Get current user's profile and phone from contractor/employee profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email, phone")
+      .eq("user_id", user.id)
+      .single();
+
+    let phone = profile?.phone || null;
+    
+    // Try to get phone from employee or contractor profile
+    if (!phone) {
+      const isContractor = conversation?.contractor_user_id === user.id;
+      if (isContractor) {
+        const { data: contProfile } = await supabase
+          .from("contractor_profiles")
+          .select("phone")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        phone = contProfile?.phone || null;
+      } else {
+        const { data: empProfile } = await supabase
+          .from("employee_profiles")
+          .select("phone")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        phone = empProfile?.phone || null;
+      }
+    }
+
+    const contactInfo = [
+      "📋 My Contact Information:",
+      `Name: ${profile?.full_name || "Not provided"}`,
+      `Email: ${profile?.email || "Not provided"}`,
+      phone ? `Phone: ${phone}` : null,
+    ].filter(Boolean).join("\n");
+
+    const { error } = await supabase.from("messages").insert({
+      conversation_id: id,
+      sender_user_id: user.id,
+      content: contactInfo,
+    });
+
+    setIsSending(false);
+
+    if (error) {
+      console.error("Error sharing contact:", error);
+      toast({
+        title: "Error",
+        description: "Failed to share contact information.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Contact Shared",
+      description: "Your contact information has been sent.",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -308,10 +372,11 @@ export default function Conversation() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowContact(!showContact)}
+                    onClick={handleShareContact}
+                    disabled={isSending}
                   >
                     <Phone className="w-4 h-4 mr-2" />
-                    Share Contact
+                    Share My Contact
                   </Button>
 
                   <AlertDialog>
@@ -347,31 +412,6 @@ export default function Conversation() {
             </div>
           </div>
 
-          {/* Contact info panel */}
-          {showContact && !isClosed && (
-            <div className="mt-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
-              <h3 className="font-medium mb-2">Contact Information</h3>
-              <div className="space-y-2 text-sm">
-                {conversation.other_party?.email && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span>{conversation.other_party.email}</span>
-                  </div>
-                )}
-                {conversation.other_party?.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span>{conversation.other_party.phone}</span>
-                  </div>
-                )}
-                {!conversation.other_party?.phone && (
-                  <p className="text-muted-foreground italic">
-                    Phone number not shared yet
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
