@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, User, ArrowLeft, Loader2 } from "lucide-react";
+import { Briefcase, User, ArrowLeft, Loader2, PenLine } from "lucide-react";
 import { z } from "zod";
 
-type UserType = "contractor" | "employee";
+type UserType = "contractor" | "employee" | "writer";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -157,7 +157,7 @@ export default function Auth() {
           {isSignUp && (
             <div className="mb-6">
               <Label className="text-sm font-medium mb-3 block">I want to...</Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setUserType("contractor")}
@@ -191,6 +191,23 @@ export default function Auth() {
                   />
                   <p className="font-medium text-sm">Find Work</p>
                   <p className="text-xs text-muted-foreground">Employee</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserType("writer")}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    userType === "writer"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <PenLine
+                    className={`w-6 h-6 mx-auto mb-2 ${
+                      userType === "writer" ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  />
+                  <p className="font-medium text-sm">Write Content</p>
+                  <p className="text-xs text-muted-foreground">Writer</p>
                 </button>
               </div>
             </div>
