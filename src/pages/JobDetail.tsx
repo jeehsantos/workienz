@@ -13,11 +13,27 @@ import {
   Clock,
   DollarSign,
   Building2,
-  Calendar,
   CheckCircle,
   Users,
+  AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+
+type JobShift = {
+  id: string;
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  break_minutes: number;
+  break_paid: boolean;
+};
+
+type JobWorkDate = {
+  id: string;
+  work_date: string;
+};
 
 type Job = {
   id: string;
@@ -37,12 +53,16 @@ type Job = {
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
+  industry: string | null;
+  schedule_type: string | null;
   contractor: {
     id: string;
     company_name: string;
     company_description: string | null;
     industry: string | null;
   } | null;
+  shifts: JobShift[];
+  work_dates: JobWorkDate[];
 };
 
 export default function JobDetail() {
@@ -58,6 +78,10 @@ export default function JobDetail() {
   const [coverLetter, setCoverLetter] = useState("");
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
+  const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [activeApplicationsCount, setActiveApplicationsCount] = useState(0);
+  const [applicationError, setApplicationError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchJob() {
@@ -83,7 +107,9 @@ export default function JobDetail() {
           starts_at,
           ends_at,
           created_at,
-          contractor_id
+          contractor_id,
+          industry,
+          schedule_type
         `)
         .eq("id", id)
         .single();
@@ -101,7 +127,29 @@ export default function JobDetail() {
         .eq("id", data.contractor_id)
         .single();
 
-      setJob({ ...data, contractor });
+      // Fetch shifts if schedule_type is shifts
+      let shifts: JobShift[] = [];
+      if (data.schedule_type === "shifts") {
+        const { data: shiftsData } = await supabase
+          .from("job_shifts")
+          .select("*")
+          .eq("job_id", id)
+          .order("shift_date", { ascending: true });
+        shifts = shiftsData || [];
+      }
+
+      // Fetch work dates if schedule_type is fixed_term
+      let work_dates: JobWorkDate[] = [];
+      if (data.schedule_type === "fixed_term") {
+        const { data: datesData } = await supabase
+          .from("job_work_dates")
+          .select("*")
+          .eq("job_id", id)
+          .order("work_date", { ascending: true });
+        work_dates = datesData || [];
+      }
+
+      setJob({ ...data, contractor, shifts, work_dates });
       setIsLoading(false);
     }
 
@@ -115,12 +163,13 @@ export default function JobDetail() {
       // Get employee profile
       const { data: profile } = await supabase
         .from("employee_profiles")
-        .select("id")
+        .select("id, industry")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (profile) {
         setEmployeeProfileId(profile.id);
+        setEmployeeIndustry(profile.industry);
 
         // Check if already applied
         const { data: application } = await supabase
@@ -131,16 +180,60 @@ export default function JobDetail() {
           .maybeSingle();
 
         setHasApplied(!!application);
+
+        // Get active applications count (pending or shortlisted, not rejected or hired)
+        const { count } = await supabase
+          .from("job_applications")
+          .select("id", { count: "exact", head: true })
+          .eq("employee_id", profile.id)
+          .in("status", ["pending", "shortlisted"]);
+
+        setActiveApplicationsCount(count || 0);
       }
+
+      // Check subscription
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      setHasActiveSubscription(!!subscription);
     }
 
     checkApplication();
   }, [user, id, isEmployee]);
 
+  const canApply = () => {
+    if (!job || !employeeProfileId) return { allowed: false, reason: "Complete your profile first" };
+    
+    // Check industry match
+    if (job.industry && employeeIndustry && job.industry !== employeeIndustry) {
+      return { allowed: false, reason: `This job requires ${job.industry} industry experience. Update your profile to apply.` };
+    }
+
+    // Check application limits
+    if (!hasActiveSubscription) {
+      if (activeApplicationsCount >= 1) {
+        return { allowed: false, reason: "Free users can only have 1 active application. Upgrade to Premium for unlimited applications." };
+      }
+    }
+
+    return { allowed: true, reason: null };
+  };
+
   const handleApply = async () => {
     if (!employeeProfileId || !id || !user) return;
 
+    const eligibility = canApply();
+    if (!eligibility.allowed) {
+      setApplicationError(eligibility.reason);
+      return;
+    }
+
     setIsApplying(true);
+    setApplicationError(null);
 
     // Insert job application
     const { data: appData, error } = await supabase.from("job_applications").insert({
@@ -211,6 +304,8 @@ export default function JobDetail() {
     );
   }
 
+  const eligibility = canApply();
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
@@ -225,9 +320,14 @@ export default function JobDetail() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-card rounded-xl p-6 border border-border/50">
-              <Badge variant="outline" className="capitalize mb-3">
-                {job.job_type}
-              </Badge>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <Badge variant="outline" className="capitalize">
+                  {job.job_type}
+                </Badge>
+                {job.industry && (
+                  <Badge variant="secondary">{job.industry}</Badge>
+                )}
+              </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>
               <p className="text-muted-foreground mb-4">
                 {job.contractor?.company_name || "Company"}
@@ -282,6 +382,48 @@ export default function JobDetail() {
               )}
             </div>
 
+            {/* Schedule Section */}
+            {(job.shifts.length > 0 || job.work_dates.length > 0) && (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  {job.schedule_type === "shifts" ? "Shift Schedule" : "Work Dates"}
+                </h3>
+                
+                {job.schedule_type === "shifts" && job.shifts.length > 0 && (
+                  <div className="space-y-3">
+                    {job.shifts.map((shift) => (
+                      <div key={shift.id} className="p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">
+                            {format(new Date(shift.shift_date), "EEEE, MMM d, yyyy")}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {shift.start_time} - {shift.end_time}
+                          </span>
+                        </div>
+                        {shift.break_minutes > 0 && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {shift.break_minutes} min break ({shift.break_paid ? "paid" : "unpaid"})
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {job.schedule_type === "fixed_term" && job.work_dates.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {job.work_dates.map((wd) => (
+                      <Badge key={wd.id} variant="outline">
+                        {format(new Date(wd.work_date), "MMM d")}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Apply Section */}
             {user && isEmployee() && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
@@ -304,8 +446,33 @@ export default function JobDetail() {
                       <Link to="/employee/profile">Complete Profile</Link>
                     </Button>
                   </div>
+                ) : !eligibility.allowed ? (
+                  <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Cannot Apply</p>
+                      <p className="text-sm text-muted-foreground">
+                        {eligibility.reason}
+                      </p>
+                      {eligibility.reason?.includes("Premium") && (
+                        <Button asChild size="sm" className="mt-2">
+                          <Link to="/pricing">Upgrade to Premium</Link>
+                        </Button>
+                      )}
+                      {eligibility.reason?.includes("industry") && (
+                        <Button asChild size="sm" variant="outline" className="mt-2">
+                          <Link to="/employee/profile">Update Profile</Link>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 ) : showApplyForm ? (
                   <div className="space-y-4">
+                    {applicationError && (
+                      <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+                        {applicationError}
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="cover_letter">Cover Letter (Optional)</Label>
                       <Textarea
@@ -380,6 +547,12 @@ export default function JobDetail() {
                   <span className="text-muted-foreground">Type</span>
                   <span className="capitalize">{job.job_type}</span>
                 </div>
+                {job.industry && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Industry</span>
+                    <span>{job.industry}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Positions</span>
                   <span>{job.positions_available - job.positions_filled} of {job.positions_available} available</span>
@@ -394,6 +567,12 @@ export default function JobDetail() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Start Date</span>
                     <span>{new Date(job.starts_at).toLocaleDateString()}</span>
+                  </div>
+                )}
+                {job.ends_at && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">End Date</span>
+                    <span>{new Date(job.ends_at).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
