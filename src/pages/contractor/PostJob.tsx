@@ -7,8 +7,37 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+type Shift = {
+  id: string;
+  date: Date | undefined;
+  start_time: string;
+  end_time: string;
+  break_minutes: string;
+  break_paid: boolean;
+};
+
+const INDUSTRIES = [
+  "Agriculture",
+  "Construction",
+  "Education",
+  "Events & Hospitality",
+  "Food & Beverage",
+  "Healthcare",
+  "Logistics & Warehousing",
+  "Manufacturing",
+  "Office & Admin",
+  "Retail",
+  "Transportation",
+  "Other",
+];
 
 export default function PostJob() {
   const navigate = useNavigate();
@@ -31,7 +60,20 @@ export default function PostJob() {
     hourly_rate_min: "",
     hourly_rate_max: "",
     positions_available: "1",
+    industry: "",
   });
+
+  const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
+  
+  // Shifts state
+  const [shifts, setShifts] = useState<Shift[]>([
+    { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
+  ]);
+
+  // Fixed term state
+  const [fixedTermDates, setFixedTermDates] = useState<Date[]>([]);
+  const [fixedTermStart, setFixedTermStart] = useState<Date | undefined>();
+  const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
 
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
@@ -71,6 +113,20 @@ export default function PostJob() {
     }
   }, [user, isContractor, toast]);
 
+  const addShift = () => {
+    setShifts([...shifts, { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }]);
+  };
+
+  const removeShift = (id: string) => {
+    if (shifts.length > 1) {
+      setShifts(shifts.filter(s => s.id !== id));
+    }
+  };
+
+  const updateShift = (id: string, field: keyof Shift, value: any) => {
+    setShifts(shifts.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
   const addSkill = () => {
     if (skillInput.trim() && !skills.includes(skillInput.trim())) {
       setSkills([...skills, skillInput.trim()]);
@@ -82,13 +138,40 @@ export default function PostJob() {
     setSkills(skills.filter((s) => s !== skill));
   };
 
+  const calculateTotalDays = () => {
+    return fixedTermDates.length;
+  };
+
   const handleSubmit = async (e: React.FormEvent, status: "draft" | "published") => {
     e.preventDefault();
     if (!contractorProfile) return;
 
+    // Validate schedule
+    if (scheduleType === "shifts") {
+      const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
+      if (validShifts.length === 0 && status === "published") {
+        toast({
+          title: "Please add at least one shift",
+          description: "Add shift details before publishing.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      if (fixedTermDates.length === 0 && status === "published") {
+        toast({
+          title: "Please select work dates",
+          description: "Select the dates when work is required.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
-    const { error } = await supabase.from("jobs").insert({
+    // Insert job
+    const { data: jobData, error } = await supabase.from("jobs").insert({
       contractor_id: contractorProfile.id,
       title: formData.title,
       description: formData.description,
@@ -103,19 +186,50 @@ export default function PostJob() {
       skills_required: skills.length > 0 ? skills : null,
       positions_available: parseInt(formData.positions_available) || 1,
       status,
-    });
+      industry: formData.industry || null,
+      schedule_type: scheduleType,
+      starts_at: scheduleType === "fixed_term" && fixedTermStart ? fixedTermStart.toISOString() : null,
+      ends_at: scheduleType === "fixed_term" && fixedTermEnd ? fixedTermEnd.toISOString() : null,
+    }).select("id").single();
 
-    setIsSubmitting(false);
-
-    if (error) {
+    if (error || !jobData) {
       console.error("Error creating job:", error);
       toast({
         title: "Error",
         description: "Failed to create job posting. Please try again.",
         variant: "destructive",
       });
+      setIsSubmitting(false);
       return;
     }
+
+    // Insert shifts or work dates
+    if (scheduleType === "shifts") {
+      const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
+      if (validShifts.length > 0) {
+        const shiftsData = validShifts.map(s => ({
+          job_id: jobData.id,
+          shift_date: format(s.date!, "yyyy-MM-dd"),
+          start_time: s.start_time,
+          end_time: s.end_time,
+          break_minutes: parseInt(s.break_minutes) || 0,
+          break_paid: s.break_paid,
+        }));
+        
+        await supabase.from("job_shifts").insert(shiftsData);
+      }
+    } else {
+      if (fixedTermDates.length > 0) {
+        const workDatesData = fixedTermDates.map(d => ({
+          job_id: jobData.id,
+          work_date: format(d, "yyyy-MM-dd"),
+        }));
+        
+        await supabase.from("job_work_dates").insert(workDatesData);
+      }
+    }
+
+    setIsSubmitting(false);
 
     toast({
       title: status === "published" ? "Job Published!" : "Draft Saved",
@@ -203,7 +317,24 @@ export default function PostJob() {
             />
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="industry">Industry *</Label>
+              <Select
+                value={formData.industry}
+                onValueChange={(value) => setFormData({ ...formData, industry: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDUSTRIES.map((ind) => (
+                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="job_type">Job Type</Label>
               <Select
@@ -220,7 +351,9 @@ export default function PostJob() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="duration">Duration</Label>
               <Input
@@ -242,6 +375,211 @@ export default function PostJob() {
                 required
               />
             </div>
+          </div>
+
+          {/* Schedule Type Section */}
+          <div className="space-y-4 p-4 bg-card rounded-lg border border-border/50">
+            <Label className="text-base font-semibold">Schedule Type *</Label>
+            <RadioGroup
+              value={scheduleType}
+              onValueChange={(value: "shifts" | "fixed_term") => setScheduleType(value)}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="shifts" id="shifts" />
+                <Label htmlFor="shifts" className="font-normal cursor-pointer">Shifts</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="fixed_term" id="fixed_term" />
+                <Label htmlFor="fixed_term" className="font-normal cursor-pointer">Fixed Term</Label>
+              </div>
+            </RadioGroup>
+
+            {scheduleType === "shifts" ? (
+              <div className="space-y-4">
+                {shifts.map((shift, index) => (
+                  <div key={shift.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Shift {index + 1}</span>
+                      {shifts.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeShift(shift.id)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Date *</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !shift.date && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {shift.date ? format(shift.date, "PPP") : "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={shift.date}
+                              onSelect={(date) => updateShift(shift.id, "date", date)}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Start Time *</Label>
+                          <Input
+                            type="time"
+                            value={shift.start_time}
+                            onChange={(e) => updateShift(shift.id, "start_time", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">End Time *</Label>
+                          <Input
+                            type="time"
+                            value={shift.end_time}
+                            onChange={(e) => updateShift(shift.id, "end_time", e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Break (minutes)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={shift.break_minutes}
+                          onChange={(e) => updateShift(shift.id, "break_minutes", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Break Paid?</Label>
+                        <Select
+                          value={shift.break_paid ? "yes" : "no"}
+                          onValueChange={(value) => updateShift(shift.id, "break_paid", value === "yes")}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="no">No</SelectItem>
+                            <SelectItem value="yes">Yes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button type="button" variant="outline" onClick={addShift} className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Another Shift
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Start Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !fixedTermStart && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {fixedTermStart ? format(fixedTermStart, "PPP") : "Select start"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={fixedTermStart}
+                          onSelect={setFixedTermStart}
+                          disabled={(date) => date < new Date()}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <Label className="text-xs">End Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !fixedTermEnd && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {fixedTermEnd ? format(fixedTermEnd, "PPP") : "Select end"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={fixedTermEnd}
+                          onSelect={setFixedTermEnd}
+                          disabled={(date) => date < new Date() || (fixedTermStart && date < fixedTermStart)}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Select Work Dates *</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {calculateTotalDays()} days selected
+                    </span>
+                  </div>
+                  <div className="border rounded-lg p-2 flex justify-center">
+                    <Calendar
+                      mode="multiple"
+                      selected={fixedTermDates}
+                      onSelect={(dates) => setFixedTermDates(dates || [])}
+                      disabled={(date) => {
+                        if (date < new Date()) return true;
+                        if (fixedTermStart && date < fixedTermStart) return true;
+                        if (fixedTermEnd && date > fixedTermEnd) return true;
+                        return false;
+                      }}
+                      className="pointer-events-auto"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4">

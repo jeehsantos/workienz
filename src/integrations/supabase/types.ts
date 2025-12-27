@@ -243,6 +243,7 @@ export type Database = {
           hourly_rate_max: number | null
           hourly_rate_min: number | null
           id: string
+          industry: string | null
           is_available: boolean | null
           phone: string | null
           skills: string[] | null
@@ -260,6 +261,7 @@ export type Database = {
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
+          industry?: string | null
           is_available?: boolean | null
           phone?: string | null
           skills?: string[] | null
@@ -277,6 +279,7 @@ export type Database = {
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
+          industry?: string | null
           is_available?: boolean | null
           phone?: string | null
           skills?: string[] | null
@@ -331,6 +334,76 @@ export type Database = {
           },
         ]
       }
+      job_shifts: {
+        Row: {
+          break_minutes: number | null
+          break_paid: boolean | null
+          created_at: string
+          end_time: string
+          id: string
+          job_id: string
+          shift_date: string
+          start_time: string
+        }
+        Insert: {
+          break_minutes?: number | null
+          break_paid?: boolean | null
+          created_at?: string
+          end_time: string
+          id?: string
+          job_id: string
+          shift_date: string
+          start_time: string
+        }
+        Update: {
+          break_minutes?: number | null
+          break_paid?: boolean | null
+          created_at?: string
+          end_time?: string
+          id?: string
+          job_id?: string
+          shift_date?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_shifts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_work_dates: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          work_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          work_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_work_dates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           contractor_id: string
@@ -341,6 +414,7 @@ export type Database = {
           hourly_rate_max: number | null
           hourly_rate_min: number | null
           id: string
+          industry: string | null
           job_type: string
           location_city: string | null
           location_country: string | null
@@ -348,6 +422,7 @@ export type Database = {
           positions_available: number
           positions_filled: number
           requirements: string | null
+          schedule_type: string | null
           skills_required: string[] | null
           starts_at: string | null
           status: Database["public"]["Enums"]["job_status"]
@@ -363,6 +438,7 @@ export type Database = {
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
+          industry?: string | null
           job_type?: string
           location_city?: string | null
           location_country?: string | null
@@ -370,6 +446,7 @@ export type Database = {
           positions_available?: number
           positions_filled?: number
           requirements?: string | null
+          schedule_type?: string | null
           skills_required?: string[] | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -385,6 +462,7 @@ export type Database = {
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
+          industry?: string | null
           job_type?: string
           location_city?: string | null
           location_country?: string | null
@@ -392,6 +470,7 @@ export type Database = {
           positions_available?: number
           positions_filled?: number
           requirements?: string | null
+          schedule_type?: string | null
           skills_required?: string[] | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]

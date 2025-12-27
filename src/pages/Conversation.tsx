@@ -10,9 +10,9 @@ import {
   ArrowLeft,
   Send,
   Phone,
-  Mail,
   X,
   AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -38,9 +38,12 @@ type ConversationData = {
   status: string;
   contractor_user_id: string;
   employee_user_id: string;
+  job_application_id: string | null;
   job_application: {
     id: string;
+    status: string;
     job: {
+      id: string;
       title: string;
     };
   } | null;
@@ -54,7 +57,7 @@ type ConversationData = {
 export default function Conversation() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isContractor } = useAuthContext();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +67,7 @@ export default function Conversation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isHiring, setIsHiring] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -94,23 +98,30 @@ export default function Conversation() {
 
       // Fetch job application and job info if exists
       let jobTitle = "Direct Contact";
+      let jobId = null;
+      let applicationStatus = "pending";
       if (convData.job_application_id) {
         const { data: appData } = await supabase
           .from("job_applications")
           .select(`
             id,
-            job_id
+            job_id,
+            status
           `)
           .eq("id", convData.job_application_id)
           .single();
 
         if (appData) {
+          applicationStatus = appData.status;
           const { data: jobData } = await supabase
             .from("jobs")
-            .select("title")
+            .select("id, title")
             .eq("id", appData.job_id)
             .single();
-          if (jobData) jobTitle = jobData.title;
+          if (jobData) {
+            jobTitle = jobData.title;
+            jobId = jobData.id;
+          }
         }
       }
 
@@ -151,7 +162,9 @@ export default function Conversation() {
 
       setConversation({
         ...convData,
-        job_application: convData.job_application_id ? { id: convData.job_application_id, job: { title: jobTitle } } : null,
+        job_application: convData.job_application_id 
+          ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle } } 
+          : null,
         other_party: profileData ? { ...profileData, phone } : null,
       });
 
@@ -231,7 +244,7 @@ export default function Conversation() {
 
     setIsClosing(true);
 
-    // Delete the conversation - the trigger will handle restoring positions
+    // Delete the conversation - the trigger will handle restoring positions and deleting messages/application
     const { error } = await supabase
       .from("conversations")
       .delete()
@@ -243,7 +256,7 @@ export default function Conversation() {
       console.error("Error closing conversation:", error);
       toast({
         title: "Error",
-        description: "Failed to close conversation.",
+        description: "Failed to close conversation. Please try again.",
         variant: "destructive",
       });
       return;
@@ -255,6 +268,40 @@ export default function Conversation() {
     });
 
     navigate("/dashboard");
+  };
+
+  const handleHireApplicant = async () => {
+    if (!conversation?.job_application_id) return;
+
+    setIsHiring(true);
+
+    const { error } = await supabase
+      .from("job_applications")
+      .update({ status: "hired" })
+      .eq("id", conversation.job_application_id);
+
+    setIsHiring(false);
+
+    if (error) {
+      console.error("Error hiring applicant:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update application status.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Update local state
+    setConversation(prev => prev ? {
+      ...prev,
+      job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null
+    } : null);
+
+    toast({
+      title: "Applicant Hired!",
+      description: "The application status has been updated to hired.",
+    });
   };
 
   const handleShareContact = async () => {
@@ -273,8 +320,8 @@ export default function Conversation() {
     
     // Try to get phone from employee or contractor profile
     if (!phone) {
-      const isContractor = conversation?.contractor_user_id === user.id;
-      if (isContractor) {
+      const isContractorUser = conversation?.contractor_user_id === user.id;
+      if (isContractorUser) {
         const { data: contProfile } = await supabase
           .from("contractor_profiles")
           .select("phone")
@@ -346,6 +393,8 @@ export default function Conversation() {
   }
 
   const isClosed = conversation.status === "closed";
+  const isUserContractor = conversation.contractor_user_id === user?.id;
+  const isHired = conversation.job_application?.status === "hired";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -370,6 +419,27 @@ export default function Conversation() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Show Hired badge or Hire button */}
+              {conversation.job_application && isUserContractor && !isClosed && (
+                isHired ? (
+                  <span className="flex items-center gap-1 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Hired
+                  </span>
+                ) : (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleHireApplicant}
+                    disabled={isHiring}
+                  >
+                    {isHiring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Hire
+                  </Button>
+                )
+              )}
+
               {!isClosed && (
                 <>
                   <Button

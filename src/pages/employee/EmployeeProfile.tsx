@@ -4,12 +4,26 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Plus, X } from "lucide-react";
+
+const INDUSTRIES = [
+  "Agriculture",
+  "Construction",
+  "Education",
+  "Events & Hospitality",
+  "Food & Beverage",
+  "Healthcare",
+  "Logistics & Warehousing",
+  "Manufacturing",
+  "Office & Admin",
+  "Retail",
+  "Transportation",
+  "Other",
+];
 
 export default function EmployeeProfile() {
   const navigate = useNavigate();
@@ -31,6 +45,7 @@ export default function EmployeeProfile() {
     availability: "flexible",
     is_available: true,
     phone: "",
+    industry: "",
   });
 
   const [skills, setSkills] = useState<string[]>([]);
@@ -67,6 +82,7 @@ export default function EmployeeProfile() {
           availability: data.availability || "flexible",
           is_available: data.is_available ?? true,
           phone: (data as any).phone || "",
+          industry: (data as any).industry || "",
         });
         setSkills(data.skills || []);
       }
@@ -109,6 +125,7 @@ export default function EmployeeProfile() {
       is_available: formData.is_available,
       skills: skills.length > 0 ? skills : null,
       phone: formData.phone || null,
+      industry: formData.industry || null,
     };
 
     let error;
@@ -194,6 +211,26 @@ export default function EmployeeProfile() {
               onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
               placeholder="e.g., Experienced Warehouse Worker"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="industry">Industry *</Label>
+            <Select
+              value={formData.industry}
+              onValueChange={(value) => setFormData({ ...formData, industry: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select your industry" />
+              </SelectTrigger>
+              <SelectContent>
+                {INDUSTRIES.map((ind) => (
+                  <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              You can only apply to jobs in your selected industry
+            </p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4">
