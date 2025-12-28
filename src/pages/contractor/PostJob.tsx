@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Plus, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -63,6 +64,7 @@ export default function PostJob() {
     industry: "",
   });
 
+  const [experienceRequired, setExperienceRequired] = useState(false);
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   
   // Shifts state
@@ -70,8 +72,7 @@ export default function PostJob() {
     { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
   ]);
 
-  // Fixed term state
-  const [fixedTermDates, setFixedTermDates] = useState<Date[]>([]);
+  // Fixed term state - simple start and end dates
   const [fixedTermStart, setFixedTermStart] = useState<Date | undefined>();
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
 
@@ -138,8 +139,13 @@ export default function PostJob() {
     setSkills(skills.filter((s) => s !== skill));
   };
 
-  const calculateTotalDays = () => {
-    return fixedTermDates.length;
+  const calculateDuration = () => {
+    if (fixedTermStart && fixedTermEnd) {
+      const diffTime = Math.abs(fixedTermEnd.getTime() - fixedTermStart.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return diffDays;
+    }
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent, status: "draft" | "published") => {
@@ -158,10 +164,10 @@ export default function PostJob() {
         return;
       }
     } else {
-      if (fixedTermDates.length === 0 && status === "published") {
+      if (!fixedTermStart && status === "published") {
         toast({
-          title: "Please select work dates",
-          description: "Select the dates when work is required.",
+          title: "Please select a start date",
+          description: "A start date is required for fixed term jobs.",
           variant: "destructive",
         });
         return;
@@ -188,8 +194,9 @@ export default function PostJob() {
       status,
       industry: formData.industry || null,
       schedule_type: scheduleType,
-      starts_at: scheduleType === "fixed_term" && fixedTermStart ? fixedTermStart.toISOString() : null,
-      ends_at: scheduleType === "fixed_term" && fixedTermEnd ? fixedTermEnd.toISOString() : null,
+      starts_at: fixedTermStart ? fixedTermStart.toISOString() : null,
+      ends_at: fixedTermEnd ? fixedTermEnd.toISOString() : null,
+      experience_required: experienceRequired,
     }).select("id").single();
 
     if (error || !jobData) {
@@ -203,7 +210,7 @@ export default function PostJob() {
       return;
     }
 
-    // Insert shifts or work dates
+    // Insert shifts if schedule type is shifts
     if (scheduleType === "shifts") {
       const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
       if (validShifts.length > 0) {
@@ -217,15 +224,6 @@ export default function PostJob() {
         }));
         
         await supabase.from("job_shifts").insert(shiftsData);
-      }
-    } else {
-      if (fixedTermDates.length > 0) {
-        const workDatesData = fixedTermDates.map(d => ({
-          job_id: jobData.id,
-          work_date: format(d, "yyyy-MM-dd"),
-        }));
-        
-        await supabase.from("job_work_dates").insert(workDatesData);
       }
     }
 
@@ -266,6 +264,8 @@ export default function PostJob() {
       </div>
     );
   }
+
+  const durationDays = calculateDuration();
 
   return (
     <div className="min-h-screen bg-background">
@@ -314,6 +314,21 @@ export default function PostJob() {
               onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
               placeholder="List any specific requirements or qualifications..."
               rows={3}
+            />
+          </div>
+
+          {/* Experience Required Toggle */}
+          <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border/50">
+            <div>
+              <Label htmlFor="experience_required">Experience Required</Label>
+              <p className="text-sm text-muted-foreground">
+                Only job seekers with experience in this industry can apply
+              </p>
+            </div>
+            <Switch
+              id="experience_required"
+              checked={experienceRequired}
+              onCheckedChange={setExperienceRequired}
             />
           </div>
 
@@ -499,8 +514,8 @@ export default function PostJob() {
             ) : (
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Start Date</Label>
+                  <div className="space-y-2">
+                    <Label>Start Date *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -511,7 +526,7 @@ export default function PostJob() {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {fixedTermStart ? format(fixedTermStart, "PPP") : "Select start"}
+                          {fixedTermStart ? format(fixedTermStart, "PPP") : "Select start date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -527,8 +542,8 @@ export default function PostJob() {
                     </Popover>
                   </div>
                   
-                  <div className="space-y-1">
-                    <Label className="text-xs">End Date</Label>
+                  <div className="space-y-2">
+                    <Label>End Date (Optional)</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
@@ -539,7 +554,7 @@ export default function PostJob() {
                           )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {fixedTermEnd ? format(fixedTermEnd, "PPP") : "Select end"}
+                          {fixedTermEnd ? format(fixedTermEnd, "PPP") : "Select end date"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -555,29 +570,12 @@ export default function PostJob() {
                     </Popover>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Select Work Dates *</Label>
-                    <span className="text-sm text-muted-foreground">
-                      {calculateTotalDays()} days selected
-                    </span>
-                  </div>
-                  <div className="border rounded-lg p-2 flex justify-center">
-                    <Calendar
-                      mode="multiple"
-                      selected={fixedTermDates}
-                      onSelect={(dates) => setFixedTermDates(dates || [])}
-                      disabled={(date) => {
-                        if (date < new Date()) return true;
-                        if (fixedTermStart && date < fixedTermStart) return true;
-                        if (fixedTermEnd && date > fixedTermEnd) return true;
-                        return false;
-                      }}
-                      className="pointer-events-auto"
-                    />
-                  </div>
-                </div>
+                
+                {durationDays && (
+                  <p className="text-sm text-muted-foreground">
+                    Total duration: {durationDays} day{durationDays !== 1 ? 's' : ''}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -613,7 +611,7 @@ export default function PostJob() {
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="hourly_rate_min">Hourly Rate Min ($)</Label>
+              <Label htmlFor="hourly_rate_min">Minimum Rate ($/hr)</Label>
               <Input
                 id="hourly_rate_min"
                 type="number"
@@ -624,7 +622,7 @@ export default function PostJob() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="hourly_rate_max">Hourly Rate Max ($)</Label>
+              <Label htmlFor="hourly_rate_max">Maximum Rate ($/hr)</Label>
               <Input
                 id="hourly_rate_max"
                 type="number"
@@ -637,7 +635,7 @@ export default function PostJob() {
           </div>
 
           <div className="space-y-2">
-            <Label>Required Skills</Label>
+            <Label>Skills Required</Label>
             <div className="flex gap-2">
               <Input
                 value={skillInput}
@@ -675,7 +673,7 @@ export default function PostJob() {
             <Button
               type="button"
               variant="outline"
-              onClick={(e) => handleSubmit(e, "draft")}
+              onClick={(e) => handleSubmit(e as any, "draft")}
               disabled={isSubmitting}
             >
               Save as Draft

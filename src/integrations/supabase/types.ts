@@ -235,57 +235,63 @@ export type Database = {
       employee_profiles: {
         Row: {
           availability: string | null
+          bio: string | null
           city: string | null
           country: string | null
           created_at: string
+          date_of_birth: string | null
           experience_years: number | null
           headline: string | null
-          hourly_rate_max: number | null
-          hourly_rate_min: number | null
           id: string
           industry: string | null
           is_available: boolean | null
+          languages: string[] | null
           phone: string | null
           skills: string[] | null
           suburb: string | null
           updated_at: string
           user_id: string
+          visa_status: string | null
         }
         Insert: {
           availability?: string | null
+          bio?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
+          date_of_birth?: string | null
           experience_years?: number | null
           headline?: string | null
-          hourly_rate_max?: number | null
-          hourly_rate_min?: number | null
           id?: string
           industry?: string | null
           is_available?: boolean | null
+          languages?: string[] | null
           phone?: string | null
           skills?: string[] | null
           suburb?: string | null
           updated_at?: string
           user_id: string
+          visa_status?: string | null
         }
         Update: {
           availability?: string | null
+          bio?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
+          date_of_birth?: string | null
           experience_years?: number | null
           headline?: string | null
-          hourly_rate_max?: number | null
-          hourly_rate_min?: number | null
           id?: string
           industry?: string | null
           is_available?: boolean | null
+          languages?: string[] | null
           phone?: string | null
           skills?: string[] | null
           suburb?: string | null
           updated_at?: string
           user_id?: string
+          visa_status?: string | null
         }
         Relationships: []
       }
@@ -411,6 +417,7 @@ export type Database = {
           description: string
           duration: string | null
           ends_at: string | null
+          experience_required: boolean | null
           hourly_rate_max: number | null
           hourly_rate_min: number | null
           id: string
@@ -435,6 +442,7 @@ export type Database = {
           description: string
           duration?: string | null
           ends_at?: string | null
+          experience_required?: boolean | null
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
@@ -459,6 +467,7 @@ export type Database = {
           description?: string
           duration?: string | null
           ends_at?: string | null
+          experience_required?: boolean | null
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
