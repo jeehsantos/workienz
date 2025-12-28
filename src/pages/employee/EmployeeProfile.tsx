@@ -5,10 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -25,6 +30,16 @@ const INDUSTRIES = [
   "Other",
 ];
 
+const VISA_STATUSES = [
+  "Citizen",
+  "Permanent Resident",
+  "Work Visa",
+  "Student Visa",
+  "Working Holiday Visa",
+  "Partner of a Work Visa Holder",
+  "Other",
+];
+
 export default function EmployeeProfile() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
@@ -36,18 +51,21 @@ export default function EmployeeProfile() {
 
   const [formData, setFormData] = useState({
     headline: "",
+    bio: "",
     city: "",
     suburb: "",
     country: "New Zealand",
     experience_years: "",
-    hourly_rate_min: "",
-    hourly_rate_max: "",
     availability: "flexible",
     is_available: true,
     phone: "",
     industry: "",
+    visa_status: "",
   });
 
+  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>();
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [languageInput, setLanguageInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
 
@@ -73,18 +91,22 @@ export default function EmployeeProfile() {
         setExistingProfile(data.id);
         setFormData({
           headline: data.headline || "",
+          bio: (data as any).bio || "",
           city: data.city || "",
           suburb: data.suburb || "",
           country: data.country || "New Zealand",
           experience_years: data.experience_years?.toString() || "",
-          hourly_rate_min: data.hourly_rate_min?.toString() || "",
-          hourly_rate_max: data.hourly_rate_max?.toString() || "",
           availability: data.availability || "flexible",
           is_available: data.is_available ?? true,
           phone: (data as any).phone || "",
           industry: (data as any).industry || "",
+          visa_status: (data as any).visa_status || "",
         });
         setSkills(data.skills || []);
+        setLanguages((data as any).languages || []);
+        if ((data as any).date_of_birth) {
+          setDateOfBirth(new Date((data as any).date_of_birth));
+        }
       }
 
       setIsLoading(false);
@@ -106,6 +128,17 @@ export default function EmployeeProfile() {
     setSkills(skills.filter((s) => s !== skill));
   };
 
+  const addLanguage = () => {
+    if (languageInput.trim() && !languages.includes(languageInput.trim())) {
+      setLanguages([...languages, languageInput.trim()]);
+      setLanguageInput("");
+    }
+  };
+
+  const removeLanguage = (lang: string) => {
+    setLanguages(languages.filter((l) => l !== lang));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -115,17 +148,19 @@ export default function EmployeeProfile() {
     const profileData = {
       user_id: user.id,
       headline: formData.headline || null,
+      bio: formData.bio || null,
       city: formData.city || null,
       suburb: formData.suburb || null,
       country: formData.country || null,
       experience_years: formData.experience_years ? parseInt(formData.experience_years) : null,
-      hourly_rate_min: formData.hourly_rate_min ? parseFloat(formData.hourly_rate_min) : null,
-      hourly_rate_max: formData.hourly_rate_max ? parseFloat(formData.hourly_rate_max) : null,
       availability: formData.availability,
       is_available: formData.is_available,
       skills: skills.length > 0 ? skills : null,
       phone: formData.phone || null,
       industry: formData.industry || null,
+      languages: languages.length > 0 ? languages : null,
+      date_of_birth: dateOfBirth ? format(dateOfBirth, "yyyy-MM-dd") : null,
+      visa_status: formData.visa_status || null,
     };
 
     let error;
@@ -214,13 +249,24 @@ export default function EmployeeProfile() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="industry">Industry *</Label>
+            <Label htmlFor="bio">About Me</Label>
+            <Textarea
+              id="bio"
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+              placeholder="Share a short introduction about yourself, your background, and what you're looking for..."
+              rows={4}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="industry">Preferred Industry</Label>
             <Select
               value={formData.industry}
               onValueChange={(value) => setFormData({ ...formData, industry: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select your industry" />
+                <SelectValue placeholder="Select your preferred industry" />
               </SelectTrigger>
               <SelectContent>
                 {INDUSTRIES.map((ind) => (
@@ -229,8 +275,58 @@ export default function EmployeeProfile() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              You can only apply to jobs in your selected industry
+              Select the industry you'd like to work in
             </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Date of Birth</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dateOfBirth && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateOfBirth ? format(dateOfBirth, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateOfBirth}
+                    onSelect={setDateOfBirth}
+                    disabled={(date) => date > new Date() || date < new Date("1940-01-01")}
+                    initialFocus
+                    className="pointer-events-auto"
+                    captionLayout="dropdown-buttons"
+                    fromYear={1940}
+                    toYear={new Date().getFullYear()}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="visa_status">Visa Status</Label>
+              <Select
+                value={formData.visa_status}
+                onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select visa status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VISA_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4">
@@ -293,31 +389,6 @@ export default function EmployeeProfile() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="hourly_rate_min">Minimum Hourly Rate ($)</Label>
-              <Input
-                id="hourly_rate_min"
-                type="number"
-                step="0.01"
-                value={formData.hourly_rate_min}
-                onChange={(e) => setFormData({ ...formData, hourly_rate_min: e.target.value })}
-                placeholder="e.g., 25.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hourly_rate_max">Maximum Hourly Rate ($)</Label>
-              <Input
-                id="hourly_rate_max"
-                type="number"
-                step="0.01"
-                value={formData.hourly_rate_max}
-                onChange={(e) => setFormData({ ...formData, hourly_rate_max: e.target.value })}
-                placeholder="e.g., 40.00"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number (for employers to contact you)</Label>
             <Input
@@ -327,6 +398,41 @@ export default function EmployeeProfile() {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="e.g., +64 21 123 4567"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Languages</Label>
+            <div className="flex gap-2">
+              <Input
+                value={languageInput}
+                onChange={(e) => setLanguageInput(e.target.value)}
+                placeholder="Add a language..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addLanguage();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={addLanguage}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+            {languages.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {languages.map((lang) => (
+                  <span
+                    key={lang}
+                    className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm flex items-center gap-1"
+                  >
+                    {lang}
+                    <button type="button" onClick={() => removeLanguage(lang)}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

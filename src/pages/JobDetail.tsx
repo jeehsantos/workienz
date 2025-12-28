@@ -30,11 +30,6 @@ type JobShift = {
   break_paid: boolean;
 };
 
-type JobWorkDate = {
-  id: string;
-  work_date: string;
-};
-
 type Job = {
   id: string;
   title: string;
@@ -55,6 +50,7 @@ type Job = {
   created_at: string;
   industry: string | null;
   schedule_type: string | null;
+  experience_required: boolean;
   contractor: {
     id: string;
     company_name: string;
@@ -62,7 +58,6 @@ type Job = {
     industry: string | null;
   } | null;
   shifts: JobShift[];
-  work_dates: JobWorkDate[];
 };
 
 export default function JobDetail() {
@@ -78,7 +73,7 @@ export default function JobDetail() {
   const [coverLetter, setCoverLetter] = useState("");
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
-  const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
+  const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [activeApplicationsCount, setActiveApplicationsCount] = useState(0);
   const [applicationError, setApplicationError] = useState<string | null>(null);
@@ -109,7 +104,8 @@ export default function JobDetail() {
           created_at,
           contractor_id,
           industry,
-          schedule_type
+          schedule_type,
+          experience_required
         `)
         .eq("id", id)
         .single();
@@ -138,18 +134,12 @@ export default function JobDetail() {
         shifts = shiftsData || [];
       }
 
-      // Fetch work dates if schedule_type is fixed_term
-      let work_dates: JobWorkDate[] = [];
-      if (data.schedule_type === "fixed_term") {
-        const { data: datesData } = await supabase
-          .from("job_work_dates")
-          .select("*")
-          .eq("job_id", id)
-          .order("work_date", { ascending: true });
-        work_dates = datesData || [];
-      }
-
-      setJob({ ...data, contractor, shifts, work_dates });
+      setJob({ 
+        ...data, 
+        contractor, 
+        shifts,
+        experience_required: (data as any).experience_required ?? false
+      });
       setIsLoading(false);
     }
 
@@ -163,13 +153,13 @@ export default function JobDetail() {
       // Get employee profile
       const { data: profile } = await supabase
         .from("employee_profiles")
-        .select("id, industry")
+        .select("id, experience_years")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (profile) {
         setEmployeeProfileId(profile.id);
-        setEmployeeIndustry(profile.industry);
+        setEmployeeExperienceYears(profile.experience_years);
 
         // Check if already applied
         const { data: application } = await supabase
@@ -208,9 +198,11 @@ export default function JobDetail() {
   const canApply = () => {
     if (!job || !employeeProfileId) return { allowed: false, reason: "Complete your profile first" };
     
-    // Check industry match
-    if (job.industry && employeeIndustry && job.industry !== employeeIndustry) {
-      return { allowed: false, reason: `This job requires ${job.industry} industry experience. Update your profile to apply.` };
+    // Check experience requirement
+    if (job.experience_required) {
+      if (!employeeExperienceYears || employeeExperienceYears === 0) {
+        return { allowed: false, reason: "This job requires experience. Your profile shows no experience in this field." };
+      }
     }
 
     // Check application limits
@@ -327,6 +319,9 @@ export default function JobDetail() {
                 {job.industry && (
                   <Badge variant="secondary">{job.industry}</Badge>
                 )}
+                {job.experience_required && (
+                  <Badge variant="destructive">Experience Required</Badge>
+                )}
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>
               <p className="text-muted-foreground mb-4">
@@ -383,11 +378,11 @@ export default function JobDetail() {
             </div>
 
             {/* Schedule Section */}
-            {(job.shifts.length > 0 || job.work_dates.length > 0) && (
+            {(job.shifts.length > 0 || job.starts_at) && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  {job.schedule_type === "shifts" ? "Shift Schedule" : "Work Dates"}
+                  {job.schedule_type === "shifts" ? "Shift Schedule" : "Contract Period"}
                 </h3>
                 
                 {job.schedule_type === "shifts" && job.shifts.length > 0 && (
@@ -412,13 +407,22 @@ export default function JobDetail() {
                   </div>
                 )}
 
-                {job.schedule_type === "fixed_term" && job.work_dates.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {job.work_dates.map((wd) => (
-                      <Badge key={wd.id} variant="outline">
-                        {format(new Date(wd.work_date), "MMM d")}
-                      </Badge>
-                    ))}
+                {job.schedule_type === "fixed_term" && job.starts_at && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Start Date:</span>
+                      <span className="font-medium">
+                        {format(new Date(job.starts_at), "EEEE, MMM d, yyyy")}
+                      </span>
+                    </div>
+                    {job.ends_at && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">End Date:</span>
+                        <span className="font-medium">
+                          {format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -459,7 +463,7 @@ export default function JobDetail() {
                           <Link to="/pricing">Upgrade to Premium</Link>
                         </Button>
                       )}
-                      {eligibility.reason?.includes("industry") && (
+                      {eligibility.reason?.includes("experience") && (
                         <Button asChild size="sm" variant="outline" className="mt-2">
                           <Link to="/employee/profile">Update Profile</Link>
                         </Button>
@@ -503,11 +507,11 @@ export default function JobDetail() {
 
             {!user && (
               <div className="bg-card rounded-xl p-6 border border-border/50 text-center">
-                <p className="text-muted-foreground mb-3">
-                  Sign in to apply for this job.
+                <p className="text-muted-foreground mb-4">
+                  Sign in as a job seeker to apply for this position.
                 </p>
                 <Button asChild>
-                  <Link to="/auth">Sign In</Link>
+                  <Link to="/auth">Sign In to Apply</Link>
                 </Button>
               </div>
             )}
@@ -515,67 +519,48 @@ export default function JobDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {job.contractor && (
-              <div className="bg-card rounded-xl p-6 border border-border/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Building2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{job.contractor.company_name}</h3>
-                    {job.contractor.industry && (
-                      <p className="text-sm text-muted-foreground">{job.contractor.industry}</p>
-                    )}
-                  </div>
-                </div>
-                {job.contractor.company_description && (
-                  <p className="text-sm text-muted-foreground">
-                    {job.contractor.company_description}
-                  </p>
-                )}
-              </div>
-            )}
+            <div className="bg-card rounded-xl p-6 border border-border/50">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                About the Company
+              </h3>
+              <p className="font-medium text-lg mb-2">
+                {job.contractor?.company_name || "Company"}
+              </p>
+              {job.contractor?.company_description && (
+                <p className="text-sm text-muted-foreground">
+                  {job.contractor.company_description}
+                </p>
+              )}
+            </div>
 
             <div className="bg-card rounded-xl p-6 border border-border/50">
-              <h3 className="font-semibold mb-4">Job Details</h3>
-              <div className="space-y-3 text-sm">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Positions
+              </h3>
+              <div className="text-sm space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Posted</span>
-                  <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                  <span className="text-muted-foreground">Available</span>
+                  <span className="font-medium">{job.positions_available}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="capitalize">{job.job_type}</span>
+                  <span className="text-muted-foreground">Filled</span>
+                  <span className="font-medium">{job.positions_filled}</span>
                 </div>
-                {job.industry && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Industry</span>
-                    <span>{job.industry}</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Positions</span>
-                  <span>{job.positions_available - job.positions_filled} of {job.positions_available} available</span>
+                  <span className="text-muted-foreground">Remaining</span>
+                  <span className="font-medium text-primary">
+                    {job.positions_available - job.positions_filled}
+                  </span>
                 </div>
-                {job.duration && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Duration</span>
-                    <span>{job.duration}</span>
-                  </div>
-                )}
-                {job.starts_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Start Date</span>
-                    <span>{new Date(job.starts_at).toLocaleDateString()}</span>
-                  </div>
-                )}
-                {job.ends_at && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">End Date</span>
-                    <span>{new Date(job.ends_at).toLocaleDateString()}</span>
-                  </div>
-                )}
               </div>
+            </div>
+
+            <div className="bg-card rounded-xl p-6 border border-border/50">
+              <p className="text-xs text-muted-foreground">
+                Posted {format(new Date(job.created_at), "MMM d, yyyy")}
+              </p>
             </div>
           </div>
         </div>
