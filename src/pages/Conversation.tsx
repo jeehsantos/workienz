@@ -412,9 +412,26 @@ export default function Conversation() {
                 <h1 className="font-semibold">
                   {conversation.other_party?.full_name || "User"}
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                  {conversation.job_application?.job.title || "Direct Contact"}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {conversation.job_application?.job.title || "Direct Contact"}
+                  </p>
+                  {conversation.job_application && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      conversation.job_application.status === 'rejected' 
+                        ? 'bg-red-500/10 text-red-600' 
+                        : conversation.job_application.status === 'hired'
+                        ? 'bg-green-500/10 text-green-600'
+                        : 'bg-amber-500/10 text-amber-600'
+                    }`}>
+                      {conversation.job_application.status === 'rejected' 
+                        ? 'Rejected' 
+                        : conversation.job_application.status === 'hired'
+                        ? 'Hired'
+                        : 'Pending'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -69,11 +69,13 @@ export default function JobDetail() {
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string>('pending');
   const [isApplying, setIsApplying] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [showApplyForm, setShowApplyForm] = useState(false);
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
   const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
+  const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [activeApplicationsCount, setActiveApplicationsCount] = useState(0);
   const [applicationError, setApplicationError] = useState<string | null>(null);
@@ -153,23 +155,27 @@ export default function JobDetail() {
       // Get employee profile
       const { data: profile } = await supabase
         .from("employee_profiles")
-        .select("id, experience_years")
+        .select("id, experience_years, industry")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (profile) {
         setEmployeeProfileId(profile.id);
         setEmployeeExperienceYears(profile.experience_years);
+        setEmployeeIndustry((profile as any).industry);
 
         // Check if already applied
         const { data: application } = await supabase
           .from("job_applications")
-          .select("id")
+          .select("id, status")
           .eq("job_id", id)
           .eq("employee_id", profile.id)
           .maybeSingle();
 
         setHasApplied(!!application);
+        if (application) {
+          setApplicationStatus(application.status);
+        }
 
         // Get active applications count (pending or shortlisted, not rejected or hired)
         const { count } = await supabase
@@ -198,10 +204,19 @@ export default function JobDetail() {
   const canApply = () => {
     if (!job || !employeeProfileId) return { allowed: false, reason: "Complete your profile first" };
     
-    // Check experience requirement
+    // Check experience requirement - job seeker must have experience in the job's industry
     if (job.experience_required) {
+      // Check if employee has any experience
       if (!employeeExperienceYears || employeeExperienceYears === 0) {
-        return { allowed: false, reason: "This job requires experience. Your profile shows no experience in this field." };
+        return { allowed: false, reason: "This job requires experience. Your profile shows no work experience." };
+      }
+      // Check if employee's industry matches job's industry
+      if (job.industry && employeeIndustry && job.industry !== employeeIndustry) {
+        return { allowed: false, reason: `This job requires experience in ${job.industry}. Your profile shows experience in ${employeeIndustry}.` };
+      }
+      // If job has an industry but employee doesn't have one set
+      if (job.industry && !employeeIndustry) {
+        return { allowed: false, reason: `This job requires experience in ${job.industry}. Please update your profile to indicate your industry experience.` };
       }
     }
 
@@ -432,12 +447,32 @@ export default function JobDetail() {
             {user && isEmployee() && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 {hasApplied ? (
-                  <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
-                    <CheckCircle className="w-6 h-6" />
+                  <div className={`flex items-center gap-3 ${
+                    applicationStatus === 'rejected' 
+                      ? 'text-red-600 dark:text-red-400' 
+                      : applicationStatus === 'hired'
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}>
+                    {applicationStatus === 'rejected' ? (
+                      <AlertTriangle className="w-6 h-6" />
+                    ) : (
+                      <CheckCircle className="w-6 h-6" />
+                    )}
                     <div>
-                      <p className="font-semibold">Application Submitted</p>
+                      <p className="font-semibold">
+                        {applicationStatus === 'rejected' 
+                          ? 'Application Not Successful' 
+                          : applicationStatus === 'hired'
+                          ? 'You\'ve Been Hired!'
+                          : 'Application Submitted'}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        The employer will review your application.
+                        {applicationStatus === 'rejected' 
+                          ? 'The employer has decided not to proceed with your application.' 
+                          : applicationStatus === 'hired'
+                          ? 'Congratulations! Check your messages for next steps.'
+                          : 'The employer will review your application.'}
                       </p>
                     </div>
                   </div>

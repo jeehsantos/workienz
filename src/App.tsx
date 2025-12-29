@@ -10,12 +10,14 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import PostJob from "./pages/contractor/PostJob";
+import EditJob from "./pages/contractor/EditJob";
 import MyJobs from "./pages/contractor/MyJobs";
 import SearchWorkers from "./pages/contractor/SearchWorkers";
 import ContractorProfile from "./pages/contractor/ContractorProfile";
 import JobApplicants from "./pages/contractor/JobApplicants";
 import JobSearch from "./pages/employee/JobSearch";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
+import ViewProfile from "./pages/employee/ViewProfile";
 import Articles from "./pages/employee/Articles";
 import ArticleDetail from "./pages/ArticleDetail";
 import JobDetail from "./pages/JobDetail";
@@ -45,10 +47,12 @@ const App = () => (
             <Route path="/articles/:slug" element={<ArticleDetail />} />
             <Route path="/contractor/post-job" element={<PostJob />} />
             <Route path="/contractor/jobs" element={<MyJobs />} />
+            <Route path="/contractor/jobs/:jobId/edit" element={<EditJob />} />
             <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
             <Route path="/contractor/profile" element={<ContractorProfile />} />
             <Route path="/contractor/search-workers" element={<SearchWorkers />} />
             <Route path="/employee/profile" element={<EmployeeProfile />} />
+            <Route path="/employee/view-profile" element={<ViewProfile />} />
             <Route path="/workers/:id" element={<WorkerProfile />} />
             <Route path="/messages/:id" element={<Conversation />} />
             <Route path="/writer/new-article" element={<NewArticle />} />

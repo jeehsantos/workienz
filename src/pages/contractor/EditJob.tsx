@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -40,14 +40,14 @@ const INDUSTRIES = [
   "Other",
 ];
 
-export default function PostJob() {
+export default function EditJob() {
+  const { jobId } = useParams();
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isContractor } = useAuthContext();
   const { toast } = useToast();
 
-  const [contractorProfile, setContractorProfile] = useState<{ id: string } | null>(null);
+  const [isLoadingJob, setIsLoadingJob] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -57,7 +57,6 @@ export default function PostJob() {
     location_suburb: "",
     location_country: "New Zealand",
     job_type: "temporary",
-    duration: "",
     hourly_rate_min: "",
     hourly_rate_max: "",
     positions_available: "1",
@@ -66,18 +65,12 @@ export default function PostJob() {
 
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
-  
-  // Shifts state
-  const [shifts, setShifts] = useState<Shift[]>([
-    { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
-  ]);
-
-  // Fixed term state - simple start and end dates
+  const [shifts, setShifts] = useState<Shift[]>([]);
   const [fixedTermStart, setFixedTermStart] = useState<Date | undefined>();
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
-
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+  const [jobStatus, setJobStatus] = useState<string>("draft");
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
@@ -86,33 +79,99 @@ export default function PostJob() {
   }, [user, authLoading, isContractor, navigate]);
 
   useEffect(() => {
-    async function fetchContractorProfile() {
-      if (!user) return;
+    async function fetchJob() {
+      if (!jobId || !user) return;
 
-      const { data, error } = await supabase
+      // First verify this job belongs to the contractor
+      const { data: contractorProfile } = await supabase
         .from("contractor_profiles")
         .select("id")
         .eq("user_id", user.id)
-        .maybeSingle();
+        .single();
 
-      if (error) {
-        console.error("Error fetching contractor profile:", error);
+      if (!contractorProfile) {
         toast({
           title: "Profile not found",
           description: "Please complete your contractor profile first.",
           variant: "destructive",
         });
+        navigate("/contractor/profile");
         return;
       }
 
-      setContractorProfile(data);
-      setIsLoadingProfile(false);
+      const { data: job, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", jobId)
+        .eq("contractor_id", contractorProfile.id)
+        .single();
+
+      if (error || !job) {
+        toast({
+          title: "Job not found",
+          description: "This job could not be found or you don't have access to edit it.",
+          variant: "destructive",
+        });
+        navigate("/contractor/jobs");
+        return;
+      }
+
+      // Populate form with existing data
+      setFormData({
+        title: job.title || "",
+        description: job.description || "",
+        requirements: job.requirements || "",
+        location_city: job.location_city || "",
+        location_suburb: job.location_suburb || "",
+        location_country: job.location_country || "New Zealand",
+        job_type: job.job_type || "temporary",
+        hourly_rate_min: job.hourly_rate_min?.toString() || "",
+        hourly_rate_max: job.hourly_rate_max?.toString() || "",
+        positions_available: job.positions_available?.toString() || "1",
+        industry: job.industry || "",
+      });
+
+      setExperienceRequired(job.experience_required || false);
+      setScheduleType(job.schedule_type === "fixed_term" ? "fixed_term" : "shifts");
+      setSkills(job.skills_required || []);
+      setJobStatus(job.status);
+
+      if (job.starts_at) {
+        setFixedTermStart(new Date(job.starts_at));
+      }
+      if (job.ends_at) {
+        setFixedTermEnd(new Date(job.ends_at));
+      }
+
+      // Fetch shifts if applicable
+      if (job.schedule_type === "shifts") {
+        const { data: shiftsData } = await supabase
+          .from("job_shifts")
+          .select("*")
+          .eq("job_id", jobId)
+          .order("shift_date", { ascending: true });
+
+        if (shiftsData && shiftsData.length > 0) {
+          setShifts(shiftsData.map(s => ({
+            id: s.id,
+            date: new Date(s.shift_date),
+            start_time: s.start_time,
+            end_time: s.end_time,
+            break_minutes: s.break_minutes?.toString() || "0",
+            break_paid: s.break_paid || false,
+          })));
+        } else {
+          setShifts([{ id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }]);
+        }
+      }
+
+      setIsLoadingJob(false);
     }
 
     if (user && isContractor()) {
-      fetchContractorProfile();
+      fetchJob();
     }
-  }, [user, isContractor, toast]);
+  }, [jobId, user, isContractor, toast, navigate]);
 
   const addShift = () => {
     setShifts([...shifts, { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }]);
@@ -139,46 +198,14 @@ export default function PostJob() {
     setSkills(skills.filter((s) => s !== skill));
   };
 
-  const calculateDuration = () => {
-    if (fixedTermStart && fixedTermEnd) {
-      const diffTime = Math.abs(fixedTermEnd.getTime() - fixedTermStart.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays;
-    }
-    return null;
-  };
-
-  const handleSubmit = async (e: React.FormEvent, status: "draft" | "published") => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contractorProfile) return;
-
-    // Validate schedule
-    if (scheduleType === "shifts") {
-      const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-      if (validShifts.length === 0 && status === "published") {
-        toast({
-          title: "Please add at least one shift",
-          description: "Add shift details before publishing.",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      if (!fixedTermStart && status === "published") {
-        toast({
-          title: "Please select a start date",
-          description: "A start date is required for fixed term jobs.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+    if (!jobId) return;
 
     setIsSubmitting(true);
 
-    // Insert job
-    const { data: jobData, error } = await supabase.from("jobs").insert({
-      contractor_id: contractorProfile.id,
+    // Update job
+    const { error } = await supabase.from("jobs").update({
       title: formData.title,
       description: formData.description,
       requirements: formData.requirements || null,
@@ -186,36 +213,36 @@ export default function PostJob() {
       location_suburb: formData.location_suburb || null,
       location_country: formData.location_country || null,
       job_type: formData.job_type,
-      duration: formData.duration || null,
       hourly_rate_min: formData.hourly_rate_min ? parseFloat(formData.hourly_rate_min) : null,
       hourly_rate_max: formData.hourly_rate_max ? parseFloat(formData.hourly_rate_max) : null,
       skills_required: skills.length > 0 ? skills : null,
       positions_available: parseInt(formData.positions_available) || 1,
-      status,
       industry: formData.industry || null,
       schedule_type: scheduleType,
       starts_at: fixedTermStart ? fixedTermStart.toISOString() : null,
       ends_at: fixedTermEnd ? fixedTermEnd.toISOString() : null,
       experience_required: experienceRequired,
-    }).select("id").single();
+    }).eq("id", jobId);
 
-    if (error || !jobData) {
-      console.error("Error creating job:", error);
+    if (error) {
+      console.error("Error updating job:", error);
       toast({
         title: "Error",
-        description: "Failed to create job posting. Please try again.",
+        description: "Failed to update job posting. Please try again.",
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
 
-    // Insert shifts if schedule type is shifts
+    // Handle shifts - delete old and insert new if schedule type is shifts
     if (scheduleType === "shifts") {
+      await supabase.from("job_shifts").delete().eq("job_id", jobId);
+      
       const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
       if (validShifts.length > 0) {
         const shiftsData = validShifts.map(s => ({
-          job_id: jobData.id,
+          job_id: jobId,
           shift_date: format(s.date!, "yyyy-MM-dd"),
           start_time: s.start_time,
           end_time: s.end_time,
@@ -230,16 +257,14 @@ export default function PostJob() {
     setIsSubmitting(false);
 
     toast({
-      title: status === "published" ? "Job Published!" : "Draft Saved",
-      description: status === "published" 
-        ? "Your job posting is now live."
-        : "Your job has been saved as a draft.",
+      title: "Job Updated!",
+      description: "Your job posting has been updated.",
     });
 
     navigate("/contractor/jobs");
   };
 
-  if (authLoading || isLoadingProfile) {
+  if (authLoading || isLoadingJob) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -247,42 +272,22 @@ export default function PostJob() {
     );
   }
 
-  if (!contractorProfile) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container-tight py-8">
-          <div className="text-center py-16">
-            <h1 className="text-2xl font-bold mb-4">Complete Your Profile</h1>
-            <p className="text-muted-foreground mb-6">
-              You need to set up your contractor profile before posting jobs.
-            </p>
-            <Button asChild>
-              <Link to="/contractor/profile">Set Up Profile</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const durationDays = calculateDuration();
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
-          <Link to="/dashboard">
+          <Link to="/contractor/jobs">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            Back to My Jobs
           </Link>
         </Button>
 
-        <h1 className="text-3xl font-bold mb-2 font-display">Post a Job</h1>
+        <h1 className="text-3xl font-bold mb-2 font-display">Edit Job</h1>
         <p className="text-muted-foreground mb-8">
-          Create a new job posting to find temporary workers.
+          Update your job posting details.
         </p>
 
-        <form onSubmit={(e) => handleSubmit(e, "published")} className="space-y-6 max-w-2xl">
+        <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
           <div className="space-y-2">
             <Label htmlFor="title">Job Title *</Label>
             <Input
@@ -317,7 +322,6 @@ export default function PostJob() {
             />
           </div>
 
-          {/* Experience Required Toggle */}
           <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border/50">
             <div>
               <Label htmlFor="experience_required">Experience Required</Label>
@@ -464,8 +468,8 @@ export default function PostJob() {
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="grid sm:grid-cols-2 gap-3">
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Break (minutes)</Label>
                         <Input
@@ -475,20 +479,16 @@ export default function PostJob() {
                           onChange={(e) => updateShift(shift.id, "break_minutes", e.target.value)}
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Break Paid?</Label>
-                        <Select
-                          value={shift.break_paid ? "yes" : "no"}
-                          onValueChange={(value) => updateShift(shift.id, "break_paid", value === "yes")}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="no">No</SelectItem>
-                            <SelectItem value="yes">Yes</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="flex items-end pb-1">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={shift.break_paid}
+                            onChange={(e) => updateShift(shift.id, "break_paid", e.target.checked)}
+                            className="rounded"
+                          />
+                          Paid break
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -496,7 +496,7 @@ export default function PostJob() {
                 
                 <Button type="button" variant="outline" onClick={addShift} className="w-full">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Another Shift
+                  Add Shift
                 </Button>
               </div>
             ) : (
@@ -529,7 +529,7 @@ export default function PostJob() {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>End Date (Optional)</Label>
                     <Popover>
@@ -550,7 +550,7 @@ export default function PostJob() {
                           mode="single"
                           selected={fixedTermEnd}
                           onSelect={setFixedTermEnd}
-                          disabled={(date) => date < new Date() || (fixedTermStart && date < fixedTermStart)}
+                          disabled={(date) => date < (fixedTermStart || new Date())}
                           initialFocus
                           className="pointer-events-auto"
                         />
@@ -558,12 +558,6 @@ export default function PostJob() {
                     </Popover>
                   </div>
                 </div>
-                
-                {durationDays && (
-                  <p className="text-sm text-muted-foreground">
-                    Total duration: {durationDays} day{durationDays !== 1 ? 's' : ''}
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -592,38 +586,40 @@ export default function PostJob() {
                 id="location_suburb"
                 value={formData.location_suburb}
                 onChange={(e) => setFormData({ ...formData, location_suburb: e.target.value })}
-                placeholder="e.g., Ponsonby"
+                placeholder="e.g., CBD"
               />
             </div>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="hourly_rate_min">Minimum Rate ($/hr)</Label>
+              <Label htmlFor="hourly_rate_min">Minimum Hourly Rate ($)</Label>
               <Input
                 id="hourly_rate_min"
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.hourly_rate_min}
                 onChange={(e) => setFormData({ ...formData, hourly_rate_min: e.target.value })}
                 placeholder="e.g., 25.00"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="hourly_rate_max">Maximum Rate ($/hr)</Label>
+              <Label htmlFor="hourly_rate_max">Maximum Hourly Rate ($)</Label>
               <Input
                 id="hourly_rate_max"
                 type="number"
                 step="0.01"
+                min="0"
                 value={formData.hourly_rate_max}
                 onChange={(e) => setFormData({ ...formData, hourly_rate_max: e.target.value })}
-                placeholder="e.g., 35.00"
+                placeholder="e.g., 30.00"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Skills Required</Label>
+            <Label>Required Skills</Label>
             <div className="flex gap-2">
               <Input
                 value={skillInput}
@@ -657,18 +653,10 @@ export default function PostJob() {
             )}
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={(e) => handleSubmit(e as any, "draft")}
-              disabled={isSubmitting}
-            >
-              Save as Draft
-            </Button>
+          <div className="pt-4">
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Publish Job
+              Save Changes
             </Button>
           </div>
         </form>
