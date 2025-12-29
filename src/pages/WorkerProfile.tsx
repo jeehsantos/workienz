@@ -9,7 +9,7 @@ import {
   ArrowLeft,
   MapPin,
   Clock,
-  DollarSign,
+  
   User,
   Mail,
   Phone,
@@ -26,16 +26,17 @@ type WorkerProfile = {
   suburb: string | null;
   country: string | null;
   experience_years: number | null;
-  hourly_rate_min: number | null;
-  hourly_rate_max: number | null;
   skills: string[] | null;
   is_available: boolean | null;
   availability: string | null;
   phone: string | null;
+  bio: string | null;
+  languages: string[] | null;
+  date_of_birth: string | null;
+  visa_status: string | null;
   profile: {
     full_name: string | null;
     email: string;
-    bio: string | null;
   } | null;
 };
 
@@ -63,12 +64,14 @@ export default function WorkerProfile() {
           suburb,
           country,
           experience_years,
-          hourly_rate_min,
-          hourly_rate_max,
           skills,
           is_available,
           availability,
-          phone
+          phone,
+          bio,
+          languages,
+          date_of_birth,
+          visa_status
         `)
         .eq("id", id)
         .single();
@@ -82,7 +85,7 @@ export default function WorkerProfile() {
       // Fetch profile info
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email, bio")
+        .select("full_name, email")
         .eq("user_id", data.user_id)
         .single();
 
@@ -214,18 +217,25 @@ export default function WorkerProfile() {
                     {worker.experience_years} years experience
                   </span>
                 )}
-                {(worker.hourly_rate_min || worker.hourly_rate_max) && (
-                  <span className="flex items-center gap-1">
-                    <DollarSign className="w-4 h-4" />$
-                    {worker.hourly_rate_min || "?"} - ${worker.hourly_rate_max || "?"}/hr
-                  </span>
-                )}
               </div>
 
-              {worker.profile?.bio && (
+              {worker.bio && (
                 <div className="prose prose-sm max-w-none dark:prose-invert mb-6">
                   <h3>About</h3>
-                  <p>{worker.profile.bio}</p>
+                  <p>{worker.bio}</p>
+                </div>
+              )}
+
+              {worker.languages && worker.languages.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold mb-2">Languages</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {worker.languages.map((lang) => (
+                      <Badge key={lang} variant="outline">
+                        {lang}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -259,12 +269,10 @@ export default function WorkerProfile() {
                     <span>{worker.experience_years} years</span>
                   </div>
                 )}
-                {(worker.hourly_rate_min || worker.hourly_rate_max) && (
+                {worker.visa_status && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rate</span>
-                    <span>
-                      ${worker.hourly_rate_min || "?"} - ${worker.hourly_rate_max || "?"}/hr
-                    </span>
+                    <span className="text-muted-foreground">Visa Status</span>
+                    <span className="capitalize">{worker.visa_status.replace(/_/g, ' ')}</span>
                   </div>
                 )}
               </div>

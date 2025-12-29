@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Search, User, MapPin, Clock, DollarSign } from "lucide-react";
+import { Loader2, ArrowLeft, Search, User, MapPin, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type EmployeeProfile = {
@@ -17,8 +17,6 @@ type EmployeeProfile = {
   suburb: string | null;
   country: string | null;
   experience_years: number | null;
-  hourly_rate_min: number | null;
-  hourly_rate_max: number | null;
   skills: string[] | null;
   is_available: boolean | null;
   availability: string | null;
@@ -61,8 +59,6 @@ export default function SearchWorkers() {
           suburb,
           country,
           experience_years,
-          hourly_rate_min,
-          hourly_rate_max,
           skills,
           is_available,
           availability
@@ -249,14 +245,6 @@ export default function SearchWorkers() {
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       <span>{worker.experience_years} years experience</span>
-                    </div>
-                  )}
-                  {(worker.hourly_rate_min || worker.hourly_rate_max) && (
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      <span>
-                        ${worker.hourly_rate_min || "?"} - ${worker.hourly_rate_max || "?"}/hr
-                      </span>
                     </div>
                   )}
                 </div>
