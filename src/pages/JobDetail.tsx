@@ -311,7 +311,7 @@ export default function JobDetail() {
         title: "Application Submitted!",
         description: "You're now connected with the employer. Redirecting to chat...",
       });
-      navigate(`/conversations/${conversationId}`);
+      navigate(`/messages/${conversationId}`);
     } else {
       toast({
         title: "Application Submitted!",
