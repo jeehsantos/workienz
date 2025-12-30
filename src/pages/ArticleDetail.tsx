@@ -5,7 +5,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Lock, Calendar, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
+import { Navbar } from "@/components/landing/Navbar";
 type Article = {
   id: string;
   title: string;
@@ -107,7 +107,9 @@ export default function ArticleDetail() {
   // If locked, show premium gate
   if (isLocked) {
     return (
-      <div className="min-h-screen bg-background">
+      <>
+        <Navbar />
+        <div className="min-h-screen bg-background pt-16">
         <div className="container-tight py-8">
           <Button variant="ghost" asChild className="mb-6">
             <Link to="/articles">
@@ -158,11 +160,14 @@ export default function ArticleDetail() {
           </article>
         </div>
       </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-background pt-16">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/articles">
@@ -205,6 +210,7 @@ export default function ArticleDetail() {
           </div>
         </article>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

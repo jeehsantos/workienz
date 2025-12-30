@@ -100,7 +100,7 @@ export default function Dashboard() {
                 Set up your profile so contractors can find you.
               </p>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/employee/profile">Edit Profile</Link>
+                <Link to="/employee/view-profile">View Profile</Link>
               </Button>
             </div>
           )}
