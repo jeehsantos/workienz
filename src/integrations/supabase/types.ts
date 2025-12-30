@@ -623,6 +623,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      contractor_has_published_jobs: {
+        Args: { _contractor_profile_id: string }
+        Returns: boolean
+      }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
