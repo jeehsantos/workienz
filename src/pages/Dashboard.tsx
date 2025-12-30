@@ -46,28 +46,11 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       {/* Main content */}
       <div className="container-tight py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2 font-display">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back! Here's what you can do today.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user.email}</p>
-              <div className="flex gap-1 justify-end">
-                {roles.map((role) => (
-                  <span
-                    key={role}
-                    className={`text-xs px-2 py-0.5 rounded-full capitalize ${getRoleBadgeColor(role)}`}
-                  >
-                    {role}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 font-display">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome back! Here's what you can do today.
+          </p>
         </div>
 
         {/* Quick actions grid */}

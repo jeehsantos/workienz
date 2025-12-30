@@ -139,40 +139,49 @@ export function AppLayout({ children }: AppLayoutProps) {
             </Link>
 
             {/* Desktop CTA */}
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2">
               {user ? (
                 <>
-                  {/* User Info & Role Badges */}
-                  <div className="flex flex-col items-end mr-2">
-                    <span className="text-sm font-medium text-foreground">
-                      {userFullName || user.email}
-                    </span>
-                    <div className="flex gap-1 mt-0.5">
-                      {roles.map((role) => (
-                        <Badge 
-                          key={role} 
-                          variant="secondary" 
-                          className={`text-xs capitalize ${getRoleBadgeColor(role)}`}
-                        >
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
                   <Button variant="ghost" asChild className="font-medium">
                     <Link to="/dashboard">
                       <LayoutDashboard className="w-4 h-4 mr-2" />
                       Dashboard
                     </Link>
                   </Button>
+                  
+                  {/* User Info Dropdown Style */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50 border border-border/50">
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-medium text-foreground leading-tight">
+                        {userFullName || user.email?.split('@')[0]}
+                      </span>
+                      <div className="flex gap-1">
+                        {roles.slice(0, 2).map((role) => (
+                          <Badge 
+                            key={role} 
+                            variant="secondary" 
+                            className={`text-[10px] px-1.5 py-0 h-4 capitalize ${getRoleBadgeColor(role)}`}
+                          >
+                            {role}
+                          </Badge>
+                        ))}
+                        {roles.length > 2 && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                            +{roles.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <Button 
-                    variant="outline" 
-                    size="sm" 
+                    variant="ghost" 
+                    size="icon"
                     onClick={handleSignOut}
-                    className="rounded-xl hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                    className="rounded-xl hover:bg-destructive/10 hover:text-destructive h-9 w-9"
+                    title="Sign Out"
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
+                    <LogOut className="w-4 h-4" />
                   </Button>
                 </>
               ) : (
