@@ -262,6 +262,7 @@ export default function JobDetail() {
     }
 
     // Auto-create conversation for this application
+    let conversationId: string | null = null;
     if (appData && job?.contractor) {
       // Get contractor's user_id
       const { data: contractorData } = await supabase
@@ -272,21 +273,51 @@ export default function JobDetail() {
 
       if (contractorData) {
         // Create conversation
-        await supabase.from("conversations").insert({
+        const { data: convData } = await supabase.from("conversations").insert({
           job_application_id: appData.id,
           contractor_user_id: contractorData.user_id,
           employee_user_id: user.id,
-        });
+        }).select("id").single();
+
+        conversationId = convData?.id || null;
+
+        // If there's a cover letter, send it as the first message in the chat
+        if (conversationId && coverLetter && coverLetter.trim()) {
+          // Get employee profile info for intro message
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", user.id)
+            .single();
+
+          const introMessage = `📋 **Application for: ${job.title}**\n\nHi, I'm ${profileData?.full_name || 'a job seeker'} and I'd like to apply for this position.\n\n**Cover Letter:**\n${coverLetter}`;
+
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_user_id: user.id,
+            content: introMessage,
+          });
+        }
       }
     }
 
     setIsApplying(false);
     setHasApplied(true);
     setShowApplyForm(false);
-    toast({
-      title: "Application Submitted!",
-      description: "Your application has been sent to the employer. They can now message you.",
-    });
+    
+    // Navigate to the conversation if created
+    if (conversationId) {
+      toast({
+        title: "Application Submitted!",
+        description: "You're now connected with the employer. Redirecting to chat...",
+      });
+      navigate(`/conversations/${conversationId}`);
+    } else {
+      toast({
+        title: "Application Submitted!",
+        description: "Your application has been sent to the employer.",
+      });
+    }
   };
 
   if (isLoading) {

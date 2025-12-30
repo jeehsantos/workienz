@@ -6,8 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
+
+const INDUSTRIES = [
+  "Agriculture",
+  "Construction",
+  "Education",
+  "Entertainment",
+  "Finance",
+  "Food & Beverage",
+  "Healthcare",
+  "Hospitality",
+  "IT & Technology",
+  "Logistics & Transport",
+  "Manufacturing",
+  "Mining",
+  "Real Estate",
+  "Retail",
+  "Tourism",
+  "Other",
+];
 
 export default function ContractorProfile() {
   const navigate = useNavigate();
@@ -173,12 +193,21 @@ export default function ContractorProfile() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
-              <Input
-                id="industry"
+              <Select
                 value={formData.industry}
-                onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
-                placeholder="e.g., Logistics, Hospitality"
-              />
+                onValueChange={(value) => setFormData({ ...formData, industry: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDUSTRIES.map((industry) => (
+                    <SelectItem key={industry} value={industry}>
+                      {industry}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
