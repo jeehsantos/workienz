@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { Navbar } from "@/components/landing/Navbar";
 
 type JobShift = {
   id: string;
@@ -314,7 +315,9 @@ export default function JobDetail() {
   const eligibility = canApply();
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-background pt-16">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/jobs">
@@ -600,6 +603,7 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
