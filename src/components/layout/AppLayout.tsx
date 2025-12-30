@@ -1,28 +1,101 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Menu, X, LogOut, LayoutDashboard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import linkoLogo from "@/assets/linko-logo-new.png";
 
+type AppRole = "admin" | "contractor" | "employee" | "writer";
+
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+const getRoleBadgeColor = (role: string) => {
+  switch (role) {
+    case "admin":
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+    case "contractor":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+    case "employee":
+      return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    case "writer":
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+};
+
 export function AppLayout({ children }: AppLayoutProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const fetchUserRoles = async (userId: string) => {
+      try {
+        const { data, error } = await supabase.rpc("get_user_roles", {
+          _user_id: userId,
+        });
+        if (error) {
+          console.error("Error fetching roles:", error);
+          return [];
+        }
+        return (data as AppRole[]) || [];
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+        return [];
+      }
+    };
+
+    const fetchUserProfile = async (userId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", userId)
+          .single();
+        if (error) {
+          console.error("Error fetching profile:", error);
+          return null;
+        }
+        return data?.full_name || null;
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        return null;
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        const [fetchedRoles, fullName] = await Promise.all([
+          fetchUserRoles(session.user.id),
+          fetchUserProfile(session.user.id)
+        ]);
+        setRoles(fetchedRoles);
+        setUserFullName(fullName);
+      } else {
+        setRoles([]);
+        setUserFullName(null);
+      }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        const [fetchedRoles, fullName] = await Promise.all([
+          fetchUserRoles(session.user.id),
+          fetchUserProfile(session.user.id)
+        ]);
+        setRoles(fetchedRoles);
+        setUserFullName(fullName);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -69,6 +142,23 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="hidden lg:flex items-center gap-3">
               {user ? (
                 <>
+                  {/* User Info & Role Badges */}
+                  <div className="flex flex-col items-end mr-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {userFullName || user.email}
+                    </span>
+                    <div className="flex gap-1 mt-0.5">
+                      {roles.map((role) => (
+                        <Badge 
+                          key={role} 
+                          variant="secondary" 
+                          className={`text-xs capitalize ${getRoleBadgeColor(role)}`}
+                        >
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                   <Button variant="ghost" asChild className="font-medium">
                     <Link to="/dashboard">
                       <LayoutDashboard className="w-4 h-4 mr-2" />
@@ -117,6 +207,23 @@ export function AppLayout({ children }: AppLayoutProps) {
               <div className="flex flex-col gap-3">
                 {user ? (
                   <>
+                    {/* Mobile User Info */}
+                    <div className="flex flex-col items-center pb-3 border-b border-border/30">
+                      <span className="text-sm font-medium text-foreground">
+                        {userFullName || user.email}
+                      </span>
+                      <div className="flex gap-1 mt-1">
+                        {roles.map((role) => (
+                          <Badge 
+                            key={role} 
+                            variant="secondary" 
+                            className={`text-xs capitalize ${getRoleBadgeColor(role)}`}
+                          >
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                     <Button variant="outline" asChild className="rounded-xl">
                       <Link to="/dashboard" onClick={() => setIsOpen(false)}>
                         Dashboard
