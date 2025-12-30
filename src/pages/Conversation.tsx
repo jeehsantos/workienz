@@ -212,16 +212,30 @@ export default function Conversation() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const MAX_MESSAGE_LENGTH = 5000;
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !id || conversation?.status !== "active") return;
+    const trimmedMessage = newMessage.trim();
+    
+    if (!trimmedMessage || !user || !id || conversation?.status !== "active") return;
+
+    // Validate message length
+    if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: "Message Too Long",
+        description: `Message must be less than ${MAX_MESSAGE_LENGTH} characters.`,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSending(true);
 
     const { error } = await supabase.from("messages").insert({
       conversation_id: id,
       sender_user_id: user.id,
-      content: newMessage.trim(),
+      content: trimmedMessage,
     });
 
     setIsSending(false);

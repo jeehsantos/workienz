@@ -51,13 +51,37 @@ export default function NewArticle() {
     });
   };
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  const validateImageFile = (file: File): string | null => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      return "Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.";
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return "File too large. Image must be less than 5MB.";
+    }
+    return null;
+  };
+
   const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file type and size
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast({
+        title: "Invalid File",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
-    const fileExt = file.name.split(".").pop();
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
     const fileName = `${Date.now()}-cover.${fileExt}`;
     const filePath = `covers/${fileName}`;
 
@@ -88,9 +112,20 @@ export default function NewArticle() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file type and size
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      toast({
+        title: "Invalid File",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
-    const fileExt = file.name.split(".").pop();
+    const fileExt = file.name.split(".").pop()?.toLowerCase();
     const fileName = `${Date.now()}-content.${fileExt}`;
     const filePath = `content/${fileName}`;
 
