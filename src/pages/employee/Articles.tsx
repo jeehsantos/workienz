@@ -28,26 +28,6 @@ export default function Articles() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<"all" | "free" | "premium">("all");
 
-  // Redirect if not logged in as employee
-  if (!authLoading && (!user || !isEmployee())) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container-tight py-8">
-          <div className="text-center py-16 bg-card rounded-xl border border-border/50">
-            <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Login Required</h2>
-            <p className="text-muted-foreground mb-6">
-              Sign in as a job seeker to access the Learning Center.
-            </p>
-            <Button asChild>
-              <Link to="/auth">Sign In</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     async function fetchData() {
       // Fetch articles
@@ -104,7 +84,27 @@ export default function Articles() {
     setFilteredArticles(filtered);
   }, [searchQuery, filterType, articles]);
 
-  if (isLoading) {
+  // Auth check - after all hooks
+  if (!authLoading && (!user || !isEmployee())) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container-tight py-8">
+          <div className="text-center py-16 bg-card rounded-xl border border-border/50">
+            <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Login Required</h2>
+            <p className="text-muted-foreground mb-6">
+              Sign in as a job seeker to access the Learning Center.
+            </p>
+            <Button asChild>
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
