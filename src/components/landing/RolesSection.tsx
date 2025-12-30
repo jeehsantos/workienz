@@ -41,11 +41,11 @@ const roles = [
 
 export function RolesSection() {
   return (
-    <section className="py-20 lg:py-28 bg-background relative overflow-hidden">
-      {/* Decorative background */}
+    <section className="py-20 lg:py-28 bg-muted/30 relative overflow-hidden">
+      {/* Decorative background - darker for better readability */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-y-1/2" />
-        <div className="absolute top-1/4 right-0 w-72 h-72 bg-accent/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2" />
+        <div className="absolute top-1/4 right-0 w-72 h-72 bg-accent/5 rounded-full blur-3xl" />
       </div>
 
       <div className="container-tight relative z-10">
