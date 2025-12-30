@@ -4,12 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-
-const navLinks = [
-  { label: "Find Work", href: "/jobs" },
-  { label: "Find Workers", href: "/workers" },
-  { label: "Pricing", href: "/pricing" },
-];
+import linkoLogo from "@/assets/linko-logo.png";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,24 +34,9 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg font-display">K</span>
-            </div>
-            <span className="text-xl font-bold font-display text-foreground">Kiwi Hunters</span>
+            <img src={linkoLogo} alt="Linko" className="w-9 h-9 rounded-lg" />
+            <span className="text-xl font-bold font-display text-foreground">Linko</span>
           </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                to={link.href}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
 
           {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-3">
@@ -98,44 +78,32 @@ export function Navbar() {
         {/* Mobile Menu */}
         {isOpen && (
           <div className="lg:hidden py-4 border-t border-border/50 animate-fade-in">
-            <div className="flex flex-col gap-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  to={link.href}
-                  className="text-foreground font-medium py-2"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="flex flex-col gap-3 pt-4 border-t border-border/50">
-                {user ? (
-                  <>
-                    <Button variant="outline" asChild>
-                      <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                        Dashboard
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" onClick={handleSignOut}>
-                      Sign Out
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="outline" asChild>
-                      <Link to="/auth" onClick={() => setIsOpen(false)}>
-                        Sign In
-                      </Link>
-                    </Button>
-                    <Button variant="hero" asChild>
-                      <Link to="/auth?mode=signup" onClick={() => setIsOpen(false)}>
-                        Get Started
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </div>
+            <div className="flex flex-col gap-3">
+              {user ? (
+                <>
+                  <Button variant="outline" asChild>
+                    <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                      Dashboard
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" onClick={handleSignOut}>
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" asChild>
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>
+                      Sign In
+                    </Link>
+                  </Button>
+                  <Button variant="hero" asChild>
+                    <Link to="/auth?mode=signup" onClick={() => setIsOpen(false)}>
+                      Get Started
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
