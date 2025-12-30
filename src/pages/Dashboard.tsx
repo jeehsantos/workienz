@@ -2,23 +2,18 @@ import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, User, Briefcase, FileText, Settings, Users, MessageCircle } from "lucide-react";
+import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, roles, isLoading, signOut, isAdmin, isContractor, isEmployee, isWriter } = useAuthContext();
+  const { user, roles, isLoading, isAdmin, isContractor, isEmployee, isWriter } = useAuthContext();
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate("/auth");
     }
   }, [user, isLoading, navigate]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
 
   if (isLoading) {
     return (
@@ -48,17 +43,16 @@ export default function Dashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container-tight flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg font-display">K</span>
-            </div>
-            <span className="text-xl font-bold font-display">Kiwi Hunters</span>
-          </Link>
-
+    <div className="min-h-screen bg-background">
+      {/* Main content */}
+      <div className="container-tight py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 font-display">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back! Here's what you can do today.
+            </p>
+          </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium">{user.email}</p>
@@ -73,19 +67,8 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="w-5 h-5" />
-            </Button>
           </div>
         </div>
-      </header>
-
-      {/* Main content */}
-      <div className="container-tight py-8">
-        <h1 className="text-3xl font-bold mb-2 font-display">Dashboard</h1>
-        <p className="text-muted-foreground mb-8">
-          Welcome back! Here's what you can do today.
-        </p>
 
         {/* Quick actions grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -263,6 +246,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

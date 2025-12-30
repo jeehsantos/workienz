@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
 import Auth from "./pages/Auth";
@@ -36,31 +37,33 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/jobs" element={<JobSearch />} />
-            <Route path="/jobs/:id" element={<JobDetail />} />
-            <Route path="/articles" element={<Articles />} />
-            <Route path="/articles/:slug" element={<ArticleDetail />} />
-            <Route path="/contractor/post-job" element={<PostJob />} />
-            <Route path="/contractor/jobs" element={<MyJobs />} />
-            <Route path="/contractor/jobs/:jobId/edit" element={<EditJob />} />
-            <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
-            <Route path="/contractor/profile" element={<ContractorProfile />} />
-            <Route path="/contractor/search-workers" element={<SearchWorkers />} />
-            <Route path="/employee/profile" element={<EmployeeProfile />} />
-            <Route path="/employee/view-profile" element={<ViewProfile />} />
-            <Route path="/workers/:id" element={<WorkerProfile />} />
-            <Route path="/messages/:id" element={<Conversation />} />
-            <Route path="/writer/new-article" element={<NewArticle />} />
-            <Route path="/writer/articles" element={<MyArticles />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/jobs" element={<JobSearch />} />
+              <Route path="/jobs/:id" element={<JobDetail />} />
+              <Route path="/articles" element={<Articles />} />
+              <Route path="/articles/:slug" element={<ArticleDetail />} />
+              <Route path="/contractor/post-job" element={<PostJob />} />
+              <Route path="/contractor/jobs" element={<MyJobs />} />
+              <Route path="/contractor/jobs/:jobId/edit" element={<EditJob />} />
+              <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
+              <Route path="/contractor/profile" element={<ContractorProfile />} />
+              <Route path="/contractor/search-workers" element={<SearchWorkers />} />
+              <Route path="/employee/profile" element={<EmployeeProfile />} />
+              <Route path="/employee/view-profile" element={<ViewProfile />} />
+              <Route path="/workers/:id" element={<WorkerProfile />} />
+              <Route path="/messages/:id" element={<Conversation />} />
+              <Route path="/writer/new-article" element={<NewArticle />} />
+              <Route path="/writer/articles" element={<MyArticles />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
