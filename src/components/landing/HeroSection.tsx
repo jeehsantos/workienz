@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight, MapPin, Clock, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import workersHeroImage from "@/assets/workers-hero.jpg";
 
 export function HeroSection() {
   return (
@@ -60,26 +59,46 @@ export function HeroSection() {
             </div>
           </div>
 
-          {/* Hero Image */}
+          {/* Visual */}
           <div className="relative animate-fade-up" style={{ animationDelay: "300ms" }}>
-            <div className="relative rounded-2xl overflow-hidden shadow-medium border border-border/50">
-              <img 
-                src={workersHeroImage} 
-                alt="Diverse workers including farmers, construction workers, and service staff in New Zealand countryside"
-                className="w-full h-auto object-cover aspect-[16/10]"
-              />
-              {/* Overlay gradient for better text readability if needed */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent" />
-              
+            <div className="relative bg-card rounded-2xl shadow-medium p-6 border border-border/50">
+              {/* Mock job cards */}
+              <div className="space-y-4">
+                {[
+                  { title: "Warehouse Associate", company: "Auckland Logistics", location: "Auckland CBD", type: "Temp", rate: "$28/hr" },
+                  { title: "Event Staff", company: "NZ Events Co", location: "Wellington", type: "Contract", rate: "$32/hr" },
+                  { title: "Retail Assistant", company: "Fashion Forward", location: "Christchurch", type: "Part-time", rate: "$25/hr" },
+                ].map((job, i) => (
+                  <div 
+                    key={i} 
+                    className="bg-secondary/50 rounded-xl p-4 hover:bg-secondary transition-colors cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="font-semibold text-foreground">{job.title}</h4>
+                        <p className="text-sm text-muted-foreground">{job.company}</p>
+                      </div>
+                      <span className="text-primary font-semibold">{job.rate}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {job.location}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {job.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               {/* Floating badge */}
-              <div className="absolute top-4 right-4 bg-accent text-accent-foreground rounded-full px-4 py-2 shadow-lg animate-float">
+              <div className="absolute -top-4 -right-4 bg-accent text-accent-foreground rounded-full px-4 py-2 shadow-lg animate-float">
                 <span className="text-sm font-semibold">Hiring Now!</span>
               </div>
             </div>
-            
-            {/* Decorative element */}
-            <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-primary/10 rounded-2xl -z-10" />
-            <div className="absolute -top-4 -right-4 w-16 h-16 bg-accent/20 rounded-xl -z-10" />
           </div>
         </div>
       </div>

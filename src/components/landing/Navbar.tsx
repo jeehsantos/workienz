@@ -1,9 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut, Briefcase } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+
+const navLinks = [
+  { label: "Find Work", href: "/jobs" },
+  { label: "Find Workers", href: "/workers" },
+  { label: "Pricing", href: "/pricing" },
+];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,17 +45,17 @@ export function Navbar() {
             <span className="text-xl font-bold font-display text-foreground">Kiwi Hunters</span>
           </Link>
 
-          {/* Desktop Navigation - Centered */}
-          <div className="hidden lg:flex items-center gap-2">
-            <Button variant="ghost" size="lg" asChild className="gap-2">
-              <Link to="/jobs">
-                <Briefcase className="w-4 h-4" />
-                Find Work
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center gap-8">
+            {navLinks.map((link) => (
+              <Link
+                key={link.label}
+                to={link.href}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {link.label}
               </Link>
-            </Button>
-            <Button variant="ghost" size="lg" asChild>
-              <Link to="/pricing">Pricing</Link>
-            </Button>
+            ))}
           </div>
 
           {/* Desktop CTA */}
@@ -92,23 +98,18 @@ export function Navbar() {
         {/* Mobile Menu */}
         {isOpen && (
           <div className="lg:hidden py-4 border-t border-border/50 animate-fade-in">
-            <div className="flex flex-col gap-2">
-              <Link
-                to="/jobs"
-                className="flex items-center gap-2 text-foreground font-medium py-3 px-4 rounded-lg hover:bg-secondary transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                <Briefcase className="w-4 h-4" />
-                Find Work
-              </Link>
-              <Link
-                to="/pricing"
-                className="text-foreground font-medium py-3 px-4 rounded-lg hover:bg-secondary transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                Pricing
-              </Link>
-              <div className="flex flex-col gap-3 pt-4 mt-2 border-t border-border/50">
+            <div className="flex flex-col gap-4">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  className="text-foreground font-medium py-2"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="flex flex-col gap-3 pt-4 border-t border-border/50">
                 {user ? (
                   <>
                     <Button variant="outline" asChild>
