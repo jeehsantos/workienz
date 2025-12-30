@@ -50,9 +50,9 @@ export function RolesSection() {
 
       <div className="container-tight relative z-10">
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-accent/10 rounded-full px-4 py-2 mb-6">
-            <User className="w-4 h-4 text-accent-foreground" />
-            <span className="text-sm font-medium text-accent-foreground">Choose Your Path</span>
+          <div className="inline-flex items-center gap-2 bg-primary rounded-full px-4 py-2 mb-6 shadow-md">
+            <User className="w-4 h-4 text-primary-foreground" />
+            <span className="text-sm font-medium text-primary-foreground">Choose Your Path</span>
           </div>
           <h2 className="text-3xl lg:text-4xl font-bold mb-4 font-display">
             How Can We Help You?
