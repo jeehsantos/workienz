@@ -13,6 +13,9 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
+  Briefcase,
+  User,
+  Building2,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -25,6 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 
 type Message = {
   id: string;
@@ -413,49 +417,83 @@ export default function Conversation() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="border-b border-border/50 bg-card">
-        <div className="container-tight py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild>
+      <div className="border-b border-border/50 bg-card sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <Button variant="ghost" size="icon" className="flex-shrink-0" asChild>
                 <Link to="/dashboard">
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>
-              <div>
-                <h1 className="font-semibold">
-                  {conversation.other_party?.full_name || "User"}
-                </h1>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    {conversation.job_application?.job.title || "Direct Contact"}
-                  </p>
-                  {conversation.job_application && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      conversation.job_application.status === 'rejected' 
-                        ? 'bg-red-500/10 text-red-600' 
-                        : conversation.job_application.status === 'hired'
-                        ? 'bg-green-500/10 text-green-600'
-                        : 'bg-amber-500/10 text-amber-600'
-                    }`}>
-                      {conversation.job_application.status === 'rejected' 
-                        ? 'Rejected' 
-                        : conversation.job_application.status === 'hired'
-                        ? 'Hired'
-                        : 'Pending'}
-                    </span>
+              
+              {/* User info with avatar */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  {isUserContractor ? (
+                    <User className="w-5 h-5 text-primary" />
+                  ) : (
+                    <Building2 className="w-5 h-5 text-primary" />
                   )}
+                </div>
+                <div className="min-w-0">
+                  <h1 className="font-semibold truncate">
+                    {conversation.other_party?.full_name || "User"}
+                  </h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {conversation.job_application && (
+                      <>
+                        <Link 
+                          to={`/jobs/${conversation.job_application.job.id}`}
+                          className="text-sm text-primary hover:underline flex items-center gap-1"
+                        >
+                          <Briefcase className="w-3 h-3" />
+                          {conversation.job_application.job.title}
+                        </Link>
+                        <Badge 
+                          variant={
+                            conversation.job_application.status === 'rejected' 
+                              ? 'destructive' 
+                              : conversation.job_application.status === 'hired'
+                              ? 'default'
+                              : 'secondary'
+                          }
+                          className="text-xs"
+                        >
+                          {conversation.job_application.status === 'rejected' 
+                            ? 'Rejected' 
+                            : conversation.job_application.status === 'hired'
+                            ? 'Hired'
+                            : 'Pending'}
+                        </Badge>
+                      </>
+                    )}
+                    {!conversation.job_application && (
+                      <span className="text-sm text-muted-foreground">Direct Contact</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* View Job Button for job applications */}
+              {conversation.job_application?.job.id && (
+                <Button variant="outline" size="sm" asChild className="hidden sm:flex">
+                  <Link to={`/jobs/${conversation.job_application.job.id}`}>
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    View Job
+                  </Link>
+                </Button>
+              )}
+
               {/* Show Hired badge or Hire button */}
               {conversation.job_application && isUserContractor && !isClosed && (
                 isHired ? (
                   <span className="flex items-center gap-1 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm font-medium">
                     <CheckCircle2 className="w-4 h-4" />
-                    Hired
+                    <span className="hidden sm:inline">Hired</span>
                   </span>
                 ) : (
                   <Button
@@ -465,8 +503,8 @@ export default function Conversation() {
                     disabled={isHiring}
                   >
                     {isHiring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Hire
+                    <CheckCircle2 className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Hire</span>
                   </Button>
                 )
               )}
@@ -478,16 +516,26 @@ export default function Conversation() {
                     size="sm"
                     onClick={handleShareContact}
                     disabled={isSending}
+                    className="hidden md:flex"
                   >
                     <Phone className="w-4 h-4 mr-2" />
-                    Share My Contact
+                    Share Contact
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleShareContact}
+                    disabled={isSending}
+                    className="md:hidden"
+                  >
+                    <Phone className="w-4 h-4" />
                   </Button>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <X className="w-4 h-4 mr-2" />
-                        Close Chat
+                      <Button variant="outline" size="icon" className="text-destructive hover:text-destructive">
+                        <X className="w-4 h-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -514,13 +562,34 @@ export default function Conversation() {
               )}
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="container-tight py-4 space-y-4">
+        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+          {/* Job context banner for job applications */}
+          {conversation.job_application?.job.id && (
+            <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Briefcase className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Application for</p>
+                    <p className="font-medium">{conversation.job_application.job.title}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/jobs/${conversation.job_application.job.id}`}>
+                    View Job Details
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {isClosed && (
             <div className="bg-muted/50 rounded-lg p-4 text-center">
               <AlertCircle className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
@@ -531,8 +600,12 @@ export default function Conversation() {
           )}
 
           {messages.length === 0 && !isClosed && (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No messages yet. Start the conversation!</p>
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <Send className="w-8 h-8" />
+              </div>
+              <p className="font-medium">No messages yet</p>
+              <p className="text-sm mt-1">Start the conversation by sending a message below.</p>
             </div>
           )}
 
@@ -544,13 +617,13 @@ export default function Conversation() {
                 className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[75%] rounded-lg px-4 py-2 ${
+                  className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-4 py-3 ${
                     isOwn
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                      ? "bg-primary text-primary-foreground rounded-br-md"
+                      : "bg-muted rounded-bl-md"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   <p
                     className={`text-xs mt-1 ${
                       isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
@@ -569,18 +642,19 @@ export default function Conversation() {
         </div>
       </div>
 
-      {/* Input */}
+      {/* Input Area */}
       {!isClosed && (
         <div className="border-t border-border/50 bg-card">
-          <div className="container-tight py-4">
-            <form onSubmit={handleSendMessage} className="flex gap-2">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <form onSubmit={handleSendMessage} className="flex gap-3">
               <Input
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
+                className="flex-1"
               />
-              <Button type="submit" disabled={isSending || !newMessage.trim()}>
+              <Button type="submit" disabled={isSending || !newMessage.trim()} size="icon">
                 {isSending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
