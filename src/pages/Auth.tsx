@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const isSignUp = searchParams.get("mode") === "signup";
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuthContext();
+  const { signIn, signUp, user, isLoading: authLoading } = useAuthContext();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +26,27 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [userType, setUserType] = useState<UserType | null>(null);
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Don't render form if already logged in
+  if (user) {
+    return null;
+  }
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; fullName?: string } = {};

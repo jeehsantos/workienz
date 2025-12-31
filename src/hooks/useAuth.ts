@@ -9,6 +9,7 @@ interface AuthState {
   session: Session | null;
   roles: AppRole[];
   isLoading: boolean;
+  rolesLoading: boolean;
 }
 
 export function useAuth() {
@@ -17,9 +18,10 @@ export function useAuth() {
     session: null,
     roles: [],
     isLoading: true,
+    rolesLoading: true,
   });
 
-  const fetchUserRoles = useCallback(async (userId: string) => {
+  const fetchUserRoles = useCallback(async (userId: string): Promise<AppRole[]> => {
     try {
       const { data, error } = await supabase.rpc("get_user_roles", {
         _user_id: userId,
@@ -36,45 +38,65 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Set up auth state listener FIRST
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      
       setAuthState((prev) => ({
         ...prev,
         session,
         user: session?.user ?? null,
         isLoading: false,
+        rolesLoading: session?.user ? true : false,
+        roles: session?.user ? prev.roles : [],
       }));
 
       // Defer role fetching to avoid deadlock
       if (session?.user) {
         setTimeout(async () => {
+          if (!isMounted) return;
           const roles = await fetchUserRoles(session.user.id);
-          setAuthState((prev) => ({ ...prev, roles }));
+          if (isMounted) {
+            setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
+          }
         }, 0);
       } else {
-        setAuthState((prev) => ({ ...prev, roles: [] }));
+        setAuthState((prev) => ({ ...prev, roles: [], rolesLoading: false }));
       }
     });
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+      
       setAuthState((prev) => ({
         ...prev,
         session,
         user: session?.user ?? null,
         isLoading: false,
+        rolesLoading: session?.user ? true : false,
       }));
 
       if (session?.user) {
-        fetchUserRoles(session.user.id).then((roles) => {
-          setAuthState((prev) => ({ ...prev, roles }));
-        });
+        const roles = await fetchUserRoles(session.user.id);
+        if (isMounted) {
+          setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
+        }
+      } else {
+        if (isMounted) {
+          setAuthState((prev) => ({ ...prev, rolesLoading: false }));
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchUserRoles]);
 
   const signUp = async (
@@ -123,8 +145,13 @@ export function useAuth() {
   const isEmployee = (): boolean => hasRole("employee");
   const isWriter = (): boolean => hasRole("writer");
 
+  // Combined loading state - true if either auth or roles are loading
+  const isFullyLoaded = !authState.isLoading && !authState.rolesLoading;
+
   return {
     ...authState,
+    // isLoading should be true until both auth AND roles are loaded
+    isLoading: !isFullyLoaded,
     signUp,
     signIn,
     signOut,
