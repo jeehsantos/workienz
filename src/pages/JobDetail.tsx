@@ -73,7 +73,6 @@ export default function JobDetail() {
   const [applicationStatus, setApplicationStatus] = useState<string>('pending');
   const [isApplying, setIsApplying] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
-  const [showApplyForm, setShowApplyForm] = useState(false);
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
   const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
   const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
@@ -303,21 +302,15 @@ export default function JobDetail() {
 
     setIsApplying(false);
     setHasApplied(true);
-    setShowApplyForm(false);
+    setCoverLetter("");
     
-    // Navigate to the conversation if created
-    if (conversationId) {
-      toast({
-        title: "Application Submitted!",
-        description: "You're now connected with the employer. Redirecting to chat...",
-      });
-      navigate(`/messages/${conversationId}`);
-    } else {
-      toast({
-        title: "Application Submitted!",
-        description: "Your application has been sent to the employer.",
-      });
-    }
+    // Show success message - stay on the page instead of redirecting
+    toast({
+      title: "Application Submitted!",
+      description: conversationId 
+        ? "You're now connected with the employer. Check your dashboard to view the conversation."
+        : "Your application has been sent to the employer.",
+    });
   };
 
   if (isLoading) {
@@ -539,8 +532,11 @@ export default function JobDetail() {
                       )}
                     </div>
                   </div>
-                ) : showApplyForm ? (
+) : (
                   <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Ready to apply? Add a cover letter to stand out!
+                    </p>
                     {applicationError && (
                       <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
                         {applicationError}
@@ -552,24 +548,18 @@ export default function JobDetail() {
                         id="cover_letter"
                         value={coverLetter}
                         onChange={(e) => setCoverLetter(e.target.value)}
-                        placeholder="Tell the employer why you're a great fit..."
+                        placeholder="Tell the employer why you're a great fit for this position..."
                         rows={5}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        A good cover letter increases your chances of getting noticed.
+                      </p>
                     </div>
-                    <div className="flex gap-3">
-                      <Button onClick={handleApply} disabled={isApplying}>
-                        {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Submit Application
-                      </Button>
-                      <Button variant="outline" onClick={() => setShowApplyForm(false)}>
-                        Cancel
-                      </Button>
-                    </div>
+                    <Button onClick={handleApply} disabled={isApplying} className="w-full">
+                      {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Submit Application
+                    </Button>
                   </div>
-                ) : (
-                  <Button onClick={() => setShowApplyForm(true)} className="w-full">
-                    Apply for this Job
-                  </Button>
                 )}
               </div>
             )}
