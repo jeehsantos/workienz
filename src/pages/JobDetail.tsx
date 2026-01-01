@@ -17,6 +17,7 @@ import {
   Users,
   AlertTriangle,
   Calendar,
+  ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -52,6 +53,7 @@ type Job = {
   industry: string | null;
   schedule_type: string | null;
   experience_required: boolean;
+  is_sse: boolean;
   contractor: {
     id: string;
     company_name: string;
@@ -107,7 +109,8 @@ export default function JobDetail() {
           contractor_id,
           industry,
           schedule_type,
-          experience_required
+          experience_required,
+          is_sse
         `)
         .eq("id", id)
         .single();
@@ -140,7 +143,8 @@ export default function JobDetail() {
         ...data, 
         contractor, 
         shifts,
-        experience_required: (data as any).experience_required ?? false
+        experience_required: (data as any).experience_required ?? false,
+        is_sse: (data as any).is_sse ?? false
       });
       setIsLoading(false);
     }
@@ -361,6 +365,12 @@ export default function JobDetail() {
                 )}
                 {job.experience_required && (
                   <Badge variant="destructive">Experience Required</Badge>
+                )}
+                {job.is_sse && (
+                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                    <ShieldCheck className="w-3 h-3 mr-1" />
+                    SSE Required
+                  </Badge>
                 )}
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>

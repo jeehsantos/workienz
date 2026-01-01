@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 
 const plans = [
@@ -54,9 +53,7 @@ const plans = [
 export default function Pricing() {
   return (
     <main className="min-h-screen">
-      <Navbar />
-
-      <section className="pt-32 pb-20 lg:pt-40 lg:pb-28 gradient-hero">
+      <section className="pt-8 pb-20 lg:pt-12 lg:pb-28 gradient-hero">
         <div className="container-tight">
           <div className="text-center mb-16">
             <h1 className="text-4xl lg:text-5xl font-bold mb-4 font-display">
