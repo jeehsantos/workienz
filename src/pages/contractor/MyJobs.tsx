@@ -194,7 +194,7 @@ export default function MyJobs() {
                       </Link>
                     </Button>
                     <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/jobs/${job.id}`}>
+                      <Link to={`/contractor/jobs/${job.id}`}>
                         <Eye className="w-4 h-4" />
                       </Link>
                     </Button>

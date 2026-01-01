@@ -59,6 +59,7 @@ export default function ContractorJobDetail() {
 
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
@@ -215,41 +216,74 @@ export default function ContractorJobDetail() {
                 {job.experience_required && (
                   <Badge variant="destructive">Experience Required</Badge>
                 )}
-                {job.is_sse && (
-                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800">
-                    <ShieldCheck className="w-3 h-3 mr-1" />
-                    SSE Required
-                  </Badge>
-                )}
               </div>
               <h1 className="text-2xl font-bold mb-4 font-display">{job.title}</h1>
 
-              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
-                {job.location_city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {job.location_suburb && `${job.location_suburb}, `}
-                    {job.location_city}
-                    {job.location_country && `, ${job.location_country}`}
-                  </span>
-                )}
-                {job.duration && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {job.duration}
-                  </span>
-                )}
-                {(job.hourly_rate_min || job.hourly_rate_max) && (
-                  <span className="flex items-center gap-1">
-                    <DollarSign className="w-4 h-4" />$
-                    {job.hourly_rate_min || "?"} - ${job.hourly_rate_max || "?"}/hr
-                  </span>
+              <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-6">
+                <div className="flex flex-wrap gap-4">
+                  {job.location_city && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {job.location_suburb && `${job.location_suburb}, `}
+                      {job.location_city}
+                      {job.location_country && `, ${job.location_country}`}
+                    </span>
+                  )}
+                  {job.duration && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      {job.duration}
+                    </span>
+                  )}
+                  {(job.hourly_rate_min || job.hourly_rate_max) && (
+                    <span className="flex items-center gap-1">
+                      <DollarSign className="w-4 h-4" />
+                      {job.hourly_rate_min && job.hourly_rate_max
+                        ? `$${job.hourly_rate_min} – $${job.hourly_rate_max}/hr`
+                        : job.hourly_rate_min
+                        ? `From $${job.hourly_rate_min}/hr`
+                        : job.hourly_rate_max
+                        ? `Up to $${job.hourly_rate_max}/hr`
+                        : null}
+                    </span>
+                  )}
+                </div>
+
+                {job.is_sse && (
+                  <div className="flex items-center gap-2 text-foreground">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="font-medium">SSE employer</span>
+                    <span className="text-muted-foreground">(specialized farm work)</span>
+                  </div>
                 )}
               </div>
 
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 <h3>Description</h3>
-                <p className="whitespace-pre-wrap">{job.description}</p>
+                <div className="relative">
+                  <div
+                    className={`whitespace-pre-wrap ${
+                      isDescriptionExpanded ? "" : "max-h-40 overflow-hidden"
+                    }`}
+                  >
+                    {job.description}
+                  </div>
+
+                  {!isDescriptionExpanded && job.description.length > 600 && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
+                  )}
+
+                  {job.description.length > 600 && (
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="px-0"
+                      onClick={() => setIsDescriptionExpanded((v) => !v)}
+                    >
+                      {isDescriptionExpanded ? "Show less" : "Read more"}
+                    </Button>
+                  )}
+                </div>
 
                 {job.requirements && (
                   <>
