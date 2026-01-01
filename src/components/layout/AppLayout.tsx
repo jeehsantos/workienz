@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Menu, X, LogOut, LayoutDashboard, MessageCircle } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Menu, X, LogOut, LayoutDashboard, MessageCircle, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { formatDistanceToNow } from "date-fns";
 import linkoLogo from "@/assets/linko-logo-new.png";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
@@ -31,6 +33,7 @@ const getRoleBadgeColor = (role: string) => {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [messagesOpen, setMessagesOpen] = useState(false);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
@@ -38,7 +41,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Single source of truth for auth state (prevents tab-switch refresh loops)
   const { user, roles, signOut } = useAuthContext();
 
-  const { unreadCount } = useUnreadMessages(user?.id);
+  const { unreadCount, unreadConversations } = useUnreadMessages(user?.id);
 
   // Check if user can see messages (employee or contractor)
   const canSeeMessages = roles.includes("employee") || roles.includes("contractor");
@@ -90,6 +93,11 @@ export function AppLayout({ children }: AppLayoutProps) {
     navigate("/");
   };
 
+  const handleConversationClick = (conversationId: string) => {
+    setMessagesOpen(false);
+    navigate(`/messages/${conversationId}`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navbar */}
@@ -125,19 +133,87 @@ export function AppLayout({ children }: AppLayoutProps) {
                     </Link>
                   </Button>
                   
-                  {/* Unread Messages Indicator */}
+                  {/* Unread Messages Indicator with Popover */}
                   {canSeeMessages && (
-                    <Button variant="ghost" asChild className="font-medium relative">
-                      <Link to="/dashboard">
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Messages
-                        {unreadCount > 0 && (
-                          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-                            {unreadCount > 9 ? "9+" : unreadCount}
-                          </span>
-                        )}
-                      </Link>
-                    </Button>
+                    <Popover open={messagesOpen} onOpenChange={setMessagesOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" className="font-medium relative">
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Messages
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                              {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-80 p-0">
+                        <div className="p-3 border-b border-border/50">
+                          <h4 className="font-semibold text-sm">Messages</h4>
+                          {unreadCount > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {unreadCount} unread message{unreadCount !== 1 ? "s" : ""}
+                            </p>
+                          )}
+                        </div>
+                        <div className="max-h-80 overflow-y-auto">
+                          {unreadConversations.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p>No new messages</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-border/50">
+                              {unreadConversations.map((conv) => (
+                                <button
+                                  key={conv.id}
+                                  onClick={() => handleConversationClick(conv.id)}
+                                  className="w-full p-3 text-left hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                      <User className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <p className="font-medium text-sm truncate">
+                                          {conv.otherPartyName}
+                                        </p>
+                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
+                                          {conv.unreadCount}
+                                        </Badge>
+                                      </div>
+                                      <p className="text-xs text-primary/80 truncate font-medium">
+                                        Re: {conv.jobTitle}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                        {conv.lastMessagePreview}
+                                      </p>
+                                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                                        {formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2 border-t border-border/50">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full text-xs"
+                            onClick={() => {
+                              setMessagesOpen(false);
+                              navigate("/dashboard");
+                            }}
+                          >
+                            View all conversations
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   )}
                   
                   {/* User Info Dropdown Style */}
