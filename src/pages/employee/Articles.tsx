@@ -19,7 +19,7 @@ type Article = {
 };
 
 export default function Articles() {
-  const { user, isEmployee, isLoading: authLoading } = useAuthContext();
+  const { user, isEmployee, isWriter, isLoading: authLoading } = useAuthContext();
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
@@ -84,8 +84,8 @@ export default function Articles() {
     setFilteredArticles(filtered);
   }, [searchQuery, filterType, articles]);
 
-  // Auth check - after all hooks
-  if (!authLoading && (!user || !isEmployee())) {
+  // Auth check - after all hooks (allow both employees and writers)
+  if (!authLoading && (!user || (!isEmployee() && !isWriter()))) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container-tight py-8">
@@ -93,7 +93,7 @@ export default function Articles() {
             <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Login Required</h2>
             <p className="text-muted-foreground mb-6">
-              Sign in as a job seeker to access the Learning Center.
+              Sign in to access Arrival Essentials.
             </p>
             <Button asChild>
               <Link to="/auth">Sign In</Link>
@@ -134,7 +134,7 @@ export default function Articles() {
               <GraduationCap className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold font-display">Learning Center</h1>
+              <h1 className="text-3xl font-bold font-display">Arrival Essentials</h1>
               <p className="text-muted-foreground">
                 Articles and guides to help you succeed
               </p>
@@ -191,7 +191,7 @@ export default function Articles() {
           </div>
         </div>
 
-        {!hasSubscription && user && isEmployee() && (
+        {!hasSubscription && user && (isEmployee() || isWriter()) && (
           <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-6 mb-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

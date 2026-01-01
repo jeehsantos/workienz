@@ -213,7 +213,7 @@ export default function ArticleDetail() {
       {/* Hero header with cover image */}
       {article.cover_image_url && (
         <div className="container-tight pt-6 md:pt-8">
-          <div className="aspect-video max-h-[400px] bg-muted rounded-xl overflow-hidden">
+          <div className="aspect-video max-h-[400px] bg-muted rounded-xl overflow-hidden mx-auto">
             <img
               src={article.cover_image_url}
               alt={article.title}
