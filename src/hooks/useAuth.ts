@@ -40,36 +40,55 @@ export function useAuth() {
   useEffect(() => {
     let isMounted = true;
 
+    const clearAuthState = () => {
+      if (!isMounted) return;
+      setAuthState({
+        user: null,
+        session: null,
+        roles: [],
+        isLoading: false,
+        rolesLoading: false,
+      });
+    };
+
+    const clearAuthStorage = () => {
+      try {
+        // Supabase stores the session in localStorage; if it gets corrupted/stale,
+        // we must remove it or the client will keep trying to refresh forever.
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          if (k.startsWith("sb-") || k.includes("supabase") || k.includes("auth-token")) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      } catch {
+        // ignore
+      }
+    };
+
     // Set up auth state listener FIRST
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      
-      // Handle token refresh failures by clearing the session
-      if (event === 'TOKEN_REFRESHED' && !session) {
-        setAuthState({
-          user: null,
-          session: null,
-          roles: [],
-          isLoading: false,
-          rolesLoading: false,
-        });
+
+      // Critical: if token refresh fails, Supabase can keep retrying on tab focus.
+      // We clear persisted auth + state to break the loop and force a clean login.
+      if ((event as unknown as string) === "TOKEN_REFRESH_FAILED") {
+        clearAuthStorage();
+        clearAuthState();
         return;
       }
 
-      // Handle sign out events
-      if (event === 'SIGNED_OUT') {
-        setAuthState({
-          user: null,
-          session: null,
-          roles: [],
-          isLoading: false,
-          rolesLoading: false,
-        });
+      if (event === "SIGNED_OUT") {
+        clearAuthStorage();
+        clearAuthState();
         return;
       }
-      
+
       setAuthState((prev) => ({
         ...prev,
         session,
@@ -94,23 +113,18 @@ export function useAuth() {
     });
 
     // THEN check for existing session with error handling
-    supabase.auth.getSession()
+    supabase.auth
+      .getSession()
       .then(async ({ data: { session }, error }) => {
         if (!isMounted) return;
-        
-        // If there's an auth error (like invalid refresh token), clear everything
+
         if (error) {
           console.error("Session error:", error);
-          setAuthState({
-            user: null,
-            session: null,
-            roles: [],
-            isLoading: false,
-            rolesLoading: false,
-          });
+          clearAuthStorage();
+          clearAuthState();
           return;
         }
-        
+
         setAuthState((prev) => ({
           ...prev,
           session,
@@ -131,21 +145,42 @@ export function useAuth() {
         }
       })
       .catch((error) => {
-        // Catch any unhandled errors and clear auth state
         console.error("Auth initialization error:", error);
-        if (isMounted) {
-          setAuthState({
-            user: null,
-            session: null,
-            roles: [],
-            isLoading: false,
-            rolesLoading: false,
-          });
-        }
+        clearAuthStorage();
+        clearAuthState();
       });
+
+    // Extra safety: when the tab becomes visible again, re-sync the session once.
+    const onVisibility = () => {
+      if (!isMounted) return;
+      if (document.visibilityState !== "visible") return;
+      supabase.auth
+        .getSession()
+        .then(({ data: { session }, error }) => {
+          if (!isMounted) return;
+          if (error) {
+            clearAuthStorage();
+            clearAuthState();
+            return;
+          }
+          setAuthState((prev) => ({
+            ...prev,
+            session,
+            user: session?.user ?? null,
+            isLoading: false,
+          }));
+        })
+        .catch(() => {
+          clearAuthStorage();
+          clearAuthState();
+        });
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       isMounted = false;
+      document.removeEventListener("visibilitychange", onVisibility);
       subscription.unsubscribe();
     };
   }, [fetchUserRoles]);

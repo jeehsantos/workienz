@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Menu, X, LogOut, LayoutDashboard, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
+import { useAuthContext } from "@/contexts/AuthContext";
 import linkoLogo from "@/assets/linko-logo-new.png";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
@@ -31,32 +31,21 @@ const getRoleBadgeColor = (role: string) => {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [roles, setRoles] = useState<AppRole[]>([]);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+
+  // Single source of truth for auth state (prevents tab-switch refresh loops)
+  const { user, roles, signOut } = useAuthContext();
+
   const { unreadCount } = useUnreadMessages(user?.id);
 
   // Check if user can see messages (employee or contractor)
   const canSeeMessages = roles.includes("employee") || roles.includes("contractor");
 
+  // Fetch profile name (deferred outside auth listener)
   useEffect(() => {
-    const fetchUserRoles = async (userId: string) => {
-      try {
-        const { data, error } = await supabase.rpc("get_user_roles", {
-          _user_id: userId,
-        });
-        if (error) {
-          console.error("Error fetching roles:", error);
-          return [];
-        }
-        return (data as AppRole[]) || [];
-      } catch (error) {
-        console.error("Error fetching roles:", error);
-        return [];
-      }
-    };
+    let active = true;
 
     const fetchUserProfile = async (userId: string) => {
       try {
@@ -65,46 +54,28 @@ export function AppLayout({ children }: AppLayoutProps) {
           .select("full_name")
           .eq("user_id", userId)
           .single();
-        if (error) {
-          console.error("Error fetching profile:", error);
-          return null;
-        }
+
+        if (error) return null;
         return data?.full_name || null;
-      } catch (error) {
-        console.error("Error fetching profile:", error);
+      } catch {
         return null;
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const [fetchedRoles, fullName] = await Promise.all([
-          fetchUserRoles(session.user.id),
-          fetchUserProfile(session.user.id)
-        ]);
-        setRoles(fetchedRoles);
-        setUserFullName(fullName);
-      } else {
-        setRoles([]);
-        setUserFullName(null);
-      }
-    });
+    if (!user?.id) {
+      setUserFullName(null);
+      return;
+    }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const [fetchedRoles, fullName] = await Promise.all([
-          fetchUserRoles(session.user.id),
-          fetchUserProfile(session.user.id)
-        ]);
-        setRoles(fetchedRoles);
-        setUserFullName(fullName);
-      }
-    });
+    setTimeout(async () => {
+      const fullName = await fetchUserProfile(user.id);
+      if (active) setUserFullName(fullName);
+    }, 0);
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -115,7 +86,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/");
   };
 
