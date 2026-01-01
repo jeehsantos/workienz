@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { JobDescription } from "@/components/jobs/JobDescription";
+import { formatHourlyRate } from "@/lib/formatters";
 
 
 type JobShift = {
@@ -75,7 +77,6 @@ export default function JobDetail() {
   const [applicationStatus, setApplicationStatus] = useState<string>('pending');
   const [isApplying, setIsApplying] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
   const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
   const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
@@ -342,6 +343,7 @@ export default function JobDetail() {
   }
 
   const eligibility = canApply();
+  const hourlyRate = formatHourlyRate(job.hourly_rate_min, job.hourly_rate_max);
 
   return (
       <div className="min-h-screen bg-background">
@@ -389,16 +391,10 @@ export default function JobDetail() {
                       {job.duration}
                     </span>
                   )}
-                  {(job.hourly_rate_min || job.hourly_rate_max) && (
+                  {hourlyRate && (
                     <span className="flex items-center gap-1">
                       <DollarSign className="w-4 h-4" />
-                      {job.hourly_rate_min && job.hourly_rate_max
-                        ? `$${job.hourly_rate_min} – $${job.hourly_rate_max}/hr`
-                        : job.hourly_rate_min
-                        ? `From $${job.hourly_rate_min}/hr`
-                        : job.hourly_rate_max
-                        ? `Up to $${job.hourly_rate_max}/hr`
-                        : null}
+                      {hourlyRate}
                     </span>
                   )}
                 </div>
@@ -412,43 +408,13 @@ export default function JobDetail() {
                 )}
               </div>
 
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <h3>Description</h3>
-                <div className="relative">
-                  <div
-                    className={`whitespace-pre-wrap ${
-                      isDescriptionExpanded ? "" : "max-h-40 overflow-hidden"
-                    }`}
-                  >
-                    {job.description}
-                  </div>
-
-                  {!isDescriptionExpanded && job.description.length > 600 && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
-                  )}
-
-                  {job.description.length > 600 && (
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="px-0"
-                      onClick={() => setIsDescriptionExpanded((v) => !v)}
-                    >
-                      {isDescriptionExpanded ? "Show less" : "Read more"}
-                    </Button>
-                  )}
-                </div>
-
-                {job.requirements && (
-                  <>
-                    <h3>Requirements</h3>
-                    <p className="whitespace-pre-wrap">{job.requirements}</p>
-                  </>
-                )}
-              </div>
+              <JobDescription
+                description={job.description}
+                requirements={job.requirements}
+              />
 
               {job.skills_required && job.skills_required.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-6 pt-4 border-t border-border/50">
                   <h3 className="text-sm font-semibold mb-2">Required Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {job.skills_required.map((skill) => (
