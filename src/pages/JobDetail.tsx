@@ -403,7 +403,6 @@ export default function JobDetail() {
                   <div className="flex items-center gap-2 text-foreground">
                     <ShieldCheck className="w-4 h-4" />
                     <span className="font-medium">SSE employer</span>
-                    <span className="text-muted-foreground">(specialized farm work)</span>
                   </div>
                 )}
               </div>

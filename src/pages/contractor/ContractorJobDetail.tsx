@@ -55,7 +55,8 @@ type Job = {
 };
 
 export default function ContractorJobDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const jobId = (params as { jobId?: string; id?: string }).jobId ?? (params as { id?: string }).id;
   const navigate = useNavigate();
   const { user, isContractor, isLoading: authLoading } = useAuthContext();
 
@@ -65,7 +66,7 @@ export default function ContractorJobDetail() {
 
   // Stable fetch function
   const fetchJob = useCallback(async () => {
-    if (!id || !user) return;
+    if (!jobId || !user) return;
 
     // Get contractor profile first
     const { data: contractorProfile } = await supabase
@@ -107,7 +108,7 @@ export default function ContractorJobDetail() {
         is_sse,
         status
       `)
-      .eq("id", id)
+      .eq("id", jobId)
       .eq("contractor_id", contractorProfile.id)
       .single();
 
@@ -124,7 +125,7 @@ export default function ContractorJobDetail() {
       const { data: shiftsData } = await supabase
         .from("job_shifts")
         .select("*")
-        .eq("job_id", id)
+        .eq("job_id", jobId)
         .order("shift_date", { ascending: true });
       shifts = shiftsData || [];
     }
@@ -136,7 +137,7 @@ export default function ContractorJobDetail() {
       is_sse: data.is_sse ?? false,
     });
     setIsLoading(false);
-  }, [id, user]);
+  }, [jobId, user]);
 
   // Auth redirect - only once when auth is resolved
   useEffect(() => {
@@ -147,10 +148,10 @@ export default function ContractorJobDetail() {
 
   // Fetch job data - only when we have a user and id
   useEffect(() => {
-    if (user && id && isContractor()) {
+    if (user && jobId && isContractor()) {
       fetchJob();
     }
-  }, [user, id, isContractor, fetchJob]);
+  }, [user, jobId, isContractor, fetchJob]);
 
   if (authLoading || isLoading) {
     return (
@@ -259,7 +260,6 @@ export default function ContractorJobDetail() {
                   <div className="flex items-center gap-2 text-foreground">
                     <ShieldCheck className="w-4 h-4" />
                     <span className="font-medium">SSE employer</span>
-                    <span className="text-muted-foreground">(specialized farm work)</span>
                   </div>
                 )}
               </div>
