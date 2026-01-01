@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MessageCircle, Loader2, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 
 type Conversation = {
   id: string;
@@ -10,10 +11,26 @@ type Conversation = {
   updated_at: string;
   job_title: string;
   other_party_name: string;
+  last_message_at: string | null;
+  last_message_preview: string | null;
 };
 
 interface MyConversationsProps {
   userId: string;
+}
+
+function formatMessageTime(dateString: string | null): string {
+  if (!dateString) return "";
+  
+  const date = new Date(dateString);
+  
+  if (isToday(date)) {
+    return format(date, "h:mm a");
+  } else if (isYesterday(date)) {
+    return "Yesterday " + format(date, "h:mm a");
+  } else {
+    return format(date, "MMM d, h:mm a");
+  }
 }
 
 export default function MyConversations({ userId }: MyConversationsProps) {
@@ -43,7 +60,7 @@ export default function MyConversations({ userId }: MyConversationsProps) {
         return;
       }
 
-      // Enrich with job titles and other party names
+      // Enrich with job titles, other party names, and last message info
       const enriched = await Promise.all(
         (convData || []).map(async (conv) => {
           // Get job title through job application (if exists)
@@ -77,15 +94,35 @@ export default function MyConversations({ userId }: MyConversationsProps) {
             .eq("user_id", otherUserId)
             .maybeSingle();
 
+          // Get last message
+          const { data: lastMessageData } = await supabase
+            .from("messages")
+            .select("content, created_at")
+            .eq("conversation_id", conv.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
           return {
             id: conv.id,
             status: conv.status,
             updated_at: conv.updated_at,
             job_title: jobTitle,
             other_party_name: profileData?.full_name || "User",
+            last_message_at: lastMessageData?.created_at || null,
+            last_message_preview: lastMessageData?.content 
+              ? lastMessageData.content.substring(0, 40) + (lastMessageData.content.length > 40 ? "..." : "")
+              : null,
           };
         })
       );
+
+      // Sort by last message time
+      enriched.sort((a, b) => {
+        const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+        const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+        return bTime - aTime;
+      });
 
       setConversations(enriched);
       setIsLoading(false);
@@ -124,20 +161,32 @@ export default function MyConversations({ userId }: MyConversationsProps) {
               <User className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-sm truncate">
-                  {conv.other_party_name}
-                </p>
-                <Badge
-                  variant={conv.status === "active" ? "default" : "secondary"}
-                  className="text-xs"
-                >
-                  {conv.status}
-                </Badge>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="font-medium text-sm truncate">
+                    {conv.other_party_name}
+                  </p>
+                  <Badge
+                    variant={conv.status === "active" ? "default" : "secondary"}
+                    className="text-xs flex-shrink-0"
+                  >
+                    {conv.status}
+                  </Badge>
+                </div>
+                {conv.last_message_at && (
+                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                    {formatMessageTime(conv.last_message_at)}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground truncate">
                 Re: {conv.job_title}
               </p>
+              {conv.last_message_preview && (
+                <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
+                  "{conv.last_message_preview}"
+                </p>
+              )}
             </div>
           </div>
         </Link>
