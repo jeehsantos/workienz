@@ -35,6 +35,12 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Status colors for password strength */
+    --success: 145 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
     --border: 40 20% 88%;
     --input: 40 20% 88%;
     --ring: 145 45% 32%;
@@ -85,6 +91,12 @@
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Status colors for password strength (dark mode) */
+    --success: 145 55% 50%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 85% 55%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 160 15% 20%;
     --input: 160 15% 20%;
