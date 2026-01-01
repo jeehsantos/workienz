@@ -252,11 +252,11 @@ export default function Auth() {
 
   return (
     <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md mx-auto">
         {/* Back link */}
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors justify-center w-full"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to home
