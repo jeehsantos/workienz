@@ -212,13 +212,14 @@ export default function ArticleDetail() {
     <div className="min-h-screen bg-background">
       {/* Hero header with cover image */}
       {article.cover_image_url && (
-        <div className="relative w-full h-[40vh] md:h-[50vh] bg-muted overflow-hidden">
-          <img
-            src={article.cover_image_url}
-            alt={article.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+        <div className="container-tight pt-6 md:pt-8">
+          <div className="aspect-video max-h-[400px] bg-muted rounded-xl overflow-hidden">
+            <img
+              src={article.cover_image_url}
+              alt={article.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
         </div>
       )}
 

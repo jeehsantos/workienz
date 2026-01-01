@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, FileText, Eye, EyeOff, Crown } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, FileText, Eye, EyeOff, Crown, Pencil, ExternalLink } from "lucide-react";
 
 type Article = {
   id: string;
@@ -168,6 +168,28 @@ export default function MyArticles() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {article.is_published && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        asChild
+                      >
+                        <Link to={`/articles/${article.slug}`}>
+                          <ExternalLink className="w-4 h-4 mr-1" />
+                          View
+                        </Link>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                    >
+                      <Link to={`/writer/articles/${article.id}/edit`}>
+                        <Pencil className="w-4 h-4 mr-1" />
+                        Edit
+                      </Link>
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
