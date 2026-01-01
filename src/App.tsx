@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import PostJob from "./pages/contractor/PostJob";
 import EditJob from "./pages/contractor/EditJob";
 import MyJobs from "./pages/contractor/MyJobs";
+import ContractorJobDetail from "./pages/contractor/ContractorJobDetail";
 import SearchWorkers from "./pages/contractor/SearchWorkers";
 import ContractorProfile from "./pages/contractor/ContractorProfile";
 import JobApplicants from "./pages/contractor/JobApplicants";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/articles/:slug" element={<ArticleDetail />} />
               <Route path="/contractor/post-job" element={<PostJob />} />
               <Route path="/contractor/jobs" element={<MyJobs />} />
+              <Route path="/contractor/jobs/:jobId" element={<ContractorJobDetail />} />
               <Route path="/contractor/jobs/:jobId/edit" element={<EditJob />} />
               <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
               <Route path="/contractor/profile" element={<ContractorProfile />} />
