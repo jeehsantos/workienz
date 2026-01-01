@@ -50,6 +50,8 @@ export default function EmployeeProfile() {
   const [existingProfile, setExistingProfile] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
     headline: "",
     bio: "",
     city: "",
@@ -79,17 +81,28 @@ export default function EmployeeProfile() {
     async function fetchProfile() {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("employee_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Fetch both employee profile and user profile
+      const [employeeResult, profileResult] = await Promise.all([
+        supabase
+          .from("employee_profiles")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", user.id)
+          .maybeSingle()
+      ]);
 
-      if (error) {
-        console.error("Error fetching profile:", error);
-      } else if (data) {
+      if (employeeResult.error) {
+        console.error("Error fetching profile:", employeeResult.error);
+      } else if (employeeResult.data) {
+        const data = employeeResult.data;
         setExistingProfile(data.id);
         setFormData({
+          first_name: profileResult.data?.first_name || "",
+          last_name: profileResult.data?.last_name || "",
           headline: data.headline || "",
           bio: (data as any).bio || "",
           city: data.city || "",
@@ -106,6 +119,15 @@ export default function EmployeeProfile() {
         setLanguages((data as any).languages || []);
         if ((data as any).date_of_birth) {
           setDateOfBirth(new Date((data as any).date_of_birth));
+        }
+      } else {
+        // No employee profile yet, but get names from user profile
+        if (profileResult.data) {
+          setFormData(prev => ({
+            ...prev,
+            first_name: profileResult.data?.first_name || "",
+            last_name: profileResult.data?.last_name || "",
+          }));
         }
       }
 
@@ -176,6 +198,21 @@ export default function EmployeeProfile() {
       error = result.error;
     }
 
+    // Also update the profiles table with first_name and last_name
+    if (!error) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          first_name: formData.first_name || null,
+          last_name: formData.last_name || null,
+        })
+        .eq("user_id", user.id);
+      
+      if (profileError) {
+        console.error("Error updating profile names:", profileError);
+      }
+    }
+
     setIsSaving(false);
 
     if (error) {
@@ -236,6 +273,27 @@ export default function EmployeeProfile() {
               checked={formData.is_available}
               onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
             />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First Name</Label>
+              <Input
+                id="first_name"
+                value={formData.first_name}
+                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                placeholder="e.g., John"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input
+                id="last_name"
+                value={formData.last_name}
+                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                placeholder="e.g., Doe"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

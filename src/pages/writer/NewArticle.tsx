@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,10 +31,11 @@ export default function NewArticle() {
 
   const [contentImages, setContentImages] = useState<string[]>([]);
 
-  if (!authLoading && (!user || !isWriter())) {
-    navigate("/auth");
-    return null;
-  }
+  useEffect(() => {
+    if (!authLoading && (!user || !isWriter())) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, isWriter, navigate]);
 
   const generateSlug = (title: string) => {
     return title
