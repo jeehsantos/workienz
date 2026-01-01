@@ -1,17 +1,97 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, User, ArrowLeft, Loader2 } from "lucide-react";
+import { Briefcase, User, ArrowLeft, Loader2, Check, X } from "lucide-react";
 import { z } from "zod";
 
 type UserType = "contractor" | "employee";
 
 const emailSchema = z.string().email("Please enter a valid email address");
-const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
+
+// Enhanced password validation with complexity requirements
+const passwordSchema = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .max(72, "Password must be less than 72 characters")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\]/, "Password must contain at least one special character");
+
+// Password strength requirements for visual indicator
+const passwordRequirements = [
+  { label: "At least 8 characters", test: (pwd: string) => pwd.length >= 8 },
+  { label: "One uppercase letter (A-Z)", test: (pwd: string) => /[A-Z]/.test(pwd) },
+  { label: "One lowercase letter (a-z)", test: (pwd: string) => /[a-z]/.test(pwd) },
+  { label: "One number (0-9)", test: (pwd: string) => /[0-9]/.test(pwd) },
+  { label: "One special character (!@#$%...)", test: (pwd: string) => /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\]/.test(pwd) },
+];
+
+// Password strength indicator component
+function PasswordStrengthIndicator({ password }: { password: string }) {
+  const metRequirements = passwordRequirements.filter(req => req.test(password)).length;
+  const strengthPercentage = (metRequirements / passwordRequirements.length) * 100;
+  
+  const getStrengthLabel = () => {
+    if (metRequirements === 0) return { label: "", color: "bg-muted" };
+    if (metRequirements <= 2) return { label: "Weak", color: "bg-destructive" };
+    if (metRequirements <= 4) return { label: "Medium", color: "bg-warning" };
+    return { label: "Strong", color: "bg-success" };
+  };
+
+  const strength = getStrengthLabel();
+
+  if (!password) return null;
+
+  return (
+    <div className="mt-3 space-y-3">
+      {/* Strength bar */}
+      <div className="space-y-1.5">
+        <div className="flex justify-between text-xs">
+          <span className="text-muted-foreground">Password strength</span>
+          <span className={`font-medium ${
+            strength.label === "Weak" ? "text-destructive" : 
+            strength.label === "Medium" ? "text-warning" : 
+            strength.label === "Strong" ? "text-success" : ""
+          }`}>
+            {strength.label}
+          </span>
+        </div>
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <div 
+            className={`h-full transition-all duration-300 ${strength.color}`}
+            style={{ width: `${strengthPercentage}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Requirements checklist */}
+      <div className="grid gap-1.5">
+        {passwordRequirements.map((req, index) => {
+          const isMet = req.test(password);
+          return (
+            <div 
+              key={index} 
+              className={`flex items-center gap-2 text-xs transition-colors ${
+                isMet ? "text-success" : "text-muted-foreground"
+              }`}
+            >
+              {isMet ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <X className="w-3.5 h-3.5" />
+              )}
+              <span>{req.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
@@ -23,9 +103,15 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [userType, setUserType] = useState<UserType | null>(null);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
+  const [errors, setErrors] = useState<{ 
+    email?: string; 
+    password?: string; 
+    confirmPassword?: string;
+    fullName?: string 
+  }>({});
 
   // Redirect if already logged in
   useEffect(() => {
@@ -33,6 +119,12 @@ export default function Auth() {
       navigate("/dashboard");
     }
   }, [user, authLoading, navigate]);
+
+  // Check if passwords match (for real-time feedback)
+  const passwordsMatch = useMemo(() => {
+    if (!confirmPassword) return true;
+    return password === confirmPassword;
+  }, [password, confirmPassword]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -49,7 +141,12 @@ export default function Auth() {
   }
 
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string; fullName?: string } = {};
+    const newErrors: { 
+      email?: string; 
+      password?: string; 
+      confirmPassword?: string;
+      fullName?: string 
+    } = {};
     
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
@@ -59,6 +156,15 @@ export default function Auth() {
     const passwordResult = passwordSchema.safeParse(password);
     if (!passwordResult.success) {
       newErrors.password = passwordResult.error.errors[0].message;
+    }
+    
+    // Validate confirm password for signup
+    if (isSignUp) {
+      if (!confirmPassword) {
+        newErrors.confirmPassword = "Please confirm your password";
+      } else if (password !== confirmPassword) {
+        newErrors.confirmPassword = "Passwords do not match";
+      }
     }
     
     if (isSignUp && !fullName.trim()) {
@@ -145,7 +251,7 @@ export default function Auth() {
   };
 
   return (
-    <main className="min-h-screen gradient-hero flex items-center justify-center p-4">
+    <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
       <div className="w-full max-w-md">
         {/* Back link */}
         <Link
@@ -263,13 +369,46 @@ export default function Auth() {
               {errors.password && (
                 <p className="text-sm text-destructive mt-1">{errors.password}</p>
               )}
+              {/* Show password strength indicator only during signup */}
+              {isSignUp && <PasswordStrengthIndicator password={password} />}
             </div>
+
+            {/* Confirm password field - only for signup */}
+            {isSignUp && (
+              <div>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`mt-1.5 ${
+                    confirmPassword && !passwordsMatch 
+                      ? "border-destructive focus-visible:ring-destructive" 
+                      : ""
+                  }`}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive mt-1">{errors.confirmPassword}</p>
+                )}
+                {confirmPassword && !passwordsMatch && !errors.confirmPassword && (
+                  <p className="text-sm text-destructive mt-1">Passwords do not match</p>
+                )}
+                {confirmPassword && passwordsMatch && password && (
+                  <p className="text-sm text-success mt-1 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    Passwords match
+                  </p>
+                )}
+              </div>
+            )}
 
             <Button
               type="submit"
               variant="hero"
               size="lg"
-              className="w-full"
+              className="w-full mt-6"
               disabled={isLoading}
             >
               {isLoading ? (
