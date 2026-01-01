@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { JobDescription } from "@/components/jobs/JobDescription";
+import { formatHourlyRate } from "@/lib/formatters";
 
 type JobShift = {
   id: string;
@@ -59,91 +61,96 @@ export default function ContractorJobDetail() {
 
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
+  // Stable fetch function
+  const fetchJob = useCallback(async () => {
+    if (!id || !user) return;
+
+    // Get contractor profile first
+    const { data: contractorProfile } = await supabase
+      .from("contractor_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!contractorProfile) {
+      setNotFound(true);
+      setIsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(`
+        id,
+        title,
+        description,
+        requirements,
+        job_type,
+        duration,
+        location_city,
+        location_suburb,
+        location_country,
+        hourly_rate_min,
+        hourly_rate_max,
+        skills_required,
+        positions_available,
+        positions_filled,
+        starts_at,
+        ends_at,
+        created_at,
+        contractor_id,
+        industry,
+        schedule_type,
+        experience_required,
+        is_sse,
+        status
+      `)
+      .eq("id", id)
+      .eq("contractor_id", contractorProfile.id)
+      .single();
+
+    if (error || !data) {
+      console.error("Error fetching job:", error);
+      setNotFound(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch shifts if schedule_type is shifts
+    let shifts: JobShift[] = [];
+    if (data.schedule_type === "shifts") {
+      const { data: shiftsData } = await supabase
+        .from("job_shifts")
+        .select("*")
+        .eq("job_id", id)
+        .order("shift_date", { ascending: true });
+      shifts = shiftsData || [];
+    }
+
+    setJob({
+      ...data,
+      shifts,
+      experience_required: data.experience_required ?? false,
+      is_sse: data.is_sse ?? false,
+    });
+    setIsLoading(false);
+  }, [id, user]);
+
+  // Auth redirect - only once when auth is resolved
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
-      navigate("/auth");
+      navigate("/auth", { replace: true });
     }
-  }, [user, authLoading, isContractor, navigate]);
+  }, [authLoading, user, isContractor, navigate]);
 
+  // Fetch job data - only when we have a user and id
   useEffect(() => {
-    async function fetchJob() {
-      if (!id || !user) return;
-
-      // Get contractor profile first
-      const { data: contractorProfile } = await supabase
-        .from("contractor_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!contractorProfile) {
-        navigate("/contractor/jobs");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("jobs")
-        .select(`
-          id,
-          title,
-          description,
-          requirements,
-          job_type,
-          duration,
-          location_city,
-          location_suburb,
-          location_country,
-          hourly_rate_min,
-          hourly_rate_max,
-          skills_required,
-          positions_available,
-          positions_filled,
-          starts_at,
-          ends_at,
-          created_at,
-          contractor_id,
-          industry,
-          schedule_type,
-          experience_required,
-          is_sse,
-          status
-        `)
-        .eq("id", id)
-        .eq("contractor_id", contractorProfile.id)
-        .single();
-
-      if (error || !data) {
-        console.error("Error fetching job:", error);
-        navigate("/contractor/jobs");
-        return;
-      }
-
-      // Fetch shifts if schedule_type is shifts
-      let shifts: JobShift[] = [];
-      if (data.schedule_type === "shifts") {
-        const { data: shiftsData } = await supabase
-          .from("job_shifts")
-          .select("*")
-          .eq("job_id", id)
-          .order("shift_date", { ascending: true });
-        shifts = shiftsData || [];
-      }
-
-      setJob({
-        ...data,
-        shifts,
-        experience_required: data.experience_required ?? false,
-        is_sse: data.is_sse ?? false,
-      });
-      setIsLoading(false);
-    }
-
-    if (user) {
+    if (user && id && isContractor()) {
       fetchJob();
     }
-  }, [id, user, navigate]);
+  }, [user, id, isContractor, fetchJob]);
 
   if (authLoading || isLoading) {
     return (
@@ -153,12 +160,15 @@ export default function ContractorJobDetail() {
     );
   }
 
-  if (!job) {
+  if (notFound || !job) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container-tight py-8">
           <div className="text-center py-16">
             <h1 className="text-2xl font-bold mb-4">Job Not Found</h1>
+            <p className="text-muted-foreground mb-6">
+              This job doesn't exist or you don't have access to it.
+            </p>
             <Button asChild>
               <Link to="/contractor/jobs">Back to My Jobs</Link>
             </Button>
@@ -180,6 +190,8 @@ export default function ContractorJobDetail() {
         return "bg-muted text-muted-foreground";
     }
   };
+
+  const hourlyRate = formatHourlyRate(job.hourly_rate_min, job.hourly_rate_max);
 
   return (
     <div className="min-h-screen bg-background">
@@ -235,16 +247,10 @@ export default function ContractorJobDetail() {
                       {job.duration}
                     </span>
                   )}
-                  {(job.hourly_rate_min || job.hourly_rate_max) && (
+                  {hourlyRate && (
                     <span className="flex items-center gap-1">
                       <DollarSign className="w-4 h-4" />
-                      {job.hourly_rate_min && job.hourly_rate_max
-                        ? `$${job.hourly_rate_min} – $${job.hourly_rate_max}/hr`
-                        : job.hourly_rate_min
-                        ? `From $${job.hourly_rate_min}/hr`
-                        : job.hourly_rate_max
-                        ? `Up to $${job.hourly_rate_max}/hr`
-                        : null}
+                      {hourlyRate}
                     </span>
                   )}
                 </div>
@@ -258,43 +264,13 @@ export default function ContractorJobDetail() {
                 )}
               </div>
 
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <h3>Description</h3>
-                <div className="relative">
-                  <div
-                    className={`whitespace-pre-wrap ${
-                      isDescriptionExpanded ? "" : "max-h-40 overflow-hidden"
-                    }`}
-                  >
-                    {job.description}
-                  </div>
-
-                  {!isDescriptionExpanded && job.description.length > 600 && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
-                  )}
-
-                  {job.description.length > 600 && (
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="px-0"
-                      onClick={() => setIsDescriptionExpanded((v) => !v)}
-                    >
-                      {isDescriptionExpanded ? "Show less" : "Read more"}
-                    </Button>
-                  )}
-                </div>
-
-                {job.requirements && (
-                  <>
-                    <h3>Requirements</h3>
-                    <p className="whitespace-pre-wrap">{job.requirements}</p>
-                  </>
-                )}
-              </div>
+              <JobDescription
+                description={job.description}
+                requirements={job.requirements}
+              />
 
               {job.skills_required && job.skills_required.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-6 pt-4 border-t border-border/50">
                   <h3 className="text-sm font-semibold mb-2">Required Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {job.skills_required.map((skill) => (
