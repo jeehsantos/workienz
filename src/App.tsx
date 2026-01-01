@@ -25,6 +25,7 @@ import ArticleDetail from "./pages/ArticleDetail";
 import JobDetail from "./pages/JobDetail";
 import NewArticle from "./pages/writer/NewArticle";
 import MyArticles from "./pages/writer/MyArticles";
+import EditArticle from "./pages/writer/EditArticle";
 import WorkerProfile from "./pages/WorkerProfile";
 import Conversation from "./pages/Conversation";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/messages/:id" element={<Conversation />} />
               <Route path="/writer/new-article" element={<NewArticle />} />
               <Route path="/writer/articles" element={<MyArticles />} />
+              <Route path="/writer/articles/:id/edit" element={<EditArticle />} />
               <Route path="/admin" element={<AdminDashboard />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
