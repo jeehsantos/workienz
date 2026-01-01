@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Briefcase, User, ArrowLeft, Loader2, Check, X } from "lucide-react";
 import { z } from "zod";
+import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 
 type UserType = "contractor" | "employee";
 
@@ -112,6 +114,10 @@ export default function Auth() {
     confirmPassword?: string;
     fullName?: string 
   }>({});
+  
+  // 2FA state
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [pending2FAUserId, setPending2FAUserId] = useState<string | null>(null);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -138,6 +144,29 @@ export default function Auth() {
   // Don't render form if already logged in
   if (user) {
     return null;
+  }
+
+  // Show 2FA verification screen
+  if (requires2FA && pending2FAUserId) {
+    return (
+      <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
+        <TwoFactorVerify 
+          userId={pending2FAUserId}
+          onSuccess={() => {
+            toast({
+              title: "Welcome back!",
+              description: "You've successfully signed in.",
+            });
+            navigate("/dashboard");
+          }}
+          onCancel={() => {
+            setRequires2FA(false);
+            setPending2FAUserId(null);
+            setPassword("");
+          }}
+        />
+      </main>
+    );
   }
 
   const validateForm = () => {
@@ -216,7 +245,8 @@ export default function Auth() {
         });
         navigate("/dashboard");
       } else {
-        const { error } = await signIn(email, password);
+        // For sign in, first sign in normally
+        const { data, error } = await signIn(email, password);
         if (error) {
           if (error.message.includes("Invalid login")) {
             toast({
@@ -233,6 +263,25 @@ export default function Auth() {
           }
           return;
         }
+
+        // Check if 2FA is enabled for this user
+        if (data?.user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("two_factor_enabled")
+            .eq("user_id", data.user.id)
+            .single();
+
+          if (profile?.two_factor_enabled) {
+            // Sign out temporarily and show 2FA verification
+            await supabase.auth.signOut();
+            setPending2FAUserId(data.user.id);
+            setRequires2FA(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+
         toast({
           title: "Welcome back!",
           description: "You've successfully signed in.",

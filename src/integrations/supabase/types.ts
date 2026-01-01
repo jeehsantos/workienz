@@ -574,6 +574,9 @@ export type Database = {
           id: string
           last_name: string | null
           phone: string | null
+          two_factor_backup_codes: string[] | null
+          two_factor_enabled: boolean
+          two_factor_secret: string | null
           updated_at: string
           user_id: string
         }
@@ -587,6 +590,9 @@ export type Database = {
           id?: string
           last_name?: string | null
           phone?: string | null
+          two_factor_backup_codes?: string[] | null
+          two_factor_enabled?: boolean
+          two_factor_secret?: string | null
           updated_at?: string
           user_id: string
         }
@@ -600,6 +606,9 @@ export type Database = {
           id?: string
           last_name?: string | null
           phone?: string | null
+          two_factor_backup_codes?: string[] | null
+          two_factor_enabled?: boolean
+          two_factor_secret?: string | null
           updated_at?: string
           user_id?: string
         }
