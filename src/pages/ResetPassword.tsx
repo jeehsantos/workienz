@@ -102,32 +102,63 @@ export default function ResetPassword() {
 
   // Check if user has a valid recovery session
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    let mounted = true;
+
+    // Set up auth state listener FIRST to catch PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
       
-      // Check if there's an active session (user clicked the reset link)
-      if (session) {
+      console.log("Auth event:", event, "Session:", !!session);
+      
+      if (event === "PASSWORD_RECOVERY" && session) {
         setIsValidSession(true);
-      } else {
-        // Listen for auth state change in case the hash params haven't been processed yet
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === "PASSWORD_RECOVERY" && session) {
-            setIsValidSession(true);
-          }
-        });
-
-        // Give it a moment to process
-        setTimeout(() => {
-          setIsChecking(false);
-        }, 1500);
-
-        return () => subscription.unsubscribe();
+        setIsChecking(false);
+      } else if (event === "SIGNED_IN" && session) {
+        // User may already be signed in from the recovery link
+        setIsValidSession(true);
+        setIsChecking(false);
       }
-      
-      setIsChecking(false);
+    });
+
+    // THEN check for existing session
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error("Session check error:", error);
+          setIsChecking(false);
+          return;
+        }
+        
+        // If there's already a valid session, allow password reset
+        if (session) {
+          setIsValidSession(true);
+          setIsChecking(false);
+        } else {
+          // Give the auth state change listener time to process hash params
+          setTimeout(() => {
+            if (mounted) {
+              setIsChecking(false);
+            }
+          }, 2000);
+        }
+      } catch (err) {
+        console.error("Session check failed:", err);
+        if (mounted) {
+          setIsChecking(false);
+        }
+      }
     };
 
     checkSession();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Check if passwords match (for real-time feedback)
