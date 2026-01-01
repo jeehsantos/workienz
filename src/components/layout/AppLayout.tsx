@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Menu, X, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import linkoLogo from "@/assets/linko-logo-new.png";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
@@ -35,6 +36,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
+  const { unreadCount } = useUnreadMessages(user?.id);
+
+  // Check if user can see messages (employee or contractor)
+  const canSeeMessages = roles.includes("employee") || roles.includes("contractor");
 
   useEffect(() => {
     const fetchUserRoles = async (userId: string) => {
@@ -148,6 +153,21 @@ export function AppLayout({ children }: AppLayoutProps) {
                       Dashboard
                     </Link>
                   </Button>
+                  
+                  {/* Unread Messages Indicator */}
+                  {canSeeMessages && (
+                    <Button variant="ghost" asChild className="font-medium relative">
+                      <Link to="/dashboard">
+                        <MessageCircle className="w-4 h-4 mr-2" />
+                        Messages
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </Button>
+                  )}
                   
                   {/* User Info Dropdown Style */}
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50 border border-border/50">

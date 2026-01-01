@@ -65,6 +65,7 @@ export default function PostJob() {
   });
 
   const [experienceRequired, setExperienceRequired] = useState(false);
+  const [isSSE, setIsSSE] = useState(false);
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   
   // Shifts state
@@ -197,6 +198,7 @@ export default function PostJob() {
       starts_at: fixedTermStart ? fixedTermStart.toISOString() : null,
       ends_at: fixedTermEnd ? fixedTermEnd.toISOString() : null,
       experience_required: experienceRequired,
+      is_sse: isSSE && formData.industry === "Agriculture",
     }).select("id").single();
 
     if (error || !jobData) {
@@ -331,6 +333,23 @@ export default function PostJob() {
               onCheckedChange={setExperienceRequired}
             />
           </div>
+
+          {/* SSE Employee Toggle - Only shown for Agriculture industry */}
+          {formData.industry === "Agriculture" && (
+            <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-amber-500/30 bg-amber-500/5">
+              <div>
+                <Label htmlFor="is_sse" className="text-amber-700 dark:text-amber-400">Specified Seasonal Employer (SSE)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Mark this position for RSE/SSE workers in viticulture or horticulture
+                </p>
+              </div>
+              <Switch
+                id="is_sse"
+                checked={isSSE}
+                onCheckedChange={setIsSSE}
+              />
+            </div>
+          )}
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">

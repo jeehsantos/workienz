@@ -181,6 +181,19 @@ export default function Conversation() {
 
       setMessages(messagesData || []);
       setIsLoading(false);
+
+      // Mark conversation as read
+      if (user && messagesData && messagesData.length > 0) {
+        await supabase
+          .from("conversation_read_status")
+          .upsert({
+            conversation_id: id,
+            user_id: user.id,
+            last_read_at: new Date().toISOString(),
+          }, {
+            onConflict: 'conversation_id,user_id'
+          });
+      }
     }
 
     fetchConversation();

@@ -194,6 +194,38 @@ export type Database = {
           },
         ]
       }
+      conversation_read_status: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_read_status_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           contractor_user_id: string
@@ -422,6 +454,7 @@ export type Database = {
           hourly_rate_min: number | null
           id: string
           industry: string | null
+          is_sse: boolean | null
           job_type: string
           location_city: string | null
           location_country: string | null
@@ -447,6 +480,7 @@ export type Database = {
           hourly_rate_min?: number | null
           id?: string
           industry?: string | null
+          is_sse?: boolean | null
           job_type?: string
           location_city?: string | null
           location_country?: string | null
@@ -472,6 +506,7 @@ export type Database = {
           hourly_rate_min?: number | null
           id?: string
           industry?: string | null
+          is_sse?: boolean | null
           job_type?: string
           location_city?: string | null
           location_country?: string | null
@@ -534,8 +569,10 @@ export type Database = {
           bio: string | null
           created_at: string
           email: string
+          first_name: string | null
           full_name: string | null
           id: string
+          last_name: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -545,8 +582,10 @@ export type Database = {
           bio?: string | null
           created_at?: string
           email: string
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          last_name?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -556,8 +595,10 @@ export type Database = {
           bio?: string | null
           created_at?: string
           email?: string
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          last_name?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -627,6 +668,7 @@ export type Database = {
         Args: { _contractor_profile_id: string }
         Returns: boolean
       }
+      get_unread_message_count: { Args: { _user_id: string }; Returns: number }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
