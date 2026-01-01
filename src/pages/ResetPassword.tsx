@@ -207,13 +207,14 @@ export default function ResetPassword() {
       setIsSuccess(true);
       toast({
         title: "Password updated!",
-        description: "Your password has been successfully reset.",
+        description: "Your password has been successfully reset. Please sign in with your new password.",
       });
 
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
+      // Sign out and redirect to login after a short delay
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+        navigate("/auth");
+      }, 2500);
     } catch (error) {
       console.error("Unexpected error:", error);
       toast({
@@ -286,7 +287,7 @@ export default function ResetPassword() {
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">Password updated!</h1>
               <p className="text-muted-foreground mb-6">
-                Your password has been successfully reset. Redirecting you to your dashboard...
+                Your password has been successfully reset. Redirecting you to sign in...
               </p>
               <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
             </div>
