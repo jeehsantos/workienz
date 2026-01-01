@@ -46,6 +46,30 @@ export function useAuth() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       
+      // Handle token refresh failures by clearing the session
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        setAuthState({
+          user: null,
+          session: null,
+          roles: [],
+          isLoading: false,
+          rolesLoading: false,
+        });
+        return;
+      }
+
+      // Handle sign out events
+      if (event === 'SIGNED_OUT') {
+        setAuthState({
+          user: null,
+          session: null,
+          roles: [],
+          isLoading: false,
+          rolesLoading: false,
+        });
+        return;
+      }
+      
       setAuthState((prev) => ({
         ...prev,
         session,
@@ -69,29 +93,56 @@ export function useAuth() {
       }
     });
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!isMounted) return;
-      
-      setAuthState((prev) => ({
-        ...prev,
-        session,
-        user: session?.user ?? null,
-        isLoading: false,
-        rolesLoading: session?.user ? true : false,
-      }));
+    // THEN check for existing session with error handling
+    supabase.auth.getSession()
+      .then(async ({ data: { session }, error }) => {
+        if (!isMounted) return;
+        
+        // If there's an auth error (like invalid refresh token), clear everything
+        if (error) {
+          console.error("Session error:", error);
+          setAuthState({
+            user: null,
+            session: null,
+            roles: [],
+            isLoading: false,
+            rolesLoading: false,
+          });
+          return;
+        }
+        
+        setAuthState((prev) => ({
+          ...prev,
+          session,
+          user: session?.user ?? null,
+          isLoading: false,
+          rolesLoading: session?.user ? true : false,
+        }));
 
-      if (session?.user) {
-        const roles = await fetchUserRoles(session.user.id);
-        if (isMounted) {
-          setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
+        if (session?.user) {
+          const roles = await fetchUserRoles(session.user.id);
+          if (isMounted) {
+            setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
+          }
+        } else {
+          if (isMounted) {
+            setAuthState((prev) => ({ ...prev, rolesLoading: false }));
+          }
         }
-      } else {
+      })
+      .catch((error) => {
+        // Catch any unhandled errors and clear auth state
+        console.error("Auth initialization error:", error);
         if (isMounted) {
-          setAuthState((prev) => ({ ...prev, rolesLoading: false }));
+          setAuthState({
+            user: null,
+            session: null,
+            roles: [],
+            isLoading: false,
+            rolesLoading: false,
+          });
         }
-      }
-    });
+      });
 
     return () => {
       isMounted = false;
