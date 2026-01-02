@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import workieLogo from "@/assets/workie-logo.png";
+import workieLogoWhite from "@/assets/workie-logo-white.png";
 
 const footerLinks = {
   platform: [
@@ -34,10 +34,9 @@ export function Footer() {
           <div className="lg:col-span-1">
             <Link to="/" className="inline-block mb-4">
               <img 
-                src={workieLogo} 
+                src={workieLogoWhite} 
                 alt="Workie" 
-                className="h-10 w-auto object-contain brightness-0 invert" 
-                style={{ filter: 'brightness(0) invert(1) drop-shadow(0 0 0 hsl(var(--primary)))' }}
+                className="h-8 w-auto object-contain" 
               />
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6">
