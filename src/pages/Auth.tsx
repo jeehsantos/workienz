@@ -317,7 +317,7 @@ export default function Auth() {
             <img 
               src="/workie-logo.png" 
               alt="Workie" 
-              className="h-12 w-auto object-contain" 
+              className="h-14 w-auto object-contain" 
             />
           </div>
 
