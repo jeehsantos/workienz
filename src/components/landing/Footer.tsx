@@ -32,11 +32,11 @@ export function Footer() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-1 flex flex-col items-center lg:items-start">
-            <Link to="/" className="inline-block mb-2">
+            <Link to="/" className="inline-block mb-4">
               <img 
                 src={workieLogoWhite} 
                 alt="Workie" 
-                className="h-44 w-auto object-contain" 
+                className="h-14 w-auto object-contain" 
               />
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6 text-center lg:text-left">
