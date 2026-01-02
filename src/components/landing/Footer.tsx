@@ -33,11 +33,11 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1 flex flex-col items-center lg:items-start">
             <Link to="/" className="inline-block mb-4">
-              <img 
-                src={workieLogoWhite} 
-                alt="Workie" 
-                className="h-[120px] w-auto object-contain" 
-              />
+          <img 
+            src={workieLogoWhite} 
+            alt="Workie" 
+            className="h-[160px] w-auto object-contain"
+          />
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6 text-center lg:text-left">
               Connecting New Zealand's workforce with temporary opportunities since 2024.

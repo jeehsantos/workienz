@@ -50,7 +50,7 @@ export function Navbar() {
             <img 
               src={workieLogo} 
               alt="Workie" 
-              className="h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-300" 
+              className="h-[160px] w-auto object-contain group-hover:scale-105 transition-transform duration-300" 
             />
           </Link>
 
