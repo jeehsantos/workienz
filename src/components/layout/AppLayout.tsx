@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
-import linkoLogo from "@/assets/linko-logo-new.png";
+import workieLogo from "@/assets/workie-logo.png";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
 
@@ -118,15 +118,15 @@ export function AppLayout({ children }: AppLayoutProps) {
               {/* Logo */}
               <Link to="/" className="flex items-center gap-2.5 group">
                 <div className="relative">
-                  <img
-                    src={linkoLogo}
-                    alt="Linko"
-                    className="w-10 h-10 rounded-xl shadow-soft group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <span className="text-xl font-bold font-display text-foreground tracking-tight">
-                  Linko
-                </span>
+                <img
+                  src={workieLogo}
+                  alt="Workie"
+                  className="w-10 h-10 rounded-xl shadow-soft group-hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <span className="text-xl font-bold font-display text-foreground tracking-tight">
+                Workie
+              </span>
               </Link>
 
               {/* Desktop CTA */}

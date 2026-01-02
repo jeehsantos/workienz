@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import linkoLogo from "@/assets/linko-logo.png";
+import workieLogo from "@/assets/workie-logo.png";
 
 const footerLinks = {
   platform: [
@@ -33,8 +33,8 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img src={linkoLogo} alt="Linko" className="w-10 h-10 rounded-lg" />
-              <span className="text-xl font-bold font-display">Linko</span>
+              <img src={workieLogo} alt="Workie" className="w-10 h-10 rounded-lg" />
+              <span className="text-xl font-bold font-display">Workie</span>
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6">
               Connecting New Zealand's workforce with temporary opportunities since 2024.
@@ -118,7 +118,7 @@ export function Footer() {
 
         <div className="border-t border-primary-foreground/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-primary-foreground/40 text-sm">
-            © 2024 Linko. All rights reserved.
+            © 2024 Workie. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <span className="text-primary-foreground/40 text-sm">Made with 💚 in New Zealand</span>

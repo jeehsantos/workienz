@@ -49,7 +49,7 @@ export function FeaturesSection() {
             <span className="text-sm font-medium text-primary">Powerful Features</span>
           </div>
           <h2 className="text-3xl lg:text-4xl font-bold mb-4 font-display">
-            Why Choose Linko?
+            Why Choose Workie?
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We're revolutionizing how New Zealand connects talent with opportunity.
