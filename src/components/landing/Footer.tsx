@@ -31,15 +31,15 @@ export function Footer() {
       <div className="container-tight relative z-10">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
-          <div className="lg:col-span-1">
-            <Link to="/" className="inline-block mb-4">
+          <div className="lg:col-span-1 flex flex-col items-center lg:items-start">
+            <Link to="/" className="inline-block mb-2">
               <img 
                 src={workieLogoWhite} 
                 alt="Workie" 
-                className="h-36 w-auto object-contain" 
+                className="h-44 w-auto object-contain" 
               />
             </Link>
-            <p className="text-primary-foreground/60 leading-relaxed mb-6">
+            <p className="text-primary-foreground/60 leading-relaxed mb-6 text-center lg:text-left">
               Connecting New Zealand's workforce with temporary opportunities since 2024.
             </p>
             <div className="flex items-center gap-3">
