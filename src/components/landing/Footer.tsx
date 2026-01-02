@@ -36,7 +36,7 @@ export function Footer() {
           <img 
             src={workieLogoWhite} 
             alt="Workie" 
-            className="h-[160px] w-auto object-contain"
+            className="h-[25px] w-[195px] object-contain"
           />
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6 text-center lg:text-left">

@@ -120,7 +120,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <img
                   src={workieLogo}
                   alt="Workie"
-                  className="h-[160px] w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                  className="h-[25px] w-[195px] object-contain group-hover:scale-105 transition-transform duration-300"
                 />
               </Link>
 
