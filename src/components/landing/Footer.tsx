@@ -32,9 +32,13 @@ export function Footer() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <img src={workieLogo} alt="Workie" className="w-10 h-10 rounded-lg" />
-              <span className="text-xl font-bold font-display">Workie</span>
+            <Link to="/" className="inline-block mb-4">
+              <img 
+                src={workieLogo} 
+                alt="Workie" 
+                className="h-10 w-auto object-contain brightness-0 invert" 
+                style={{ filter: 'brightness(0) invert(1) drop-shadow(0 0 0 hsl(var(--primary)))' }}
+              />
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6">
               Connecting New Zealand's workforce with temporary opportunities since 2024.

@@ -46,17 +46,12 @@ export function Navbar() {
       <div className="container-tight">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="relative">
-              <img 
-                src={workieLogo} 
-                alt="Workie" 
-                className="w-10 h-10 rounded-xl shadow-soft group-hover:scale-105 transition-transform duration-300" 
-              />
-            </div>
-            <span className="text-xl font-bold font-display text-foreground tracking-tight">
-              Workie
-            </span>
+          <Link to="/" className="group">
+            <img 
+              src={workieLogo} 
+              alt="Workie" 
+              className="h-10 w-auto object-contain group-hover:scale-105 transition-transform duration-300" 
+            />
           </Link>
 
           {/* Desktop CTA */}
