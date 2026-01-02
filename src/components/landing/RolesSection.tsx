@@ -58,7 +58,7 @@ export function RolesSection() {
             How Can We Help You?
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Whether you're looking to hire or be hired, Linko has you covered.
+            Whether you're looking to hire or be hired, Workie has you covered.
           </p>
         </div>
 

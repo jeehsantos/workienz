@@ -241,7 +241,7 @@ export default function Auth() {
         }
         toast({
           title: "Account created!",
-          description: "Welcome to Kiwi Hunters. Let's set up your profile.",
+          description: "Welcome to Workie. Let's set up your profile.",
         });
         navigate("/dashboard");
       } else {
@@ -314,10 +314,12 @@ export default function Auth() {
         <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg font-display">K</span>
-            </div>
-            <span className="text-xl font-bold font-display">Kiwi Hunters</span>
+            <img 
+              src="/workie-logo.png" 
+              alt="Workie" 
+              className="w-10 h-10 rounded-lg shadow-soft" 
+            />
+            <span className="text-xl font-bold font-display">Workie</span>
           </div>
 
           <h1 className="text-2xl font-bold text-center mb-2 font-display">

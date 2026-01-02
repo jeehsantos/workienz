@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import linkoLogo from "@/assets/linko-logo-new.png";
+import workieLogo from "@/assets/workie-logo.png";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,13 +49,13 @@ export function Navbar() {
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="relative">
               <img 
-                src={linkoLogo} 
-                alt="Linko" 
+                src={workieLogo} 
+                alt="Workie" 
                 className="w-10 h-10 rounded-xl shadow-soft group-hover:scale-105 transition-transform duration-300" 
               />
             </div>
             <span className="text-xl font-bold font-display text-foreground tracking-tight">
-              Linko
+              Workie
             </span>
           </Link>
 
