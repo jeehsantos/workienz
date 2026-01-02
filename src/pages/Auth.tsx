@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Briefcase, User, ArrowLeft, Loader2, Check, X } from "lucide-react";
 import { z } from "zod";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
+import workieLogo from "@/assets/workie-logo.png";
 
 type UserType = "contractor" | "employee";
 
@@ -315,9 +316,11 @@ export default function Auth() {
           {/* Logo */}
           <div className="flex items-center justify-center mb-6">
             <img 
-              src="/workie-logo.png" 
+              src={workieLogo} 
               alt="Workie" 
-              className="h-[40px] w-[312px] object-contain" 
+              className="h-[25px] w-[195px] object-contain"
+              width={195}
+              height={25}
             />
           </div>
 
