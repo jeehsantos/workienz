@@ -313,13 +313,12 @@ export default function Auth() {
 
         <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
           {/* Logo */}
-          <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="flex items-center justify-center mb-6">
             <img 
               src="/workie-logo.png" 
               alt="Workie" 
-              className="w-10 h-10 rounded-lg shadow-soft" 
+              className="h-12 w-auto object-contain" 
             />
-            <span className="text-xl font-bold font-display">Workie</span>
           </div>
 
           <h1 className="text-2xl font-bold text-center mb-2 font-display">
