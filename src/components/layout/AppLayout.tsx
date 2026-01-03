@@ -279,6 +279,9 @@ export function AppLayout({ children }: AppLayoutProps) {
                 ) : (
                   <>
                     <Button variant="ghost" asChild className="font-medium">
+                      <Link to="/pricing">Pricing</Link>
+                    </Button>
+                    <Button variant="ghost" asChild className="font-medium">
                       <Link to="/auth">Sign In</Link>
                     </Button>
                     <Button variant="hero" asChild className="rounded-xl shadow-soft hover:shadow-medium">

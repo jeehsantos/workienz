@@ -40,7 +40,7 @@ export function Footer() {
           />
             </Link>
             <p className="text-primary-foreground/60 leading-relaxed mb-6 text-center lg:text-left">
-              Connecting New Zealand's workforce with temporary opportunities since 2024.
+              Connecting New Zealand's workforce with temporary opportunities since 2026.
             </p>
             <div className="flex items-center gap-3">
               <a 
@@ -121,7 +121,7 @@ export function Footer() {
 
         <div className="border-t border-primary-foreground/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-primary-foreground/40 text-sm">
-            © 2024 Workie. All rights reserved.
+            © 2026 Workie. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             <span className="text-primary-foreground/40 text-sm">Made with 💚 in New Zealand</span>
