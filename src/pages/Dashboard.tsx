@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle } from "lucide-react";
+import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle, BarChart3 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 
 export default function Dashboard() {
@@ -185,18 +185,34 @@ export default function Dashboard() {
 
           {/* Admin-specific */}
           {isAdmin() && (
-            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-              <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-4">
+            <Link 
+              to="/admin"
+              className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
+            >
+              <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-4 group-hover:bg-destructive/20 transition-colors">
                 <Settings className="w-6 h-6 text-destructive" />
               </div>
-              <h3 className="text-lg font-semibold mb-2 font-display">Admin Dashboard</h3>
+              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">Admin Dashboard</h3>
               <p className="text-muted-foreground text-sm mb-4">
                 Manage users, contractors, jobs, and subscriptions.
               </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/admin">Open Admin</Link>
-              </Button>
-            </div>
+            </Link>
+          )}
+
+          {/* Admin Analytics */}
+          {isAdmin() && (
+            <Link 
+              to="/admin/analytics"
+              className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
+            >
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                <BarChart3 className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">View Analytics</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Track hiring metrics, job statistics, and platform trends.
+              </p>
+            </Link>
           )}
 
           {/* Articles (for employees) */}

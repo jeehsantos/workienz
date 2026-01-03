@@ -236,7 +236,7 @@ export default function EmployeeProfile() {
       description: "Your profile has been updated.",
     });
 
-    navigate("/dashboard");
+    navigate("/employee/view-profile");
   };
 
   if (authLoading || isLoading) {
