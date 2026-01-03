@@ -28,7 +28,7 @@ export default function About() {
         <div className="container-tight relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-6 text-foreground">
-              Where Opportunity Meets <span className="text-primary">Simplicity</span>
+              Where Opportunity Meets <span className="text-primary">Simplicity test</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               Connecting people with opportunities, creating a more inclusive job market for everyone.
