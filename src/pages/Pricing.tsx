@@ -496,7 +496,7 @@ export default function Pricing() {
                         <div>
                           <div className="flex items-center gap-2 mb-1.5">
                             <h4 className="font-semibold text-foreground">{feature.title}</h4>
-                            <span className="text-[10px] font-semibold uppercase bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold uppercase bg-primary/15 text-primary px-2 py-0.5 rounded-full">
                               Coming Soon
                             </span>
                           </div>
