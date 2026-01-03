@@ -148,7 +148,7 @@ export function useUnreadMessages(userId: string | undefined) {
   useEffect(() => {
     fetchUnreadData();
 
-    // Subscribe to new messages for real-time updates
+    // Subscribe to new messages and read status updates for real-time updates
     if (!userId) return;
 
     const channel = supabase
@@ -162,6 +162,20 @@ export function useUnreadMessages(userId: string | undefined) {
         },
         () => {
           fetchUnreadData();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversation_read_status",
+        },
+        (payload) => {
+          // Only refetch if the read status update is for the current user
+          if (payload.new && (payload.new as { user_id: string }).user_id === userId) {
+            fetchUnreadData();
+          }
         }
       )
       .subscribe();

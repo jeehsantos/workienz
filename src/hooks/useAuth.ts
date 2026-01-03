@@ -188,7 +188,8 @@ export function useAuth() {
   const signUp = async (
     email: string,
     password: string,
-    fullName: string,
+    firstName: string,
+    lastName: string,
     userType: AppRole
   ) => {
     const redirectUrl = `${window.location.origin}/`;
@@ -199,7 +200,8 @@ export function useAuth() {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          full_name: fullName,
+          first_name: firstName,
+          last_name: lastName,
           user_type: userType,
         },
       },

@@ -45,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   // Single source of truth for auth state (prevents tab-switch refresh loops)
   const { user, roles, signOut } = useAuthContext();
 
-  const { unreadCount, unreadConversations } = useUnreadMessages(user?.id);
+  const { unreadCount, unreadConversations, refetch: refetchUnread } = useUnreadMessages(user?.id);
 
   // Check if user can see messages (employee or contractor)
   const canSeeMessages = roles.includes("employee") || roles.includes("contractor");
@@ -58,11 +58,15 @@ export function AppLayout({ children }: AppLayoutProps) {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("first_name, last_name, full_name")
           .eq("user_id", userId)
           .single();
 
         if (error) return null;
+        // Prefer first_name + last_name, fallback to full_name
+        if (data?.first_name || data?.last_name) {
+          return `${data.first_name || ''} ${data.last_name || ''}`.trim();
+        }
         return data?.full_name || null;
       } catch {
         return null;
@@ -100,6 +104,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const handleConversationClick = (conversationId: string) => {
     setMessagesOpen(false);
     navigate(`/messages/${conversationId}`);
+    // Refetch after a short delay to allow the conversation page to mark as read
+    setTimeout(() => refetchUnread(), 1000);
   };
 
   return (
