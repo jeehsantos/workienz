@@ -99,6 +99,7 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const isSignUp = searchParams.get("mode") === "signup";
+  const pendingPlanFromUrl = searchParams.get("plan");
   const navigate = useNavigate();
   const { signIn, signUp, user, isLoading: authLoading } = useAuthContext();
   const { toast } = useToast();
@@ -122,10 +123,24 @@ export default function Auth() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [pending2FAUserId, setPending2FAUserId] = useState<string | null>(null);
 
+  // Store pending plan in localStorage
+  useEffect(() => {
+    if (pendingPlanFromUrl) {
+      localStorage.setItem("pendingPlan", pendingPlanFromUrl);
+    }
+  }, [pendingPlanFromUrl]);
+
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      navigate("/dashboard");
+      // Check for pending plan
+      const pendingPlan = localStorage.getItem("pendingPlan");
+      if (pendingPlan) {
+        localStorage.removeItem("pendingPlan");
+        navigate(`/checkout?plan=${pendingPlan}`);
+      } else {
+        navigate("/dashboard");
+      }
     }
   }, [user, authLoading, navigate]);
 
@@ -160,7 +175,14 @@ export default function Auth() {
               title: "Welcome back!",
               description: "You've successfully signed in.",
             });
-            navigate("/dashboard");
+            // Check for pending plan after 2FA
+            const pendingPlan = localStorage.getItem("pendingPlan");
+            if (pendingPlan) {
+              localStorage.removeItem("pendingPlan");
+              navigate(`/checkout?plan=${pendingPlan}`);
+            } else {
+              navigate("/dashboard");
+            }
           }}
           onCancel={() => {
             setRequires2FA(false);
@@ -251,7 +273,15 @@ export default function Auth() {
           title: "Account created!",
           description: "Welcome to Workie. Let's set up your profile.",
         });
-        navigate("/dashboard");
+        
+        // Check for pending plan after signup
+        const pendingPlan = localStorage.getItem("pendingPlan");
+        if (pendingPlan) {
+          localStorage.removeItem("pendingPlan");
+          navigate(`/checkout?plan=${pendingPlan}`);
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         // For sign in, first sign in normally
         const { data, error } = await signIn(email, password);
@@ -294,7 +324,15 @@ export default function Auth() {
           title: "Welcome back!",
           description: "You've successfully signed in.",
         });
-        navigate("/dashboard");
+        
+        // Check for pending plan after signin
+        const pendingPlan = localStorage.getItem("pendingPlan");
+        if (pendingPlan) {
+          localStorage.removeItem("pendingPlan");
+          navigate(`/checkout?plan=${pendingPlan}`);
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error) {
       toast({

@@ -607,6 +607,48 @@ export type Database = {
           },
         ]
       }
+      plan_products: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          features: Json | null
+          id: string
+          interval: string | null
+          plan_id: string
+          plan_name: string
+          plan_type: string
+          price_cents: number
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          interval?: string | null
+          plan_id: string
+          plan_name: string
+          plan_type: string
+          price_cents: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          interval?: string | null
+          plan_id?: string
+          plan_name?: string
+          plan_type?: string
+          price_cents?: number
+          stripe_price_id?: string | null
+          stripe_product_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -666,6 +708,9 @@ export type Database = {
           plan_name: string
           starts_at: string
           status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string
           user_id: string
         }
@@ -676,6 +721,9 @@ export type Database = {
           plan_name?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -686,6 +734,9 @@ export type Database = {
           plan_name?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }

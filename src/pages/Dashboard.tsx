@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle, BarChart3 } from "lucide-react";
+import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle, BarChart3, CreditCard } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 
 export default function Dashboard() {
@@ -230,6 +230,20 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
+
+          {/* Billing & Subscription - for all users */}
+          <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+              <CreditCard className="w-6 h-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2 font-display">Billing & Subscription</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              View your plan details and manage billing.
+            </p>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/subscription">Manage Subscription</Link>
+            </Button>
+          </div>
         </div>
 
         {/* My Conversations Section - for employees and contractors */}
