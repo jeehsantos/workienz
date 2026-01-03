@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type Job = {
@@ -80,17 +80,28 @@ export default function JobSearch() {
         return;
       }
 
-      // Fetch contractor info
-      const contractorIds = [...new Set(data?.map((j) => j.contractor_id) || [])];
-      const { data: contractors } = await supabase
-        .from("contractor_profiles")
-        .select("id, company_name")
-        .in("id", contractorIds);
+      // Only fetch contractor info if user is authenticated
+      let jobsWithContractor: Job[] = [];
+      
+      if (user) {
+        // Fetch contractor info for authenticated users
+        const contractorIds = [...new Set(data?.map((j) => j.contractor_id) || [])];
+        const { data: contractors } = await supabase
+          .from("contractor_profiles")
+          .select("id, company_name")
+          .in("id", contractorIds);
 
-      const jobsWithContractor = data?.map((job) => ({
-        ...job,
-        contractor: contractors?.find((c) => c.id === job.contractor_id) || null,
-      })) || [];
+        jobsWithContractor = data?.map((job) => ({
+          ...job,
+          contractor: contractors?.find((c) => c.id === job.contractor_id) || null,
+        })) || [];
+      } else {
+        // For unauthenticated users, hide company info
+        jobsWithContractor = data?.map((job) => ({
+          ...job,
+          contractor: null,
+        })) || [];
+      }
 
       // Filter out jobs where all positions are filled
       let filtered = jobsWithContractor.filter(
@@ -114,7 +125,7 @@ export default function JobSearch() {
     }
 
     fetchJobs();
-  }, [cityFilter, jobTypeFilter, searchTerm]);
+  }, [cityFilter, jobTypeFilter, searchTerm, user]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -183,9 +194,10 @@ export default function JobSearch() {
         ) : jobs.length === 0 ? (
           <div className="text-center py-16 bg-card rounded-xl border border-border/50">
             <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No Jobs Found</h2>
-            <p className="text-muted-foreground">
-              Try adjusting your filters or check back later.
+            <h2 className="text-xl font-semibold mb-2">No Jobs Available Right Now</h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              All current positions have been filled. Don't worry - new opportunities are 
+              posted regularly! Check back soon or adjust your filters to see more results.
             </p>
           </div>
         ) : (
@@ -198,9 +210,16 @@ export default function JobSearch() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold mb-1">{job.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {job.contractor?.company_name || "Company"}
-                    </p>
+                    {user ? (
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {job.contractor?.company_name || "Company"}
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Sign in to see company details</span>
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
                       <Badge variant="outline" className="capitalize">

@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Calendar,
   ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -371,9 +372,16 @@ export default function JobDetail() {
                 )}
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>
-              <p className="text-muted-foreground mb-4">
-                {job.contractor?.company_name || "Company"}
-              </p>
+              {user ? (
+                <p className="text-muted-foreground mb-4">
+                  {job.contractor?.company_name || "Company"}
+                </p>
+              ) : (
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-4">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Sign in to see company details</span>
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-6">
                 <div className="flex flex-wrap gap-4">
@@ -585,20 +593,35 @@ export default function JobDetail() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <div className="bg-card rounded-xl p-6 border border-border/50">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                About the Company
-              </h3>
-              <p className="font-medium text-lg mb-2">
-                {job.contractor?.company_name || "Company"}
-              </p>
-              {job.contractor?.company_description && (
-                <p className="text-sm text-muted-foreground">
-                  {job.contractor.company_description}
+            {user ? (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
+                <h3 className="font-semibold mb-4 flex items-center gap-2">
+                  <Building2 className="w-5 h-5" />
+                  About the Company
+                </h3>
+                <p className="font-medium text-lg mb-2">
+                  {job.contractor?.company_name || "Company"}
                 </p>
-              )}
-            </div>
+                {job.contractor?.company_description && (
+                  <p className="text-sm text-muted-foreground">
+                    {job.contractor.company_description}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-card rounded-xl p-6 border border-border/50 text-center">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                  <Lock className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="font-semibold mb-2">Company Details Hidden</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Sign in to view company information and apply for this job.
+                </p>
+                <Button asChild size="sm">
+                  <Link to="/auth">Sign In</Link>
+                </Button>
+              </div>
+            )}
 
             <div className="bg-card rounded-xl p-6 border border-border/50">
               <h3 className="font-semibold mb-4 flex items-center gap-2">

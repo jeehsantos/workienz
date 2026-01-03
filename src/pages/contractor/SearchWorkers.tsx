@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Search, User, MapPin, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, Search, User, MapPin, Clock, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 type EmployeeProfile = {
@@ -32,6 +32,8 @@ export default function SearchWorkers() {
 
   const [workers, setWorkers] = useState<EmployeeProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,8 +47,45 @@ export default function SearchWorkers() {
     }
   }, [user, authLoading, isContractor, navigate]);
 
+  // Check contractor subscription
+  useEffect(() => {
+    async function checkSubscription() {
+      if (!user) return;
+
+      // Get contractor profile
+      const { data: contractorProfile } = await supabase
+        .from("contractor_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (contractorProfile) {
+        // Check for active subscription
+        const { data: subscription } = await supabase
+          .from("contractor_subscriptions")
+          .select("id")
+          .eq("contractor_profile_id", contractorProfile.id)
+          .eq("status", "active")
+          .maybeSingle();
+
+        setHasActiveSubscription(!!subscription);
+      }
+
+      setCheckingSubscription(false);
+    }
+
+    if (user && isContractor()) {
+      checkSubscription();
+    }
+  }, [user, isContractor]);
+
   useEffect(() => {
     async function fetchWorkers() {
+      if (!hasActiveSubscription) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
 
       let query = supabase
@@ -117,15 +156,45 @@ export default function SearchWorkers() {
       setIsLoading(false);
     }
 
-    if (user && isContractor()) {
+    if (user && isContractor() && hasActiveSubscription) {
       fetchWorkers();
     }
-  }, [user, isContractor, cityFilter, searchTerm, skillFilter, availabilityFilter]);
+  }, [user, isContractor, cityFilter, searchTerm, skillFilter, availabilityFilter, hasActiveSubscription]);
 
-  if (authLoading) {
+  if (authLoading || checkingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show subscription required message
+  if (!hasActiveSubscription) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container-tight py-8">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link to="/dashboard">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </Button>
+
+          <div className="text-center py-16 bg-card rounded-xl border border-border/50">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2 font-display">Subscription Required</h2>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              You need an active subscription to browse and contact workers. 
+              Upgrade your account to access our talent pool.
+            </p>
+            <Button asChild size="lg">
+              <Link to="/pricing">View Subscription Plans</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

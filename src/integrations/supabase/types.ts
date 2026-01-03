@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_reports: {
+        Row: {
+          admin_notes: string | null
+          article_id: string
+          created_at: string
+          description: string
+          id: string
+          report_type: string
+          reporter_user_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          article_id: string
+          created_at?: string
+          description: string
+          id?: string
+          report_type: string
+          reporter_user_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          article_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          report_type?: string
+          reporter_user_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_reports_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           author_id: string

@@ -16,6 +16,8 @@ import {
   Star,
   Building,
   HardHat,
+  BarChart3,
+  AlertTriangle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +69,17 @@ type Job = {
   created_at: string;
 };
 
+type ArticleReport = {
+  id: string;
+  article_id: string;
+  article_title: string;
+  reporter_email: string;
+  report_type: string;
+  description: string;
+  status: string;
+  created_at: string;
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isAdmin } = useAuthContext();
@@ -81,6 +94,7 @@ export default function AdminDashboard() {
   const [contractors, setContractors] = useState<ContractorProfile[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [packages, setPackages] = useState<{ id: string; name: string }[]>([]);
+  const [reports, setReports] = useState<ArticleReport[]>([]);
   
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -105,6 +119,8 @@ export default function AdminDashboard() {
       await fetchContractors();
     } else if (activeTab === "jobs") {
       await fetchJobs();
+    } else if (activeTab === "reports") {
+      await fetchReports();
     }
 
     // Always fetch packages for contractor subscriptions
@@ -239,6 +255,62 @@ export default function AdminDashboard() {
     );
 
     setJobs(enriched);
+  }
+
+  async function fetchReports() {
+    const { data: reportData } = await supabase
+      .from("article_reports")
+      .select("id, article_id, report_type, description, status, created_at, reporter_user_id")
+      .order("created_at", { ascending: false });
+
+    if (!reportData) {
+      setReports([]);
+      return;
+    }
+
+    const enriched = await Promise.all(
+      reportData.map(async (report) => {
+        // Get article title
+        const { data: article } = await supabase
+          .from("articles")
+          .select("title")
+          .eq("id", report.article_id)
+          .maybeSingle();
+
+        // Get reporter email
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("user_id", report.reporter_user_id)
+          .maybeSingle();
+
+        return {
+          ...report,
+          article_title: article?.title || "Unknown Article",
+          reporter_email: profile?.email || "Unknown",
+        };
+      })
+    );
+
+    setReports(enriched);
+  }
+
+  async function updateReportStatus(reportId: string, newStatus: string) {
+    setUpdatingId(reportId);
+
+    const { error } = await supabase
+      .from("article_reports")
+      .update({ status: newStatus })
+      .eq("id", reportId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update report status", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Report status updated" });
+      setReports(reports.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
+    }
+
+    setUpdatingId(null);
   }
 
   async function toggleUserPremium(userId: string, currentHasSub: boolean) {
@@ -407,15 +479,23 @@ export default function AdminDashboard() {
           </Link>
         </Button>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage users, contractors, and job postings
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage users, contractors, and job postings
+            </p>
+          </div>
+          <Button asChild>
+            <Link to="/admin/analytics">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              View Analytics
+            </Link>
+          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Users
@@ -431,6 +511,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="jobs" className="flex items-center gap-2">
               <Briefcase className="w-4 h-4" />
               Jobs
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Reports
             </TabsTrigger>
           </TabsList>
 
@@ -659,6 +743,73 @@ export default function AdminDashboard() {
                           </TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+
+              {/* Reports Tab */}
+              <TabsContent value="reports" className="space-y-4">
+                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Article</TableHead>
+                        <TableHead>Reporter</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reports.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                            No reports submitted yet
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        reports.map((report) => (
+                          <TableRow key={report.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{report.article_title}</p>
+                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                  {report.description}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {report.reporter_email}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {report.report_type.replace(/_/g, ' ')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={report.status}
+                                onValueChange={(value) => updateReportStatus(report.id, value)}
+                                disabled={updatingId === report.id}
+                              >
+                                <SelectTrigger className="w-28">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="reviewed">Reviewed</SelectItem>
+                                  <SelectItem value="resolved">Resolved</SelectItem>
+                                  <SelectItem value="dismissed">Dismissed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {new Date(report.created_at).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>

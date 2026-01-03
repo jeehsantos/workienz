@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUnreadRefreshListener } from "@/hooks/useProfileRefresh";
 
 export interface UnreadConversation {
   id: string;
@@ -145,6 +146,9 @@ export function useUnreadMessages(userId: string | undefined) {
     }
   }, [userId]);
 
+  // Listen for manual unread refresh events (from conversation page)
+  useUnreadRefreshListener(fetchUnreadData);
+
   useEffect(() => {
     fetchUnreadData();
 
@@ -171,11 +175,9 @@ export function useUnreadMessages(userId: string | undefined) {
           schema: "public",
           table: "conversation_read_status",
         },
-        (payload) => {
-          // Only refetch if the read status update is for the current user
-          if (payload.new && (payload.new as { user_id: string }).user_id === userId) {
-            fetchUnreadData();
-          }
+        () => {
+          // Refetch on any read status change
+          fetchUnreadData();
         }
       )
       .subscribe();

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Plus, X, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { dispatchProfileUpdated } from "@/hooks/useProfileRefresh";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -198,18 +199,23 @@ export default function EmployeeProfile() {
       error = result.error;
     }
 
-    // Also update the profiles table with first_name and last_name
+    // Also update the profiles table with first_name, last_name, and full_name
     if (!error) {
+      const fullName = `${formData.first_name || ''} ${formData.last_name || ''}`.trim();
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
           first_name: formData.first_name || null,
           last_name: formData.last_name || null,
+          full_name: fullName || null,
         })
         .eq("user_id", user.id);
       
       if (profileError) {
         console.error("Error updating profile names:", profileError);
+      } else {
+        // Dispatch event to refresh navbar
+        dispatchProfileUpdated();
       }
     }
 
