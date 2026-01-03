@@ -9,12 +9,9 @@ import {
   ArrowLeft,
   MapPin,
   Clock,
-  
   User,
-  Mail,
-  Phone,
   MessageCircle,
-  Calendar,
+  Lock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -49,6 +46,8 @@ export default function WorkerProfile() {
   const [worker, setWorker] = useState<WorkerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
     async function fetchWorker() {
@@ -95,6 +94,39 @@ export default function WorkerProfile() {
 
     fetchWorker();
   }, [id]);
+
+  // Check contractor subscription
+  useEffect(() => {
+    async function checkSubscription() {
+      if (!user || !isContractor()) {
+        setCheckingSubscription(false);
+        return;
+      }
+
+      // Get contractor profile
+      const { data: contractorProfile } = await supabase
+        .from("contractor_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (contractorProfile) {
+        // Check for active subscription
+        const { data: subscription } = await supabase
+          .from("contractor_subscriptions")
+          .select("id")
+          .eq("contractor_profile_id", contractorProfile.id)
+          .eq("status", "active")
+          .maybeSingle();
+
+        setHasActiveSubscription(!!subscription);
+      }
+
+      setCheckingSubscription(false);
+    }
+
+    checkSubscription();
+  }, [user, isContractor]);
 
   const handleStartConversation = async () => {
     if (!user || !worker) return;
@@ -168,6 +200,8 @@ export default function WorkerProfile() {
     };
     return labels[availability || ""] || "Not specified";
   };
+
+  const canContact = user && isContractor() && hasActiveSubscription;
 
   return (
     <div className="min-h-screen bg-background">
@@ -278,32 +312,50 @@ export default function WorkerProfile() {
               </div>
             </div>
 
-            {/* Contact section - only show to authenticated contractors */}
+            {/* Contact section - only show to authenticated contractors with subscription */}
             {user && isContractor() && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4">Contact</h3>
-                {worker.is_available ? (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Start a conversation with this job seeker directly.
+                {checkingSubscription ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : canContact ? (
+                  worker.is_available ? (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Start a conversation with this job seeker directly.
+                      </p>
+                      <Button 
+                        className="w-full" 
+                        onClick={handleStartConversation}
+                        disabled={isStartingChat}
+                      >
+                        {isStartingChat ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Start Conversation
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      This job seeker is not currently available for work.
                     </p>
-                    <Button 
-                      className="w-full" 
-                      onClick={handleStartConversation}
-                      disabled={isStartingChat}
-                    >
-                      {isStartingChat ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                      )}
-                      Start Conversation
-                    </Button>
-                  </>
+                  )
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    This job seeker is not currently available for work.
-                  </p>
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                      <Lock className="w-6 h-6 text-primary" />
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      You need an active subscription to contact workers.
+                    </p>
+                    <Button asChild size="sm" className="w-full">
+                      <Link to="/pricing">Upgrade Now</Link>
+                    </Button>
+                  </div>
                 )}
               </div>
             )}

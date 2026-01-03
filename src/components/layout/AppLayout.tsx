@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Menu, X, LogOut, LayoutDashboard, MessageCircle, User } from "lucide-re
 import { supabase } from "@/integrations/supabase/client";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useProfileRefreshListener } from "@/hooks/useProfileRefresh";
 import { formatDistanceToNow } from "date-fns";
 import workieLogo from "@/assets/workie-logo.png";
 
@@ -51,27 +52,38 @@ export function AppLayout({ children }: AppLayoutProps) {
   const canSeeMessages = roles.includes("employee") || roles.includes("contractor");
 
   // Fetch profile name (deferred outside auth listener)
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, full_name")
+        .eq("user_id", userId)
+        .single();
+
+      if (error) return null;
+      // Prefer first_name + last_name, fallback to full_name
+      if (data?.first_name || data?.last_name) {
+        return `${data.first_name || ''} ${data.last_name || ''}`.trim();
+      }
+      return data?.full_name || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Refetch profile when profile is updated elsewhere
+  const refetchProfile = useCallback(async () => {
+    if (user?.id) {
+      const fullName = await fetchUserProfile(user.id);
+      setUserFullName(fullName);
+    }
+  }, [user?.id, fetchUserProfile]);
+
+  // Listen for profile update events
+  useProfileRefreshListener(refetchProfile);
+
   useEffect(() => {
     let active = true;
-
-    const fetchUserProfile = async (userId: string) => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("first_name, last_name, full_name")
-          .eq("user_id", userId)
-          .single();
-
-        if (error) return null;
-        // Prefer first_name + last_name, fallback to full_name
-        if (data?.first_name || data?.last_name) {
-          return `${data.first_name || ''} ${data.last_name || ''}`.trim();
-        }
-        return data?.full_name || null;
-      } catch {
-        return null;
-      }
-    };
 
     if (!user?.id) {
       setUserFullName(null);
@@ -86,7 +98,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [user?.id, fetchUserProfile]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -104,8 +116,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const handleConversationClick = (conversationId: string) => {
     setMessagesOpen(false);
     navigate(`/messages/${conversationId}`);
-    // Refetch after a short delay to allow the conversation page to mark as read
-    setTimeout(() => refetchUnread(), 1000);
   };
 
   return (

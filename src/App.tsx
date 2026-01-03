@@ -31,6 +31,7 @@ import EditArticle from "./pages/writer/EditArticle";
 import WorkerProfile from "./pages/WorkerProfile";
 import Conversation from "./pages/Conversation";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import Contact from "./pages/Contact";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/writer/articles" element={<MyArticles />} />
               <Route path="/writer/articles/:id/edit" element={<EditArticle />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/contact" element={<Contact />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

@@ -17,6 +17,7 @@ import {
   User,
   Building2,
 } from "lucide-react";
+import { dispatchUnreadRefresh } from "@/hooks/useProfileRefresh";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -193,6 +194,9 @@ export default function Conversation() {
           }, {
             onConflict: 'conversation_id,user_id'
           });
+        
+        // Dispatch event to refresh unread count immediately
+        dispatchUnreadRefresh();
       }
     }
 

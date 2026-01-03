@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Lock, Calendar, User, Pencil, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ReportProblemDialog } from "@/components/articles/ReportProblemDialog";
 
 type Article = {
   id: string;
@@ -22,7 +23,7 @@ type Article = {
 export default function ArticleDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, isWriter, isLoading: authLoading } = useAuthContext();
+  const { user, isWriter, isEmployee, isLoading: authLoading } = useAuthContext();
 
   const [article, setArticle] = useState<Article | null>(null);
   const [authorName, setAuthorName] = useState<string | null>(null);
@@ -306,9 +307,18 @@ export default function ArticleDetail() {
               <p className="font-medium text-foreground">Enjoyed this article?</p>
               <p className="text-sm text-muted-foreground">Check out more content for job seekers</p>
             </div>
-            <Button asChild>
-              <Link to="/articles">Browse More Articles</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              {user && isEmployee() && (
+                <ReportProblemDialog 
+                  articleId={article.id} 
+                  userId={user.id} 
+                  articleTitle={article.title} 
+                />
+              )}
+              <Button asChild>
+                <Link to="/articles">Browse More Articles</Link>
+              </Button>
+            </div>
           </div>
         </article>
       </div>
