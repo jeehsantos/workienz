@@ -304,28 +304,45 @@ export default function Pricing() {
                 ))}
               </div>
 
-              {/* Contractor Features */}
-              <div className="mt-12 max-w-4xl mx-auto">
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50">
-                    <Database className="w-5 h-5 text-primary mt-0.5" />
+              {/* Platform Benefits - Clarified Section */}
+              <div className="mt-14 max-w-4xl mx-auto">
+                <div className="text-center mb-6">
+                  <span className="inline-block text-xs font-medium uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1 rounded-full mb-2">
+                    Platform Benefits
+                  </span>
+                  <h3 className="text-lg font-semibold font-display text-foreground">
+                    Why employers choose Workie
+                  </h3>
+                </div>
+                
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Database className="w-6 h-6 text-primary" />
+                    </div>
                     <div>
-                      <h4 className="font-semibold text-sm">Database Access</h4>
-                      <p className="text-xs text-muted-foreground">Browse job seekers directly</p>
+                      <h4 className="font-semibold text-foreground">Database Access</h4>
+                      <p className="text-sm text-muted-foreground">Browse job seekers directly</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50">
-                    <MessageSquare className="w-5 h-5 text-primary mt-0.5" />
+                  
+                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <MessageSquare className="w-6 h-6 text-primary" />
+                    </div>
                     <div>
-                      <h4 className="font-semibold text-sm">Direct Messaging</h4>
-                      <p className="text-xs text-muted-foreground">Chat with candidates instantly</p>
+                      <h4 className="font-semibold text-foreground">Direct Messaging</h4>
+                      <p className="text-sm text-muted-foreground">Chat with candidates instantly</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50">
-                    <Zap className="w-5 h-5 text-primary mt-0.5" />
+                  
+                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Zap className="w-6 h-6 text-primary" />
+                    </div>
                     <div>
-                      <h4 className="font-semibold text-sm">Fast Hiring</h4>
-                      <p className="text-xs text-muted-foreground">Fill positions quickly</p>
+                      <h4 className="font-semibold text-foreground">Fast Hiring</h4>
+                      <p className="text-sm text-muted-foreground">Fill positions quickly</p>
                     </div>
                   </div>
                 </div>
