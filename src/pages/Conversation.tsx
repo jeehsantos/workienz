@@ -435,37 +435,37 @@ export default function Conversation() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <div className="border-b border-border/50 bg-card sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
-              <Button variant="ghost" size="icon" className="flex-shrink-0" asChild>
+        <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8 sm:h-9 sm:w-9" asChild>
                 <Link to="/dashboard">
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>
               
               {/* User info with avatar */}
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                   {isUserContractor ? (
-                    <User className="w-5 h-5 text-primary" />
+                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   ) : (
-                    <Building2 className="w-5 h-5 text-primary" />
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   )}
                 </div>
-                <div className="min-w-0">
-                  <h1 className="font-semibold truncate">
+                <div className="min-w-0 flex-1">
+                  <h1 className="font-semibold truncate text-sm sm:text-base">
                     {conversation.other_party?.full_name || "User"}
                   </h1>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                     {conversation.job_application && (
                       <>
                         <Link 
                           to={`/jobs/${conversation.job_application.job.id}`}
-                          className="text-sm text-primary hover:underline flex items-center gap-1"
+                          className="text-xs sm:text-sm text-primary hover:underline flex items-center gap-1 truncate max-w-[120px] sm:max-w-none"
                         >
-                          <Briefcase className="w-3 h-3" />
-                          {conversation.job_application.job.title}
+                          <Briefcase className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{conversation.job_application.job.title}</span>
                         </Link>
                         <Badge 
                           variant={
@@ -475,7 +475,7 @@ export default function Conversation() {
                               ? 'default'
                               : 'secondary'
                           }
-                          className="text-xs"
+                          className="text-[10px] sm:text-xs px-1.5 py-0"
                         >
                           {conversation.job_application.status === 'rejected' 
                             ? 'Rejected' 
@@ -486,30 +486,20 @@ export default function Conversation() {
                       </>
                     )}
                     {!conversation.job_application && (
-                      <span className="text-sm text-muted-foreground">Direct Contact</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">Direct Contact</span>
                     )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* View Job Button for job applications */}
-              {conversation.job_application?.job.id && (
-                <Button variant="outline" size="sm" asChild className="hidden sm:flex">
-                  <Link to={`/jobs/${conversation.job_application.job.id}`}>
-                    <Briefcase className="w-4 h-4 mr-2" />
-                    View Job
-                  </Link>
-                </Button>
-              )}
-
+            {/* Actions - Compact on mobile */}
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {/* Show Hired badge or Hire button */}
               {conversation.job_application && isUserContractor && !isClosed && (
                 isHired ? (
-                  <span className="flex items-center gap-1 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm font-medium">
-                    <CheckCircle2 className="w-4 h-4" />
+                  <span className="flex items-center gap-1 px-2 sm:px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-xs sm:text-sm font-medium">
+                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Hired</span>
                   </span>
                 ) : (
@@ -518,9 +508,10 @@ export default function Conversation() {
                     size="sm"
                     onClick={handleHireApplicant}
                     disabled={isHiring}
+                    className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
                   >
-                    {isHiring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    <CheckCircle2 className="w-4 h-4 sm:mr-2" />
+                    {isHiring && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />}
+                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
                     <span className="hidden sm:inline">Hire</span>
                   </Button>
                 )
@@ -528,31 +519,28 @@ export default function Conversation() {
 
               {!isClosed && (
                 <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleShareContact}
-                    disabled={isSending}
-                    className="hidden md:flex"
-                  >
-                    <Phone className="w-4 h-4 mr-2" />
-                    Share Contact
-                  </Button>
-
+                  {/* Share Contact - icon only on mobile */}
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={handleShareContact}
                     disabled={isSending}
-                    className="md:hidden"
+                    className="h-8 w-8 sm:h-9 sm:w-9"
+                    title="Share Contact Info"
                   >
-                    <Phone className="w-4 h-4" />
+                    <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </Button>
 
+                  {/* Close Conversation */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="icon" className="text-destructive hover:text-destructive">
-                        <X className="w-4 h-4" />
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9"
+                        title="Close Conversation"
+                      >
+                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
@@ -585,9 +573,9 @@ export default function Conversation() {
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-          {/* Job context banner for job applications */}
+          {/* Job context banner for job applications - hidden on mobile since info is in header */}
           {conversation.job_application?.job.id && (
-            <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+            <div className="bg-muted/30 rounded-lg p-3 sm:p-4 border border-border/50 hidden sm:block">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
