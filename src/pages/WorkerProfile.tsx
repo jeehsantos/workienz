@@ -47,6 +47,7 @@ export default function WorkerProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [isApplicantOfContractor, setIsApplicantOfContractor] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   useEffect(() => {
@@ -95,10 +96,10 @@ export default function WorkerProfile() {
     fetchWorker();
   }, [id]);
 
-  // Check contractor subscription
+  // Check contractor subscription and if this worker is an applicant
   useEffect(() => {
-    async function checkSubscription() {
-      if (!user || !isContractor()) {
+    async function checkSubscriptionAndApplicant() {
+      if (!user || !isContractor() || !id) {
         setCheckingSubscription(false);
         return;
       }
@@ -120,13 +121,33 @@ export default function WorkerProfile() {
           .maybeSingle();
 
         setHasActiveSubscription(!!subscription);
+
+        // Check if this worker has applied to any of contractor's jobs
+        const { data: contractorJobs } = await supabase
+          .from("jobs")
+          .select("id")
+          .eq("contractor_id", contractorProfile.id);
+
+        if (contractorJobs && contractorJobs.length > 0) {
+          const jobIds = contractorJobs.map(j => j.id);
+          
+          // Check if this employee (by id) has applied to any of those jobs
+          const { data: applications } = await supabase
+            .from("job_applications")
+            .select("id")
+            .eq("employee_id", id)
+            .in("job_id", jobIds)
+            .limit(1);
+
+          setIsApplicantOfContractor(!!applications && applications.length > 0);
+        }
       }
 
       setCheckingSubscription(false);
     }
 
-    checkSubscription();
-  }, [user, isContractor]);
+    checkSubscriptionAndApplicant();
+  }, [user, isContractor, id]);
 
   const handleStartConversation = async () => {
     if (!user || !worker) return;
@@ -201,7 +222,8 @@ export default function WorkerProfile() {
     return labels[availability || ""] || "Not specified";
   };
 
-  const canContact = user && isContractor() && hasActiveSubscription;
+  const canViewFullProfile = user && isContractor() && (hasActiveSubscription || isApplicantOfContractor);
+  const canContact = canViewFullProfile;
 
   return (
     <div className="min-h-screen bg-background">
@@ -253,10 +275,21 @@ export default function WorkerProfile() {
                 )}
               </div>
 
-              {worker.bio && (
+              {/* Bio - only show if can view full profile */}
+              {worker.bio && canViewFullProfile && (
                 <div className="prose prose-sm max-w-none dark:prose-invert mb-6">
                   <h3>About</h3>
                   <p>{worker.bio}</p>
+                </div>
+              )}
+              
+              {/* Show restricted message for bio */}
+              {worker.bio && !canViewFullProfile && user && isContractor() && (
+                <div className="bg-muted/50 rounded-lg p-4 mb-6 border border-border/50">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Lock className="w-4 h-4" />
+                    <span className="text-sm">Subscribe or receive an application from this worker to view their full bio.</span>
+                  </div>
                 </div>
               )}
 

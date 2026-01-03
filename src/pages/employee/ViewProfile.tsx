@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Edit, MapPin, Calendar, Briefcase, Phone, Globe, User } from "lucide-react";
 import { format } from "date-fns";
+import { useProfileRefreshListener } from "@/hooks/useProfileRefresh";
 
 export default function ViewProfile() {
   const navigate = useNavigate();
@@ -20,32 +21,34 @@ export default function ViewProfile() {
     }
   }, [user, authLoading, isEmployee, navigate]);
 
+  const fetchProfile = useCallback(async () => {
+    if (!user) return;
+
+    const { data: empProfile } = await supabase
+      .from("employee_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const { data: userProf } = await supabase
+      .from("profiles")
+      .select("full_name, email, avatar_url")
+      .eq("user_id", user.id)
+      .single();
+
+    setProfile(empProfile);
+    setUserProfile(userProf);
+    setIsLoading(false);
+  }, [user]);
+
   useEffect(() => {
-    async function fetchProfile() {
-      if (!user) return;
-
-      const { data: empProfile } = await supabase
-        .from("employee_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const { data: userProf } = await supabase
-        .from("profiles")
-        .select("full_name, email, avatar_url")
-        .eq("user_id", user.id)
-        .single();
-
-      setProfile(empProfile);
-      setUserProfile(userProf);
-      setIsLoading(false);
-    }
-
     if (user && isEmployee()) {
       fetchProfile();
     }
-  }, [user, isEmployee]);
+  }, [user, isEmployee, fetchProfile]);
 
+  // Listen for profile updates and refetch
+  useProfileRefreshListener(fetchProfile);
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

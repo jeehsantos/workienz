@@ -479,20 +479,29 @@ export default function AdminDashboard() {
           </Link>
         </Button>
 
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage users, contractors, and job postings
-            </p>
-          </div>
-          <Button asChild>
-            <Link to="/admin/analytics">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              View Analytics
-            </Link>
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage users, contractors, and job postings
+          </p>
         </div>
+
+        {/* Analytics Card */}
+        <Link 
+          to="/admin/analytics"
+          className="block mb-8 bg-card rounded-xl p-6 border border-border/50 shadow-soft hover:shadow-md transition-all hover:border-primary/30 group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <BarChart3 className="w-7 h-7 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold font-display group-hover:text-primary transition-colors">Analytics Dashboard</h2>
+              <p className="text-muted-foreground text-sm">View hiring metrics, job statistics, and platform trends</p>
+            </div>
+            <ArrowLeft className="w-5 h-5 text-muted-foreground rotate-180 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </Link>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-5 w-full max-w-2xl">
