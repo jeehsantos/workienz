@@ -22,6 +22,8 @@ type EmployeeProfile = {
   availability: string | null;
   profile: {
     full_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
   } | null;
 };
@@ -147,7 +149,7 @@ export default function SearchWorkers() {
       const userIds = data?.map((w) => w.user_id) || [];
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, full_name, email")
+        .select("user_id, full_name, first_name, last_name, email")
         .in("user_id", userIds);
 
       const workersWithProfiles = data?.map((worker) => ({
@@ -294,7 +296,9 @@ export default function SearchWorkers() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold truncate">
-                          {worker.profile?.full_name || "Anonymous"}
+                          {worker.profile?.first_name || worker.profile?.last_name
+                            ? `${worker.profile?.first_name || ''} ${worker.profile?.last_name || ''}`.trim()
+                            : worker.profile?.full_name || "Anonymous"}
                         </h3>
                         {isApplicant && (
                           <Badge variant="secondary" className="text-xs">Applicant</Badge>

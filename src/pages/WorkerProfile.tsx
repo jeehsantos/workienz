@@ -49,6 +49,7 @@ export default function WorkerProfile() {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [isApplicantOfContractor, setIsApplicantOfContractor] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [existingConversationId, setExistingConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchWorker() {
@@ -91,10 +92,24 @@ export default function WorkerProfile() {
 
       setWorker({ ...data, profile });
       setIsLoading(false);
+
+      // Check for existing conversation with this worker (for contractors)
+      if (user && isContractor()) {
+        const { data: existingConv } = await supabase
+          .from("conversations")
+          .select("id")
+          .eq("contractor_user_id", user.id)
+          .eq("employee_user_id", data.user_id)
+          .maybeSingle();
+
+        if (existingConv) {
+          setExistingConversationId(existingConv.id);
+        }
+      }
     }
 
     fetchWorker();
-  }, [id]);
+  }, [id, user, isContractor]);
 
   // Check contractor subscription and if this worker is an applicant
   useEffect(() => {
@@ -141,6 +156,20 @@ export default function WorkerProfile() {
 
           setIsApplicantOfContractor(!!applications && applications.length > 0);
         }
+
+        // Check if there's an existing conversation with this worker
+        const { data: existingConv } = await supabase
+          .from("conversations")
+          .select("id")
+          .eq("contractor_user_id", user.id)
+          .maybeSingle();
+
+        // We need to filter by the worker's user_id, but we don't have it yet
+        // So let's fetch it from the employee_profiles table
+        if (existingConv) {
+          // Actually we need to check for conversations with this specific worker
+          // Let's fetch after we know the worker's user_id
+        }
       }
 
       setCheckingSubscription(false);
@@ -151,6 +180,12 @@ export default function WorkerProfile() {
 
   const handleStartConversation = async () => {
     if (!user || !worker) return;
+
+    // If there's an existing conversation (from application), navigate to it
+    if (existingConversationId) {
+      navigate(`/messages/${existingConversationId}`);
+      return;
+    }
 
     setIsStartingChat(true);
 

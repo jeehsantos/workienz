@@ -503,32 +503,51 @@ export default function Conversation() {
                     <span className="hidden sm:inline">Hired</span>
                   </span>
                 ) : (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleHireApplicant}
-                    disabled={isHiring}
-                    className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                  >
-                    {isHiring && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />}
-                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Hire</span>
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={isHiring}
+                        className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                      >
+                        {isHiring && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />}
+                        <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Hire</span>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Hire</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to hire this applicant? This will update their application status to "Hired".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleHireApplicant} disabled={isHiring}>
+                          {isHiring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Confirm Hire
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )
               )}
 
               {!isClosed && (
                 <>
-                  {/* Share Contact - icon only on mobile */}
+                  {/* Share Contact - shows text on desktop */}
                   <Button
                     variant="outline"
-                    size="icon"
+                    size="sm"
                     onClick={handleShareContact}
                     disabled={isSending}
-                    className="h-8 w-8 sm:h-9 sm:w-9"
+                    className="h-8 px-2 sm:px-3"
                     title="Share Contact Info"
                   >
-                    <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Share Contact</span>
                   </Button>
 
                   {/* Close Conversation */}
@@ -536,11 +555,12 @@ export default function Conversation() {
                     <AlertDialogTrigger asChild>
                       <Button 
                         variant="outline" 
-                        size="icon" 
-                        className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9"
+                        size="sm" 
+                        className="text-destructive hover:text-destructive h-8 px-2 sm:px-3"
                         title="Close Conversation"
                       >
-                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Close</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>

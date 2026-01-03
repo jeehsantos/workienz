@@ -102,20 +102,29 @@ export default function AdminAnalytics() {
           ? Math.round((totalHires / totalApplications) * 100)
           : 0;
 
-        // Fetch industry hiring data
-        const { data: jobsWithHires } = await supabase
-          .from("jobs")
-          .select("industry, job_applications!inner(status)")
-          .not("industry", "is", null);
+        // Fetch industry hiring data - get all hired applications first
+        const { data: hiredApplications } = await supabase
+          .from("job_applications")
+          .select("id, job_id")
+          .eq("status", "hired");
 
         const industryMap = new Map<string, number>();
-        jobsWithHires?.forEach((job: any) => {
-          const hiredCount = job.job_applications?.filter((a: any) => a.status === "hired").length || 0;
-          if (hiredCount > 0) {
-            const current = industryMap.get(job.industry) || 0;
-            industryMap.set(job.industry, current + hiredCount);
-          }
-        });
+        
+        if (hiredApplications && hiredApplications.length > 0) {
+          const jobIds = [...new Set(hiredApplications.map(a => a.job_id))];
+          
+          const { data: jobsData } = await supabase
+            .from("jobs")
+            .select("id, industry")
+            .in("id", jobIds)
+            .not("industry", "is", null);
+
+          jobsData?.forEach((job) => {
+            const hiresForJob = hiredApplications.filter(a => a.job_id === job.id).length;
+            const current = industryMap.get(job.industry!) || 0;
+            industryMap.set(job.industry!, current + hiresForJob);
+          });
+        }
 
         const industryHiring = Array.from(industryMap.entries())
           .map(([name, hires]) => ({ name, hires }))
