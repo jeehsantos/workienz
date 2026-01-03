@@ -107,13 +107,15 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [userType, setUserType] = useState<UserType | null>(null);
   const [errors, setErrors] = useState<{ 
     email?: string; 
     password?: string; 
     confirmPassword?: string;
-    fullName?: string 
+    firstName?: string;
+    lastName?: string;
   }>({});
   
   // 2FA state
@@ -175,7 +177,8 @@ export default function Auth() {
       email?: string; 
       password?: string; 
       confirmPassword?: string;
-      fullName?: string 
+      firstName?: string;
+      lastName?: string;
     } = {};
     
     const emailResult = emailSchema.safeParse(email);
@@ -197,8 +200,12 @@ export default function Auth() {
       }
     }
     
-    if (isSignUp && !fullName.trim()) {
-      newErrors.fullName = "Full name is required";
+    if (isSignUp && !firstName.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+    
+    if (isSignUp && !lastName.trim()) {
+      newErrors.lastName = "Last name is required";
     }
     
     setErrors(newErrors);
@@ -223,7 +230,7 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password, fullName, userType!);
+        const { error } = await signUp(email, password, firstName, lastName, userType!);
         if (error) {
           if (error.message.includes("already registered")) {
             toast({
@@ -378,19 +385,35 @@ export default function Auth() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
-              <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="John Smith"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1.5"
-                />
-                {errors.fullName && (
-                  <p className="text-sm text-destructive mt-1">{errors.fullName}</p>
-                )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="mt-1.5"
+                  />
+                  {errors.firstName && (
+                    <p className="text-sm text-destructive mt-1">{errors.firstName}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Smith"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="mt-1.5"
+                  />
+                  {errors.lastName && (
+                    <p className="text-sm text-destructive mt-1">{errors.lastName}</p>
+                  )}
+                </div>
               </div>
             )}
 
