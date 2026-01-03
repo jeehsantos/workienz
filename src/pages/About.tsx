@@ -3,33 +3,25 @@ import { Users, Target, Eye, Handshake, UserCheck, Globe, Clock, Briefcase } fro
 import ourStoryImg from "@/assets/about/our-story.png";
 import missionImg from "@/assets/about/mission.png";
 import connectingPeopleImg from "@/assets/about/connecting-people.png";
-
-const targetGroups = [
-  {
-    icon: UserCheck,
-    title: "First-Time Job Seekers",
-    description: "We provide a crucial starting point for young and inexperienced individuals, transforming the search for a first job into a simple and encouraging experience."
-  },
-  {
-    icon: Globe,
-    title: "Newcomers to the Country",
-    description: "We offer a clear path for new arrivals, helping them settle in and find their first opportunities without the frustration of bureaucracy."
-  },
-  {
-    icon: Clock,
-    title: "Active Seniors",
-    description: "We value life experience. We are the ideal channel for seniors looking for quick, flexible jobs to supplement their income, without the need for lengthy applications."
-  },
-  {
-    icon: Briefcase,
-    title: "Experienced Operational Staff",
-    description: "We welcome individuals with practical experience in fields like logistics, retail, hospitality, and essential services, offering a fast track to new roles without the complexity of specialized recruitment."
-  }
-];
-
+const targetGroups = [{
+  icon: UserCheck,
+  title: "First-Time Job Seekers",
+  description: "We provide a crucial starting point for young and inexperienced individuals, transforming the search for a first job into a simple and encouraging experience."
+}, {
+  icon: Globe,
+  title: "Newcomers to the Country",
+  description: "We offer a clear path for new arrivals, helping them settle in and find their first opportunities without the frustration of bureaucracy."
+}, {
+  icon: Clock,
+  title: "Active Seniors",
+  description: "We value life experience. We are the ideal channel for seniors looking for quick, flexible jobs to supplement their income, without the need for lengthy applications."
+}, {
+  icon: Briefcase,
+  title: "Experienced Operational Staff",
+  description: "We welcome individuals with practical experience in fields like logistics, retail, hospitality, and essential services, offering a fast track to new roles without the complexity of specialized recruitment."
+}];
 export default function About() {
-  return (
-    <main className="min-h-screen bg-background">
+  return <main className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
@@ -57,9 +49,7 @@ export default function About() {
                 <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">Our Story</h2>
               </div>
               <div className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>
-                  Founded in 2024, Workie was born from a simple yet powerful conviction: finding work and hiring talent should be a quick, human, and accessible process for everyone.
-                </p>
+                <p>Founded in 2026, Workie was born from a simple yet powerful conviction: finding work and hiring talent should be a quick, human, and accessible process for everyone.</p>
                 <p>
                   We are more than a job platform; we are a driver of social inclusion, dedicated to simplifying the employment journey for those who need it most. Our focus is on eliminating barriers and bureaucracy, creating a direct path between the need for work and the opportunity.
                 </p>
@@ -71,11 +61,7 @@ export default function About() {
             <div className="order-1 lg:order-2">
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl opacity-50" />
-                <img 
-                  src={ourStoryImg} 
-                  alt="Diverse team working together" 
-                  className="relative rounded-2xl shadow-medium w-full object-cover aspect-[4/3]"
-                />
+                <img src={ourStoryImg} alt="Diverse team working together" className="relative rounded-2xl shadow-medium w-full object-cover aspect-[4/3]" />
               </div>
             </div>
           </div>
@@ -101,9 +87,7 @@ export default function About() {
                 </div>
                 <h3 className="text-2xl font-bold font-display text-foreground">Mission</h3>
               </div>
-              <p className="text-muted-foreground leading-relaxed">
-                Our Mission is to remove labor market barriers by efficiently connecting individuals seeking operational and non-specialized job opportunities with companies in need of staff. We focus on providing a quick and hassle-free job search experience, ensuring that opportunity is always just a few clicks away.
-              </p>
+              <p className="text-muted-foreground leading-relaxed">Our Mission is to remove labour market barriers by efficiently connecting individuals seeking operational and non-specialised job opportunities with companies in need of staff. We focus on providing a quick and hassle-free job search experience, ensuring that opportunity is always just a few clicks away.</p>
             </div>
             
             {/* Vision Card */}
@@ -114,9 +98,7 @@ export default function About() {
                 </div>
                 <h3 className="text-2xl font-bold font-display text-foreground">Vision</h3>
               </div>
-              <p className="text-muted-foreground leading-relaxed">
-                To be the global reference platform for non-specialized work, recognized for its positive social impact and for creating a society where the transition to employment is fluid, inclusive, and immediate for everyone, regardless of their background or level of experience in operational roles.
-              </p>
+              <p className="text-muted-foreground leading-relaxed">To be the global reference platform for non-specialised work, recognized for its positive social impact and for creating a society where the transition to employment is fluid, inclusive, and immediate for everyone, regardless of their background or level of experience in operational roles.</p>
             </div>
           </div>
           
@@ -124,11 +106,7 @@ export default function About() {
           <div className="mt-12">
             <div className="relative max-w-3xl mx-auto">
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 to-accent/10 rounded-3xl blur-2xl opacity-50" />
-              <img 
-                src={missionImg} 
-                alt="Our mission to connect people with opportunities" 
-                className="relative rounded-2xl shadow-medium w-full object-cover"
-              />
+              <img src={missionImg} alt="Our mission to connect people with opportunities" className="relative rounded-2xl shadow-medium w-full object-cover" />
             </div>
           </div>
         </div>
@@ -141,25 +119,19 @@ export default function About() {
             <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground mb-4">
               A Job Market for Everyone
             </h2>
-            <p className="text-muted-foreground max-w-3xl mx-auto">
-              At Workie, our focus is on individuals who are often overlooked by traditional models. We believe that a university degree or a highly specialized background is not the only measure of value. Our ecosystem is designed for simplicity and speed, concentrating on jobs that require practical skills and dedication.
-            </p>
+            <p className="text-muted-foreground max-w-3xl mx-auto">At Workie, our focus is on individuals who are often overlooked by traditional models. We believe that a university degree or a highly specialised background is not the only measure of value. Our ecosystem is designed for simplicity and speed, concentrating on jobs that require practical skills and dedication.</p>
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {targetGroups.map((group, index) => (
-              <div 
-                key={group.title}
-                className="bg-card rounded-2xl p-6 shadow-soft border border-border/50 hover:shadow-medium hover:border-primary/30 transition-all group"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
+            {targetGroups.map((group, index) => <div key={group.title} className="bg-card rounded-2xl p-6 shadow-soft border border-border/50 hover:shadow-medium hover:border-primary/30 transition-all group" style={{
+            animationDelay: `${index * 100}ms`
+          }}>
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                   <group.icon className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="text-lg font-semibold font-display text-foreground mb-3">{group.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{group.description}</p>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -171,11 +143,7 @@ export default function About() {
             <div>
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-accent/20 to-primary/20 rounded-3xl blur-2xl opacity-50" />
-                <img 
-                  src={connectingPeopleImg} 
-                  alt="Workie connecting people with opportunities" 
-                  className="relative rounded-2xl shadow-medium w-full object-cover"
-                />
+                <img src={connectingPeopleImg} alt="Workie connecting people with opportunities" className="relative rounded-2xl shadow-medium w-full object-cover" />
               </div>
             </div>
             <div>
@@ -186,12 +154,8 @@ export default function About() {
                 <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">Cooperation, Not Competition</h2>
               </div>
               <div className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>
-                  Workie does not seek to compete with recruitment agencies; on the contrary, we cooperate. We act as a strategic partner, indicating candidates for high-volume, non-specialized roles to optimize the time spent on talent search, allowing agencies to focus on more specialized functions.
-                </p>
-                <p>
-                  Our focus is on non-specialized work, quick and accessible, ensuring the labor market operates more efficiently for everyone.
-                </p>
+                <p>Workie does not seek to compete with recruitment agencies; on the contrary, we cooperate. We act as a strategic partner, indicating candidates for high-volume, non-specialised roles to optimize the time spent on talent search, allowing agencies to focus on more specialised functions.</p>
+                <p>Our focus is on non-specialised work, quick and accessible, ensuring the labour market operates more efficiently for everyone.</p>
               </div>
             </div>
           </div>
@@ -219,6 +183,5 @@ export default function About() {
       </section>
 
       <Footer />
-    </main>
-  );
+    </main>;
 }
