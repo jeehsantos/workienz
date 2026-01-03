@@ -33,6 +33,7 @@ import Conversation from "./pages/Conversation";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import Contact from "./pages/Contact";
+import About from "./pages/About";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/about" element={<About />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
