@@ -417,24 +417,72 @@ export default function Pricing() {
                 ))}
               </div>
 
-              {/* Coming Soon Features */}
-              <div className="mt-12 max-w-3xl mx-auto">
+              {/* Platform Benefits - Job Seeker Section */}
+              <div className="mt-14 max-w-4xl mx-auto">
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-sm font-semibold px-4 py-1.5 rounded-full mb-2">
-                    <Sparkles className="w-4 h-4" />
-                    Coming Soon
+                  <span className="inline-block text-xs font-medium uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1 rounded-full mb-2">
+                    Premium Benefits
+                  </span>
+                  <h3 className="text-lg font-semibold font-display text-foreground">
+                    Why job seekers go Premium
+                  </h3>
+                </div>
+                
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <BookOpen className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Full Article Library</h4>
+                      <p className="text-sm text-muted-foreground">Career tips & industry insights</p>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold font-display">Premium Features on the Roadmap</h3>
+                  
+                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Star className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Enhanced Visibility</h4>
+                      <p className="text-sm text-muted-foreground">Appear at top of searches</p>
+                    </div>
+                  </div>
+                  
+                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Clock className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">More Applications</h4>
+                      <p className="text-sm text-muted-foreground">Apply to more jobs faster</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coming Soon Features - Improved */}
+              <div className="mt-14 max-w-3xl mx-auto">
+                <div className="text-center mb-6">
+                  <span className="inline-block text-xs font-medium uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1 rounded-full mb-2">
+                    On Our Roadmap
+                  </span>
+                  <div className="inline-flex items-center gap-2 justify-center">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold font-display text-foreground">
+                      Coming Soon for Premium Members
+                    </h3>
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   {comingSoonFeatures.map((feature) => (
                     <div 
                       key={feature.title} 
-                      className="relative overflow-hidden bg-gradient-to-br from-card to-muted/30 rounded-xl p-5 border border-border/50"
+                      className="group relative overflow-hidden bg-gradient-to-br from-card via-card to-primary/5 rounded-2xl p-6 border border-primary/10 hover:border-primary/20 transition-all duration-300"
                     >
                       {/* Pulse Animation */}
-                      <div className="absolute top-3 right-3">
+                      <div className="absolute top-4 right-4">
                         <span className="relative flex h-3 w-3">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
@@ -442,48 +490,21 @@ export default function Pricing() {
                       </div>
 
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <feature.icon className="w-5 h-5 text-primary" />
+                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                          <feature.icon className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{feature.title}</h4>
-                            <span className="text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-                              BETA
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <h4 className="font-semibold text-foreground">{feature.title}</h4>
+                            <span className="text-[10px] font-semibold uppercase bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">
+                              Coming Soon
                             </span>
                           </div>
-                          <p className="text-sm text-muted-foreground">{feature.description}</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                         </div>
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Seeker Features */}
-              <div className="mt-10 max-w-4xl mx-auto">
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50">
-                    <BookOpen className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-sm">Full Article Library</h4>
-                      <p className="text-xs text-muted-foreground">Career tips & industry insights</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50">
-                    <Star className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-sm">Enhanced Visibility</h4>
-                      <p className="text-xs text-muted-foreground">Appear at top of searches</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50">
-                    <Clock className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-sm">More Applications</h4>
-                      <p className="text-xs text-muted-foreground">Apply to more jobs faster</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </TabsContent>
