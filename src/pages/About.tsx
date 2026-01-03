@@ -18,7 +18,7 @@ const targetGroups = [{
 }, {
   icon: Briefcase,
   title: "Experienced Operational Staff",
-  description: "We welcome individuals with practical experience in fields like logistics, retail, hospitality, and essential services, offering a fast track to new roles without the complexity of specialized recruitment."
+  description: "We welcome individuals with practical experience in fields like logistics, retail, hospitality, and essential services, offering a fast track to new roles without the complexity of specialised recruitment."
 }];
 export default function About() {
   return <main className="min-h-screen bg-background">
