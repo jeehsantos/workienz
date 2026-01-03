@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -26,6 +27,7 @@ import { Footer } from "@/components/landing/Footer";
 
 const contractorPlans = [
   {
+    planId: "single_post",
     name: "Single Post",
     price: "$24",
     gst: "+GST",
@@ -41,6 +43,7 @@ const contractorPlans = [
     highlighted: false,
   },
   {
+    planId: "14_day_sprint",
     name: "14-Day Sprint",
     price: "$50",
     gst: "+GST",
@@ -57,6 +60,7 @@ const contractorPlans = [
     highlighted: false,
   },
   {
+    planId: "monthly_contractor",
     name: "Monthly",
     price: "$40",
     gst: "+GST",
@@ -74,6 +78,7 @@ const contractorPlans = [
     highlighted: true,
   },
   {
+    planId: "quarterly_contractor",
     name: "Quarterly Pro",
     price: "$105",
     gst: "+GST",
@@ -94,6 +99,7 @@ const contractorPlans = [
 
 const seekerPlans = [
   {
+    planId: "free_seeker",
     name: "Free Tier",
     price: "$0",
     description: "Get started for free",
@@ -108,6 +114,7 @@ const seekerPlans = [
     highlighted: false,
   },
   {
+    planId: "weekly_seeker",
     name: "Premium Weekly",
     price: "$5",
     period: "/week",
@@ -123,6 +130,7 @@ const seekerPlans = [
     highlighted: false,
   },
   {
+    planId: "monthly_seeker",
     name: "Premium Monthly",
     price: "$20",
     period: "/month",
@@ -139,6 +147,7 @@ const seekerPlans = [
     highlighted: false,
   },
   {
+    planId: "quarterly_seeker",
     name: "Premium Quarterly",
     price: "$45",
     period: "/quarter",
@@ -178,6 +187,22 @@ const comingSoonFeatures = [
 
 export default function Pricing() {
   const [activeTab, setActiveTab] = useState("hire");
+  const navigate = useNavigate();
+  const { user } = useAuthContext();
+
+  const handleSelectPlan = (planId: string) => {
+    // Free plan - just go to signup
+    if (planId === "free_seeker") {
+      navigate("/auth?mode=signup");
+      return;
+    }
+    
+    if (user) {
+      navigate(`/checkout?plan=${planId}`);
+    } else {
+      navigate(`/auth?mode=signup&plan=${planId}`);
+    }
+  };
 
   return (
     <main className="min-h-screen">
@@ -296,9 +321,9 @@ export default function Pricing() {
                     <Button
                       variant={plan.highlighted ? "default" : "outline"}
                       className="w-full"
-                      asChild
+                      onClick={() => handleSelectPlan(plan.planId)}
                     >
-                      <Link to="/auth?mode=signup">{plan.cta}</Link>
+                      {plan.cta}
                     </Button>
                   </div>
                 ))}
@@ -409,9 +434,9 @@ export default function Pricing() {
                     <Button
                       variant={plan.highlighted ? "default" : "outline"}
                       className="w-full"
-                      asChild
+                      onClick={() => handleSelectPlan(plan.planId)}
                     >
-                      <Link to="/auth?mode=signup">{plan.cta}</Link>
+                      {plan.cta}
                     </Button>
                   </div>
                 ))}
