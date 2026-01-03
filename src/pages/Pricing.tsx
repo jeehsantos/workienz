@@ -166,13 +166,13 @@ const industries = [
 const comingSoonFeatures = [
   {
     icon: Bot,
-    title: "AI Career Agent",
-    description: "Your personal AI assistant to help match you with the perfect roles and prepare for interviews.",
+    title: "Community Support AI",
+    description: "Your 24/7 assistant to help you understand New Zealand work rights and community articles. Ask questions about settling in, or let the agent find up-to-date guidance from official immigration sites just for you.",
   },
   {
     icon: Globe,
-    title: "Real-time Voice/Text Translation",
-    description: "Break language barriers with instant translation in chats and voice calls.",
+    title: "Native Language Chat Bridge",
+    description: "Communicate with confidence. Send messages or voice notes in your own language, and we'll translate them into English for the contractor. You receive their replies back in your preferred language instantly.",
   },
 ];
 
@@ -479,7 +479,7 @@ export default function Pricing() {
                   {comingSoonFeatures.map((feature) => (
                     <div 
                       key={feature.title} 
-                      className="group relative overflow-hidden bg-gradient-to-br from-card via-card to-primary/5 rounded-2xl p-6 border border-primary/10 hover:border-primary/20 transition-all duration-300"
+                      className="group relative overflow-hidden bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all duration-300 shadow-sm"
                     >
                       {/* Pulse Animation */}
                       <div className="absolute top-4 right-4">
