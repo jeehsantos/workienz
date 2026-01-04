@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Check, 
+  X,
   Briefcase, 
   Users, 
   Sparkles, 
@@ -21,9 +23,102 @@ import {
   HardHat,
   Sparkle,
   Info,
-  Zap
+  Zap,
+  Lock
 } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
+
+// Feature matrix for contractor plans
+const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
+  single_post: {
+    "1 job listing": true,
+    "Unlimited job posts": false,
+    "14-day access": true,
+    "View applicant profiles": true,
+    "Direct messaging": true,
+    "Browse job seeker database": false,
+    "Priority support": false,
+    "Advanced analytics": false,
+    "Featured employer badge": false,
+  },
+  "14_day_sprint": {
+    "1 job listing": false,
+    "Unlimited job posts": true,
+    "14-day access": true,
+    "View applicant profiles": true,
+    "Direct messaging": true,
+    "Browse job seeker database": false,
+    "Priority support": false,
+    "Advanced analytics": false,
+    "Featured employer badge": false,
+  },
+  monthly_contractor: {
+    "1 job listing": false,
+    "Unlimited job posts": true,
+    "14-day access": false,
+    "View applicant profiles": true,
+    "Direct messaging": true,
+    "Browse job seeker database": true,
+    "Priority support": true,
+    "Advanced analytics": false,
+    "Featured employer badge": false,
+  },
+  quarterly_contractor: {
+    "1 job listing": false,
+    "Unlimited job posts": true,
+    "14-day access": false,
+    "View applicant profiles": true,
+    "Direct messaging": true,
+    "Browse job seeker database": true,
+    "Priority support": true,
+    "Advanced analytics": true,
+    "Featured employer badge": true,
+  },
+};
+
+// Feature matrix for seeker plans
+const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
+  free_seeker: {
+    "1 application / 3 days": true,
+    "3 applications / 3 days": false,
+    "Free community articles": true,
+    "Full article library": false,
+    "Basic profile": true,
+    "Priority Badge": false,
+    "Enhanced visibility": false,
+    "Job alerts": true,
+  },
+  weekly_seeker: {
+    "1 application / 3 days": false,
+    "3 applications / 3 days": true,
+    "Free community articles": true,
+    "Full article library": true,
+    "Basic profile": true,
+    "Priority Badge": true,
+    "Enhanced visibility": true,
+    "Job alerts": true,
+  },
+  monthly_seeker: {
+    "1 application / 3 days": false,
+    "3 applications / 3 days": true,
+    "Free community articles": true,
+    "Full article library": true,
+    "Basic profile": true,
+    "Priority Badge": true,
+    "Enhanced visibility": true,
+    "Job alerts": true,
+  },
+  quarterly_seeker: {
+    "1 application / 3 days": false,
+    "3 applications / 3 days": true,
+    "Free community articles": true,
+    "Full article library": true,
+    "Basic profile": true,
+    "Priority Badge": true,
+    "Enhanced visibility": true,
+    "Job alerts": true,
+  },
+};
 
 const contractorPlans = [
   {
@@ -32,12 +127,6 @@ const contractorPlans = [
     price: "$24",
     gst: "+GST",
     description: "Post one job listing",
-    features: [
-      "1 job listing",
-      "Active for 14 days",
-      "View applicant profiles",
-      "Direct messaging",
-    ],
     cta: "Post a Job",
     badge: null,
     highlighted: false,
@@ -48,13 +137,6 @@ const contractorPlans = [
     price: "$50",
     gst: "+GST",
     description: "Unlimited posts for 14 days",
-    features: [
-      "Unlimited job posts",
-      "14-day access period",
-      "View applicant profiles",
-      "Direct messaging",
-      "Perfect for seasonal peaks",
-    ],
     cta: "Start Sprint",
     badge: "Best for Seasonal",
     highlighted: false,
@@ -66,13 +148,6 @@ const contractorPlans = [
     gst: "+GST",
     period: "/month",
     description: "Unlimited posts + Database Access",
-    features: [
-      "Unlimited job posts",
-      "Browse job seeker database",
-      "View applicant profiles",
-      "Direct messaging",
-      "Priority support",
-    ],
     cta: "Subscribe Monthly",
     badge: "Most Popular",
     highlighted: true,
@@ -84,13 +159,6 @@ const contractorPlans = [
     gst: "+GST",
     period: "/quarter",
     description: "All features included",
-    features: [
-      "Everything in Monthly",
-      "Save $15 vs monthly",
-      "Advanced analytics",
-      "Featured employer badge",
-      "Priority support",
-    ],
     cta: "Go Quarterly",
     badge: "Best Value",
     highlighted: false,
@@ -103,12 +171,6 @@ const seekerPlans = [
     name: "Free Tier",
     price: "$0",
     description: "Get started for free",
-    features: [
-      "1 application every 3 days",
-      "Access to free community articles",
-      "Basic profile",
-      "Job alerts",
-    ],
     cta: "Get Started Free",
     badge: null,
     highlighted: false,
@@ -119,12 +181,6 @@ const seekerPlans = [
     price: "$5",
     period: "/week",
     description: "Flexible weekly access",
-    features: [
-      "3 applications every 3 days",
-      "Full article library access",
-      "Priority Badge on profile",
-      "Enhanced visibility",
-    ],
     cta: "Start Weekly",
     badge: null,
     highlighted: false,
@@ -135,13 +191,6 @@ const seekerPlans = [
     price: "$20",
     period: "/month",
     description: "Best for active job seekers",
-    features: [
-      "3 applications every 3 days",
-      "Full article library access",
-      "Priority Badge on profile",
-      "Enhanced visibility",
-      "Save vs weekly",
-    ],
     cta: "Go Monthly",
     badge: null,
     highlighted: false,
@@ -152,13 +201,6 @@ const seekerPlans = [
     price: "$45",
     period: "/quarter",
     description: "Maximum value",
-    features: [
-      "3 applications every 3 days",
-      "Full article library access",
-      "Priority Badge on profile",
-      "Enhanced visibility",
-      "Save $15 vs monthly",
-    ],
     cta: "Best Value",
     badge: "Most Popular",
     highlighted: true,
@@ -185,10 +227,69 @@ const comingSoonFeatures = [
   },
 ];
 
+// Feature item component with checkmark or X
+const FeatureItem = ({ included, label }: { included: boolean; label: string }) => (
+  <li className="flex items-start gap-2.5">
+    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+      included ? "bg-primary/15" : "bg-muted"
+    }`}>
+      {included ? (
+        <Check className="w-3 h-3 text-primary" />
+      ) : (
+        <X className="w-3 h-3 text-muted-foreground/50" />
+      )}
+    </div>
+    <span className={`text-sm ${included ? "text-foreground/80" : "text-muted-foreground/60 line-through"}`}>
+      {label}
+    </span>
+  </li>
+);
+
 export default function Pricing() {
-  const [activeTab, setActiveTab] = useState("hire");
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isContractor, isEmployee } = useAuthContext();
+  
+  // Determine initial tab based on user role
+  const getInitialTab = () => {
+    if (user) {
+      if (isContractor()) return "hire";
+      if (isEmployee()) return "work";
+    }
+    return "hire"; // default for guests
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [currentSubscription, setCurrentSubscription] = useState<string | null>(null);
+  
+  // Update tab when user role changes
+  useEffect(() => {
+    if (user) {
+      if (isContractor()) setActiveTab("hire");
+      else if (isEmployee()) setActiveTab("work");
+    }
+  }, [user, isContractor, isEmployee]);
+  
+  // Fetch current subscription
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from("subscriptions")
+          .select("stripe_price_id, plan_name, status")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .single();
+        
+        if (data) {
+          setCurrentSubscription(data.stripe_price_id);
+        }
+      }
+    };
+    fetchSubscription();
+  }, [user]);
+
+  // Check if toggle should be locked
+  const isToggleLocked = user && (isContractor() || isEmployee());
 
   const handleSelectPlan = (planId: string) => {
     // Free plan - just go to signup
@@ -203,6 +304,9 @@ export default function Pricing() {
       navigate(`/auth?mode=signup&plan=${planId}`);
     }
   };
+
+  const contractorFeatures = Object.keys(contractorFeatureMatrix.single_post);
+  const seekerFeatures = Object.keys(seekerFeatureMatrix.free_seeker);
 
   return (
     <main className="min-h-screen">
@@ -220,23 +324,38 @@ export default function Pricing() {
 
           {/* Toggle Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex justify-center mb-10">
+            <div className="flex flex-col items-center gap-3 mb-10">
               <TabsList className="grid w-full max-w-md grid-cols-2 h-14 p-1 bg-muted/50">
                 <TabsTrigger 
                   value="hire" 
-                  className="flex items-center gap-2 text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  disabled={isToggleLocked && isEmployee()}
+                  className={`flex items-center gap-2 text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
+                    isToggleLocked && isEmployee() ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 >
                   <Briefcase className="w-5 h-5" />
                   I want to Hire
+                  {isToggleLocked && isContractor() && <Lock className="w-3.5 h-3.5 ml-1" />}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="work" 
-                  className="flex items-center gap-2 text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  disabled={isToggleLocked && isContractor()}
+                  className={`flex items-center gap-2 text-base font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
+                    isToggleLocked && isContractor() ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 >
                   <Users className="w-5 h-5" />
                   I want to Work
+                  {isToggleLocked && isEmployee() && <Lock className="w-3.5 h-3.5 ml-1" />}
                 </TabsTrigger>
               </TabsList>
+              
+              {isToggleLocked && (
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  Showing plans for your account type ({isContractor() ? "Employer" : "Job Seeker"})
+                </p>
+              )}
             </div>
 
             {/* Contractor Pricing */}
@@ -271,62 +390,79 @@ export default function Pricing() {
 
               {/* Contractor Plans Grid */}
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-                {contractorPlans.map((plan) => (
-                  <div
-                    key={plan.name}
-                    className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium ${
-                      plan.highlighted
-                        ? "border-primary ring-2 ring-primary/20 scale-[1.02]"
-                        : "border-border/50"
-                    }`}
-                  >
-                    {plan.badge && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
-                          plan.badge === "Most Popular" 
-                            ? "gradient-primary text-primary-foreground" 
-                            : plan.badge === "Best Value"
-                            ? "bg-accent text-accent-foreground"
-                            : "bg-secondary text-secondary-foreground"
-                        }`}>
-                          {plan.badge}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="mb-4 pt-2">
-                      <h3 className="text-lg font-bold font-display">{plan.name}</h3>
-                      <p className="text-sm text-muted-foreground">{plan.description}</p>
-                    </div>
-
-                    <div className="mb-5">
-                      <span className="text-3xl font-bold font-display">{plan.price}</span>
-                      <span className="text-sm text-muted-foreground ml-1">{plan.gst}</span>
-                      {plan.period && (
-                        <span className="text-muted-foreground text-sm">{plan.period}</span>
-                      )}
-                    </div>
-
-                    <ul className="space-y-2.5 mb-6">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Check className="w-2.5 h-2.5 text-primary" />
-                          </div>
-                          <span className="text-sm text-foreground/80">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <Button
-                      variant={plan.highlighted ? "default" : "outline"}
-                      className="w-full"
-                      onClick={() => handleSelectPlan(plan.planId)}
+                {contractorPlans.map((plan) => {
+                  const isCurrentPlan = currentSubscription === plan.planId;
+                  const features = contractorFeatureMatrix[plan.planId] || {};
+                  
+                  return (
+                    <div
+                      key={plan.name}
+                      className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium ${
+                        isCurrentPlan
+                          ? "border-green-500 ring-2 ring-green-500/20"
+                          : plan.highlighted
+                          ? "border-primary ring-2 ring-primary/20 scale-[1.02]"
+                          : "border-border/50"
+                      }`}
                     >
-                      {plan.cta}
-                    </Button>
-                  </div>
-                ))}
+                      {/* Current Plan Badge */}
+                      {isCurrentPlan && (
+                        <div className="absolute -top-3 right-4">
+                          <span className="bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                            Your Plan
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Regular Badge */}
+                      {plan.badge && !isCurrentPlan && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${
+                            plan.badge === "Most Popular" 
+                              ? "gradient-primary text-primary-foreground" 
+                              : plan.badge === "Best Value"
+                              ? "bg-accent text-accent-foreground"
+                              : "bg-secondary text-secondary-foreground"
+                          }`}>
+                            {plan.badge}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="mb-4 pt-2">
+                        <h3 className="text-lg font-bold font-display">{plan.name}</h3>
+                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+                      </div>
+
+                      <div className="mb-5">
+                        <span className="text-3xl font-bold font-display">{plan.price}</span>
+                        <span className="text-sm text-muted-foreground ml-1">{plan.gst}</span>
+                        {plan.period && (
+                          <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        )}
+                      </div>
+
+                      <ul className="space-y-2 mb-6">
+                        {contractorFeatures.map((feature) => (
+                          <FeatureItem 
+                            key={feature} 
+                            included={features[feature] ?? false} 
+                            label={feature} 
+                          />
+                        ))}
+                      </ul>
+
+                      <Button
+                        variant={isCurrentPlan ? "secondary" : plan.highlighted ? "default" : "outline"}
+                        className="w-full"
+                        onClick={() => handleSelectPlan(plan.planId)}
+                        disabled={isCurrentPlan}
+                      >
+                        {isCurrentPlan ? "Current Plan" : plan.cta}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Platform Benefits - Clarified Section */}
@@ -391,55 +527,72 @@ export default function Pricing() {
 
               {/* Seeker Plans Grid */}
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-                {seekerPlans.map((plan) => (
-                  <div
-                    key={plan.name}
-                    className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium ${
-                      plan.highlighted
-                        ? "border-primary ring-2 ring-primary/20 scale-[1.02]"
-                        : "border-border/50"
-                    }`}
-                  >
-                    {plan.badge && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className="gradient-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                          {plan.badge}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="mb-4 pt-2">
-                      <h3 className="text-lg font-bold font-display">{plan.name}</h3>
-                      <p className="text-sm text-muted-foreground">{plan.description}</p>
-                    </div>
-
-                    <div className="mb-5">
-                      <span className="text-3xl font-bold font-display">{plan.price}</span>
-                      {plan.period && (
-                        <span className="text-muted-foreground text-sm">{plan.period}</span>
-                      )}
-                    </div>
-
-                    <ul className="space-y-2.5 mb-6">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Check className="w-2.5 h-2.5 text-primary" />
-                          </div>
-                          <span className="text-sm text-foreground/80">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <Button
-                      variant={plan.highlighted ? "default" : "outline"}
-                      className="w-full"
-                      onClick={() => handleSelectPlan(plan.planId)}
+                {seekerPlans.map((plan) => {
+                  const isCurrentPlan = currentSubscription === plan.planId;
+                  const features = seekerFeatureMatrix[plan.planId] || {};
+                  
+                  return (
+                    <div
+                      key={plan.name}
+                      className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium ${
+                        isCurrentPlan
+                          ? "border-green-500 ring-2 ring-green-500/20"
+                          : plan.highlighted
+                          ? "border-primary ring-2 ring-primary/20 scale-[1.02]"
+                          : "border-border/50"
+                      }`}
                     >
-                      {plan.cta}
-                    </Button>
-                  </div>
-                ))}
+                      {/* Current Plan Badge */}
+                      {isCurrentPlan && (
+                        <div className="absolute -top-3 right-4">
+                          <span className="bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                            Your Plan
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Regular Badge */}
+                      {plan.badge && !isCurrentPlan && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <span className="gradient-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
+                            {plan.badge}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="mb-4 pt-2">
+                        <h3 className="text-lg font-bold font-display">{plan.name}</h3>
+                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+                      </div>
+
+                      <div className="mb-5">
+                        <span className="text-3xl font-bold font-display">{plan.price}</span>
+                        {plan.period && (
+                          <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        )}
+                      </div>
+
+                      <ul className="space-y-2 mb-6">
+                        {seekerFeatures.map((feature) => (
+                          <FeatureItem 
+                            key={feature} 
+                            included={features[feature] ?? false} 
+                            label={feature} 
+                          />
+                        ))}
+                      </ul>
+
+                      <Button
+                        variant={isCurrentPlan ? "secondary" : plan.highlighted ? "default" : "outline"}
+                        className="w-full"
+                        onClick={() => handleSelectPlan(plan.planId)}
+                        disabled={isCurrentPlan}
+                      >
+                        {isCurrentPlan ? "Current Plan" : plan.cta}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Platform Benefits - Job Seeker Section */}

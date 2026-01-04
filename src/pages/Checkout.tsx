@@ -78,19 +78,38 @@ export default function Checkout() {
     setIsProcessing(true);
 
     try {
+      console.log("[Checkout] Invoking create-checkout-session...");
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: { planId: plan.plan_id },
       });
 
+      console.log("[Checkout] Response:", { data, error });
+
       if (error) throw error;
 
       if (data?.url) {
-        window.location.href = data.url;
+        console.log("[Checkout] Redirecting to Stripe:", data.url);
+        
+        // Try opening in new tab first (preferred for better UX)
+        const stripeWindow = window.open(data.url, '_blank');
+        
+        // If popup was blocked, redirect current page
+        if (!stripeWindow || stripeWindow.closed || typeof stripeWindow.closed === 'undefined') {
+          console.log("[Checkout] Popup blocked, redirecting current page...");
+          window.location.href = data.url;
+        } else {
+          // If new tab opened successfully, show toast and reset processing
+          toast({
+            title: "Checkout opened",
+            description: "Complete your payment in the new tab.",
+          });
+          setIsProcessing(false);
+        }
       } else {
         throw new Error("No checkout URL returned");
       }
     } catch (error: any) {
-      console.error("Checkout error:", error);
+      console.error("[Checkout] Error:", error);
       toast({
         title: "Checkout failed",
         description: error.message || "Failed to create checkout session. Please try again.",
