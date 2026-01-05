@@ -272,29 +272,41 @@ export type Database = {
       }
       conversations: {
         Row: {
+          activity_started_at: string | null
           contractor_user_id: string
           created_at: string
           employee_user_id: string
           id: string
           job_application_id: string | null
+          last_activity_at: string | null
+          reminder_count: number | null
+          reminder_sent_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          activity_started_at?: string | null
           contractor_user_id: string
           created_at?: string
           employee_user_id: string
           id?: string
           job_application_id?: string | null
+          last_activity_at?: string | null
+          reminder_count?: number | null
+          reminder_sent_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          activity_started_at?: string | null
           contractor_user_id?: string
           created_at?: string
           employee_user_id?: string
           id?: string
           job_application_id?: string | null
+          last_activity_at?: string | null
+          reminder_count?: number | null
+          reminder_sent_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -606,6 +618,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       plan_products: {
         Row: {

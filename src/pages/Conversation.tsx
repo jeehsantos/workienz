@@ -16,6 +16,8 @@ import {
   Briefcase,
   User,
   Building2,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { dispatchUnreadRefresh } from "@/hooks/useProfileRefresh";
 import {
@@ -44,6 +46,9 @@ type ConversationData = {
   contractor_user_id: string;
   employee_user_id: string;
   job_application_id: string | null;
+  activity_started_at: string | null;
+  last_activity_at: string | null;
+  reminder_count: number;
   job_application: {
     id: string;
     status: string;
@@ -90,7 +95,10 @@ export default function Conversation() {
           status,
           contractor_user_id,
           employee_user_id,
-          job_application_id
+          job_application_id,
+          activity_started_at,
+          last_activity_at,
+          reminder_count
         `)
         .eq("id", id)
         .single();
@@ -167,6 +175,9 @@ export default function Conversation() {
 
       setConversation({
         ...convData,
+        activity_started_at: convData.activity_started_at,
+        last_activity_at: convData.last_activity_at,
+        reminder_count: convData.reminder_count || 0,
         job_application: convData.job_application_id 
           ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle } } 
           : null,
@@ -431,8 +442,59 @@ export default function Conversation() {
   const isUserContractor = conversation.contractor_user_id === user?.id;
   const isHired = conversation.job_application?.status === "hired";
 
+  // Calculate expiry status
+  const getExpiryStatus = () => {
+    if (!conversation.activity_started_at || !conversation.last_activity_at || isClosed) {
+      return { status: "active" as const, hoursLeft: 0, showWarning: false };
+    }
+
+    const now = new Date();
+    const activityStart = new Date(conversation.activity_started_at);
+    const lastActivity = new Date(conversation.last_activity_at);
+
+    const hoursSinceStart = (now.getTime() - activityStart.getTime()) / (1000 * 60 * 60);
+    const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+
+    // If there's been activity in the last 24 hours, conversation is active
+    if (hoursSinceActivity < 24) {
+      return { status: "active" as const, hoursLeft: Math.ceil(24 - hoursSinceActivity), showWarning: false };
+    }
+
+    // If past 72 hours, it's expired
+    if (hoursSinceStart >= 72) {
+      return { status: "expired" as const, hoursLeft: 0, showWarning: true };
+    }
+
+    // In warning period (24-72 hours)
+    const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
+    return { status: "warning" as const, hoursLeft, showWarning: true };
+  };
+
+  const expiryStatus = getExpiryStatus();
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Expiry Warning Banner */}
+      {expiryStatus.showWarning && expiryStatus.status === "warning" && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-3">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0 animate-pulse">
+              <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-amber-800 dark:text-amber-200 text-sm">
+                Conversation expiring soon
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                This conversation will close in <strong>{expiryStatus.hoursLeft} hours</strong> if there's no activity. 
+                Send a message to keep it active!
+              </p>
+            </div>
+            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="border-b border-border/50 bg-card sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">

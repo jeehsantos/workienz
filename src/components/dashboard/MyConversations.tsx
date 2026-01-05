@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageCircle, Loader2, User } from "lucide-react";
+import { MessageCircle, Loader2, User, Clock, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 
@@ -13,6 +13,8 @@ type Conversation = {
   other_party_name: string;
   last_message_at: string | null;
   last_message_preview: string | null;
+  activity_started_at: string | null;
+  last_activity_at: string | null;
 };
 
 interface MyConversationsProps {
@@ -48,7 +50,9 @@ export default function MyConversations({ userId }: MyConversationsProps) {
           updated_at,
           contractor_user_id,
           employee_user_id,
-          job_application_id
+          job_application_id,
+          activity_started_at,
+          last_activity_at
         `)
         .or(`contractor_user_id.eq.${userId},employee_user_id.eq.${userId}`)
         .order("updated_at", { ascending: false })
@@ -113,6 +117,8 @@ export default function MyConversations({ userId }: MyConversationsProps) {
             last_message_preview: lastMessageData?.content 
               ? lastMessageData.content.substring(0, 40) + (lastMessageData.content.length > 40 ? "..." : "")
               : null,
+            activity_started_at: conv.activity_started_at,
+            last_activity_at: conv.last_activity_at,
           };
         })
       );
@@ -148,49 +154,97 @@ export default function MyConversations({ userId }: MyConversationsProps) {
     );
   }
 
+  // Calculate expiry status for a conversation
+  const getExpiryStatus = (conv: Conversation) => {
+    if (!conv.activity_started_at || !conv.last_activity_at || conv.status !== "active") {
+      return null;
+    }
+
+    const now = new Date();
+    const activityStart = new Date(conv.activity_started_at);
+    const lastActivity = new Date(conv.last_activity_at);
+
+    const hoursSinceStart = (now.getTime() - activityStart.getTime()) / (1000 * 60 * 60);
+    const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceActivity < 24) return null;
+    if (hoursSinceStart >= 72) return { status: "expired", hoursLeft: 0 };
+
+    const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
+    return { status: "warning", hoursLeft };
+  };
+
   return (
     <div className="space-y-2">
-      {conversations.map((conv) => (
-        <Link
-          key={conv.id}
-          to={`/messages/${conv.id}`}
-          className="block p-3 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <User className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {conv.other_party_name}
-                  </p>
-                  <Badge
-                    variant={conv.status === "active" ? "default" : "secondary"}
-                    className="text-xs flex-shrink-0"
-                  >
-                    {conv.status}
-                  </Badge>
-                </div>
-                {conv.last_message_at && (
-                  <span className="text-xs text-muted-foreground flex-shrink-0">
-                    {formatMessageTime(conv.last_message_at)}
-                  </span>
+      {conversations.map((conv) => {
+        const expiry = getExpiryStatus(conv);
+
+        return (
+          <Link
+            key={conv.id}
+            to={`/messages/${conv.id}`}
+            className={`block p-3 rounded-lg hover:bg-muted/50 transition-colors border ${
+              expiry?.status === "warning"
+                ? "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+                : "border-transparent hover:border-border/50"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                expiry?.status === "warning" 
+                  ? "bg-amber-100 dark:bg-amber-900/50" 
+                  : "bg-primary/10"
+              }`}>
+                {expiry?.status === "warning" ? (
+                  <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                ) : (
+                  <User className="w-5 h-5 text-primary" />
                 )}
               </div>
-              <p className="text-xs text-muted-foreground truncate">
-                Re: {conv.job_title}
-              </p>
-              {conv.last_message_preview && (
-                <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
-                  "{conv.last_message_preview}"
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {conv.other_party_name}
+                    </p>
+                    {expiry?.status === "warning" ? (
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        {expiry.hoursLeft}h left
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant={conv.status === "active" ? "default" : "secondary"}
+                        className="text-xs flex-shrink-0"
+                      >
+                        {conv.status}
+                      </Badge>
+                    )}
+                  </div>
+                  {conv.last_message_at && (
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {formatMessageTime(conv.last_message_at)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground truncate">
+                  Re: {conv.job_title}
                 </p>
-              )}
+                {conv.last_message_preview && (
+                  <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
+                    "{conv.last_message_preview}"
+                  </p>
+                )}
+                {expiry?.status === "warning" && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                    Reply soon to keep this conversation active
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 }
