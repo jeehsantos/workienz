@@ -596,7 +596,7 @@ export default function PostJob() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-4 pb-32">
             <Button type="button" variant="outline" onClick={(e) => handleSubmit(e as any, "draft")} disabled={isSubmitting}>Save as Draft</Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

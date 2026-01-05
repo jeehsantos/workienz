@@ -55,6 +55,7 @@ export function TimePicker({
         className="w-[280px] p-0" 
         align="start" 
         sideOffset={4}
+        side="top"
       >
         {/* Quick select times */}
         <div className="p-3 border-b">

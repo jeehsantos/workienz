@@ -11,7 +11,9 @@ ALTER TABLE employee_profiles
 ADD COLUMN IF NOT EXISTS comfortable_heavy_lifting boolean DEFAULT false,
 ADD COLUMN IF NOT EXISTS comfortable_standing boolean DEFAULT false,
 ADD COLUMN IF NOT EXISTS has_car boolean DEFAULT false,
-ADD COLUMN IF NOT EXISTS has_ird_number boolean DEFAULT false;
+ADD COLUMN IF NOT EXISTS has_ird_number boolean DEFAULT false,
+ADD COLUMN IF NOT EXISTS ird_number text,
+ADD COLUMN IF NOT EXISTS location_region text;
 
 -- Add comment for documentation
 COMMENT ON COLUMN jobs.requires_heavy_lifting IS 'Job requires lifting > 10kg';
@@ -24,3 +26,5 @@ COMMENT ON COLUMN employee_profiles.comfortable_heavy_lifting IS 'Worker is comf
 COMMENT ON COLUMN employee_profiles.comfortable_standing IS 'Worker is comfortable standing for long periods';
 COMMENT ON COLUMN employee_profiles.has_car IS 'Worker has access to a car';
 COMMENT ON COLUMN employee_profiles.has_ird_number IS 'Worker has an IRD number';
+COMMENT ON COLUMN employee_profiles.ird_number IS 'Worker IRD (tax) number';
+COMMENT ON COLUMN employee_profiles.location_region IS 'Worker location region (NZ)';

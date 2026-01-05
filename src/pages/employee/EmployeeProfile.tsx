@@ -8,13 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X, CalendarIcon } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { dispatchProfileUpdated } from "@/hooks/useProfileRefresh";
+import { DatePicker } from "@/components/ui/date-picker";
+import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -31,13 +30,19 @@ const INDUSTRIES = [
   "Other",
 ];
 
+// Updated NZ Immigration visa categories
 const VISA_STATUSES = [
-  "Citizen",
+  "New Zealand Citizen",
   "Permanent Resident",
-  "Work Visa",
-  "Student Visa",
+  "Accredited Employer Work Visa (AEWV)",
+  "Essential Skills Work Visa",
+  "Post Study Work Visa",
   "Working Holiday Visa",
   "Partner of a Work Visa Holder",
+  "Skilled Migrant Category Resident Visa",
+  "Refugee/Protected Person",
+  "Student Visa (with work rights)",
+  "Visitor Visa (with work rights)",
   "Other",
 ];
 
@@ -55,8 +60,9 @@ export default function EmployeeProfile() {
     last_name: "",
     headline: "",
     bio: "",
-    city: "",
-    suburb: "",
+    location_region: "",
+    location_city: "",
+    location_suburb: "",
     country: "New Zealand",
     experience_years: "",
     availability: "flexible",
@@ -64,6 +70,7 @@ export default function EmployeeProfile() {
     phone: "",
     industry: "",
     visa_status: "",
+    ird_number: "",
   });
 
   // New preference states
@@ -77,6 +84,11 @@ export default function EmployeeProfile() {
   const [languageInput, setLanguageInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+
+  // Available cities and suburbs based on selection
+  const availableCities = formData.location_region ? getCitiesByRegion(formData.location_region) : [];
+  const availableSuburbs = formData.location_region && formData.location_city 
+    ? getSuburbsByCity(formData.location_region, formData.location_city) : [];
 
   useEffect(() => {
     if (!authLoading && (!user || !isEmployee())) {
@@ -112,8 +124,9 @@ export default function EmployeeProfile() {
           last_name: profileResult.data?.last_name || "",
           headline: data.headline || "",
           bio: (data as any).bio || "",
-          city: data.city || "",
-          suburb: data.suburb || "",
+          location_region: (data as any).location_region || "",
+          location_city: data.city || "",
+          location_suburb: data.suburb || "",
           country: data.country || "New Zealand",
           experience_years: data.experience_years?.toString() || "",
           availability: data.availability || "flexible",
@@ -121,6 +134,7 @@ export default function EmployeeProfile() {
           phone: (data as any).phone || "",
           industry: (data as any).industry || "",
           visa_status: (data as any).visa_status || "",
+          ird_number: (data as any).ird_number || "",
         });
         setSkills(data.skills || []);
         setLanguages((data as any).languages || []);
@@ -176,24 +190,99 @@ export default function EmployeeProfile() {
     e.preventDefault();
     if (!user) return;
 
+    // Validation for required fields
+    if (!formData.first_name || !formData.last_name) {
+      toast({
+        title: "Required Fields Missing",
+        description: "Please provide your first and last name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!dateOfBirth) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please provide your date of birth.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.headline) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please provide a professional headline.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.bio) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please provide an 'About Me' description.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.industry) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please select your preferred industry.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.visa_status) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please select your visa status.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.ird_number) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please provide your IRD number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.phone) {
+      toast({
+        title: "Required Field Missing",
+        description: "Please provide your phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     const profileData = {
       user_id: user.id,
-      headline: formData.headline || null,
-      bio: formData.bio || null,
-      city: formData.city || null,
-      suburb: formData.suburb || null,
-      country: formData.country || null,
+      headline: formData.headline,
+      bio: formData.bio,
+      city: formData.location_city || null,
+      suburb: formData.location_suburb || null,
+      country: formData.country,
       experience_years: formData.experience_years ? parseInt(formData.experience_years) : null,
       availability: formData.availability,
       is_available: formData.is_available,
       skills: skills.length > 0 ? skills : null,
-      phone: formData.phone || null,
-      industry: formData.industry || null,
+      phone: formData.phone,
+      industry: formData.industry,
       languages: languages.length > 0 ? languages : null,
-      date_of_birth: dateOfBirth ? format(dateOfBirth, "yyyy-MM-dd") : null,
-      visa_status: formData.visa_status || null,
+      date_of_birth: format(dateOfBirth, "yyyy-MM-dd"),
+      visa_status: formData.visa_status,
+      ird_number: formData.ird_number,
+      location_region: formData.location_region || null,
       comfortable_heavy_lifting: comfortableHeavyLifting,
       comfortable_standing: comfortableStanding,
       has_car: hasCar,
@@ -215,13 +304,13 @@ export default function EmployeeProfile() {
 
     // Also update the profiles table with first_name, last_name, and full_name
     if (!error) {
-      const fullName = `${formData.first_name || ''} ${formData.last_name || ''}`.trim();
+      const fullName = `${formData.first_name} ${formData.last_name}`.trim();
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          first_name: formData.first_name || null,
-          last_name: formData.last_name || null,
-          full_name: fullName || null,
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          full_name: fullName,
         })
         .eq("user_id", user.id);
       
@@ -263,7 +352,7 @@ export default function EmployeeProfile() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container-tight py-8">
+      <div className="container-tight py-8 pb-32">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/dashboard">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -295,257 +384,307 @@ export default function EmployeeProfile() {
             />
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          {/* Identity Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Identity</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">First Name *</Label>
+                <Input
+                  id="first_name"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  placeholder="e.g., John"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Last Name *</Label>
+                <Input
+                  id="last_name"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  placeholder="e.g., Doe"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="first_name">First Name</Label>
-              <Input
-                id="first_name"
-                value={formData.first_name}
-                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                placeholder="e.g., John"
+              <Label>Date of Birth *</Label>
+              <DatePicker
+                value={dateOfBirth}
+                onChange={setDateOfBirth}
+                placeholder="Select your date of birth"
+                disabledDates={(date) => date > new Date() || date < new Date("1940-01-01")}
               />
             </div>
+          </div>
+
+          {/* Professional Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Professional Information</h3>
             <div className="space-y-2">
-              <Label htmlFor="last_name">Last Name</Label>
+              <Label htmlFor="headline">Professional Headline *</Label>
               <Input
-                id="last_name"
-                value={formData.last_name}
-                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                placeholder="e.g., Doe"
+                id="headline"
+                value={formData.headline}
+                onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                placeholder="e.g., Experienced Warehouse Worker"
+                required
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="headline">Professional Headline</Label>
-            <Input
-              id="headline"
-              value={formData.headline}
-              onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-              placeholder="e.g., Experienced Warehouse Worker"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bio">About Me</Label>
-            <Textarea
-              id="bio"
-              value={formData.bio}
-              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-              placeholder="Share a short introduction about yourself, your background, and what you're looking for..."
-              rows={4}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="industry">Preferred Industry</Label>
-            <Select
-              value={formData.industry}
-              onValueChange={(value) => setFormData({ ...formData, industry: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select your preferred industry" />
-              </SelectTrigger>
-              <SelectContent>
-                {INDUSTRIES.map((ind) => (
-                  <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Select the industry you'd like to work in
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Date of Birth</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !dateOfBirth && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateOfBirth ? format(dateOfBirth, "PPP") : "Select date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateOfBirth}
-                    onSelect={setDateOfBirth}
-                    disabled={(date) => date > new Date() || date < new Date("1940-01-01")}
-                    initialFocus
-                    className="pointer-events-auto"
-                    captionLayout="dropdown-buttons"
-                    fromYear={1940}
-                    toYear={new Date().getFullYear()}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="bio">About Me *</Label>
+              <Textarea
+                id="bio"
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                placeholder="Share a short introduction about yourself, your background, and what you're looking for..."
+                rows={4}
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="visa_status">Visa Status</Label>
+              <Label htmlFor="industry">Preferred Industry *</Label>
               <Select
-                value={formData.visa_status}
-                onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
+                value={formData.industry}
+                onValueChange={(value) => setFormData({ ...formData, industry: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select visa status" />
+                  <SelectValue placeholder="Select your preferred industry" />
                 </SelectTrigger>
-                <SelectContent>
-                  {VISA_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                <SelectContent position="popper" sideOffset={4}>
+                  {INDUSTRIES.map((ind) => (
+                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="experience_years">Years of Experience</Label>
+                <Input
+                  id="experience_years"
+                  type="number"
+                  min="0"
+                  value={formData.experience_years}
+                  onChange={(e) => setFormData({ ...formData, experience_years: e.target.value })}
+                  placeholder="e.g., 5"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="availability">Availability</Label>
+                <Select
+                  value={formData.availability}
+                  onValueChange={(value) => setFormData({ ...formData, availability: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4}>
+                    <SelectItem value="immediate">Immediate</SelectItem>
+                    <SelectItem value="1-week">Within 1 Week</SelectItem>
+                    <SelectItem value="2-weeks">Within 2 Weeks</SelectItem>
+                    <SelectItem value="flexible">Flexible</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
+          {/* Compliance Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Compliance & Legal</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="visa_status">Visa Status *</Label>
+                <Select
+                  value={formData.visa_status}
+                  onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select visa status" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {VISA_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ird_number">IRD Number *</Label>
+                <Input
+                  id="ird_number"
+                  value={formData.ird_number}
+                  onChange={(e) => setFormData({ ...formData, ird_number: e.target.value })}
+                  placeholder="e.g., 123-456-789"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Your New Zealand tax number</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact & Location Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Contact & Location</h3>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="e.g., +64 21 123 4567"
+                required
+              />
+              <p className="text-xs text-muted-foreground">For employers to contact you</p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
               <Input
                 id="country"
                 value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                disabled
+                className="bg-muted"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="e.g., Auckland"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="suburb">Suburb</Label>
-              <Input
-                id="suburb"
-                value={formData.suburb}
-                onChange={(e) => setFormData({ ...formData, suburb: e.target.value })}
-                placeholder="e.g., Ponsonby"
-              />
-            </div>
-          </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="experience_years">Years of Experience</Label>
-              <Input
-                id="experience_years"
-                type="number"
-                min="0"
-                value={formData.experience_years}
-                onChange={(e) => setFormData({ ...formData, experience_years: e.target.value })}
-                placeholder="e.g., 5"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="availability">Availability</Label>
-              <Select
-                value={formData.availability}
-                onValueChange={(value) => setFormData({ ...formData, availability: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="immediate">Immediate</SelectItem>
-                  <SelectItem value="1-week">Within 1 Week</SelectItem>
-                  <SelectItem value="2-weeks">Within 2 Weeks</SelectItem>
-                  <SelectItem value="flexible">Flexible</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number (for employers to contact you)</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="e.g., +64 21 123 4567"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Languages</Label>
-            <div className="flex gap-2">
-              <Input
-                value={languageInput}
-                onChange={(e) => setLanguageInput(e.target.value)}
-                placeholder="Add a language..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addLanguage();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={addLanguage}>
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-            {languages.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {languages.map((lang) => (
-                  <span
-                    key={lang}
-                    className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm flex items-center gap-1"
-                  >
-                    {lang}
-                    <button type="button" onClick={() => removeLanguage(lang)}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Region</Label>
+                <Select
+                  value={formData.location_region}
+                  onValueChange={(v) => setFormData({ ...formData, location_region: v, location_city: "", location_suburb: "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select region" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {NZ_REGIONS.map((r) => (
+                      <SelectItem key={r.region} value={r.region}>{r.region}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
+
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Select
+                  value={formData.location_city}
+                  onValueChange={(v) => setFormData({ ...formData, location_city: v, location_suburb: "" })}
+                  disabled={!formData.location_region}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.location_region ? "Select city" : "Select region first"} />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {availableCities.map((city) => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Suburb</Label>
+                <Select
+                  value={formData.location_suburb}
+                  onValueChange={(v) => setFormData({ ...formData, location_suburb: v })}
+                  disabled={!formData.location_city}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.location_city ? "Select suburb" : "Select city first"} />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {availableSuburbs.map((suburb) => (
+                      <SelectItem key={suburb} value={suburb}>{suburb}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Skills</Label>
-            <div className="flex gap-2">
-              <Input
-                value={skillInput}
-                onChange={(e) => setSkillInput(e.target.value)}
-                placeholder="Add a skill..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addSkill();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={addSkill}>
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-            {skills.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1"
-                  >
-                    {skill}
-                    <button type="button" onClick={() => removeSkill(skill)}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
+          {/* Skills & Languages */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Skills & Languages</h3>
+            <div className="space-y-2">
+              <Label>Languages</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={languageInput}
+                  onChange={(e) => setLanguageInput(e.target.value)}
+                  placeholder="Add a language..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addLanguage();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={addLanguage}>
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
-            )}
+              {languages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {languages.map((lang) => (
+                    <span
+                      key={lang}
+                      className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm flex items-center gap-1"
+                    >
+                      {lang}
+                      <button type="button" onClick={() => removeLanguage(lang)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Skills</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  placeholder="Add a skill..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addSkill();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={addSkill}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {skills.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1"
+                    >
+                      {skill}
+                      <button type="button" onClick={() => removeSkill(skill)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Work Preferences & Status Section */}
