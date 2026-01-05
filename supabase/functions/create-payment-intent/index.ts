@@ -156,12 +156,50 @@ serve(async (req) => {
         },
       });
 
-      const invoice = subscription.latest_invoice as Stripe.Invoice;
-      const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+      logStep("Subscription created", { 
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        hasInvoice: !!subscription.latest_invoice
+      });
+
+      const invoice = subscription.latest_invoice as Stripe.Invoice | null;
+      
+      logStep("Invoice details", {
+        invoiceId: invoice?.id,
+        invoiceStatus: invoice?.status,
+        hasPaymentIntent: !!invoice?.payment_intent
+      });
+
+      const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent | null;
+
+      // Check if we got a valid payment intent with client_secret
+      if (!paymentIntent || !paymentIntent.client_secret) {
+        logStep("No payment intent from subscription, creating SetupIntent instead");
+        
+        // For $0 subscriptions or when no payment intent is created, use SetupIntent
+        const setupIntent = await stripe.setupIntents.create({
+          customer: customerId,
+          payment_method_types: ["card"],
+          metadata: {
+            user_id: user.id,
+            plan_id: planId,
+            subscription_id: subscription.id,
+          },
+        });
+
+        return new Response(JSON.stringify({
+          clientSecret: setupIntent.client_secret,
+          subscriptionId: subscription.id,
+          type: "setup",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
       logStep("Created subscription with PaymentIntent", { 
         subscriptionId: subscription.id, 
-        clientSecret: paymentIntent.client_secret?.substring(0, 20) + "..." 
+        clientSecret: paymentIntent.client_secret.substring(0, 20) + "..." 
       });
 
       return new Response(JSON.stringify({
@@ -187,9 +225,13 @@ serve(async (req) => {
         automatic_payment_methods: { enabled: true },
       });
 
+      if (!paymentIntent.client_secret) {
+        throw new Error("Failed to create payment intent - no client secret returned");
+      }
+
       logStep("Created PaymentIntent", { 
         paymentIntentId: paymentIntent.id, 
-        clientSecret: paymentIntent.client_secret?.substring(0, 20) + "..." 
+        clientSecret: paymentIntent.client_secret.substring(0, 20) + "..." 
       });
 
       return new Response(JSON.stringify({
