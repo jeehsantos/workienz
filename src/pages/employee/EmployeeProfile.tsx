@@ -66,6 +66,12 @@ export default function EmployeeProfile() {
     visa_status: "",
   });
 
+  // New preference states
+  const [comfortableHeavyLifting, setComfortableHeavyLifting] = useState(false);
+  const [comfortableStanding, setComfortableStanding] = useState(false);
+  const [hasCar, setHasCar] = useState(false);
+  const [hasIrdNumber, setHasIrdNumber] = useState(false);
+
   const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>();
   const [languages, setLanguages] = useState<string[]>([]);
   const [languageInput, setLanguageInput] = useState("");
@@ -118,6 +124,10 @@ export default function EmployeeProfile() {
         });
         setSkills(data.skills || []);
         setLanguages((data as any).languages || []);
+        setComfortableHeavyLifting((data as any).comfortable_heavy_lifting || false);
+        setComfortableStanding((data as any).comfortable_standing || false);
+        setHasCar((data as any).has_car || false);
+        setHasIrdNumber((data as any).has_ird_number || false);
         if ((data as any).date_of_birth) {
           setDateOfBirth(new Date((data as any).date_of_birth));
         }
@@ -184,6 +194,10 @@ export default function EmployeeProfile() {
       languages: languages.length > 0 ? languages : null,
       date_of_birth: dateOfBirth ? format(dateOfBirth, "yyyy-MM-dd") : null,
       visa_status: formData.visa_status || null,
+      comfortable_heavy_lifting: comfortableHeavyLifting,
+      comfortable_standing: comfortableStanding,
+      has_car: hasCar,
+      has_ird_number: hasIrdNumber,
     };
 
     let error;
@@ -532,6 +546,66 @@ export default function EmployeeProfile() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Work Preferences & Status Section */}
+          <div className="space-y-4 p-6 bg-card rounded-lg border border-border/50">
+            <div>
+              <h3 className="text-lg font-semibold mb-1">Work Preferences & Status</h3>
+              <p className="text-sm text-muted-foreground">
+                Help employers find the right match by sharing your preferences
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="comfortable_heavy_lifting" className="font-normal">Comfortable with Heavy Lifting</Label>
+                  <p className="text-xs text-muted-foreground">Can lift {'>'} 10kg</p>
+                </div>
+                <Switch
+                  id="comfortable_heavy_lifting"
+                  checked={comfortableHeavyLifting}
+                  onCheckedChange={setComfortableHeavyLifting}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="comfortable_standing" className="font-normal">Comfortable Standing</Label>
+                  <p className="text-xs text-muted-foreground">For long periods</p>
+                </div>
+                <Switch
+                  id="comfortable_standing"
+                  checked={comfortableStanding}
+                  onCheckedChange={setComfortableStanding}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="has_car" className="font-normal">Has Car</Label>
+                  <p className="text-xs text-muted-foreground">Own transport available</p>
+                </div>
+                <Switch
+                  id="has_car"
+                  checked={hasCar}
+                  onCheckedChange={setHasCar}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="has_ird_number" className="font-normal">Has IRD Number</Label>
+                  <p className="text-xs text-muted-foreground">Tax number ready</p>
+                </div>
+                <Switch
+                  id="has_ird_number"
+                  checked={hasIrdNumber}
+                  onCheckedChange={setHasIrdNumber}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="pt-4">
