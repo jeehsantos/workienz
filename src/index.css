@@ -118,8 +118,15 @@
     @apply border-border;
   }
 
+  /* Prevent layout shift when scrollbar appears */
+  html {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {

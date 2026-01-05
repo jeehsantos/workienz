@@ -14,10 +14,10 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X, CalendarIcon, Dumbbell, Users, Car, GraduationCap, Home } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, CalendarIcon, Dumbbell, Gift, Car, GraduationCap, Home, MapPin, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { NZ_REGIONS, getAreasByRegion } from "@/data/nzRegions";
+import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
 
 type Shift = {
   id: string;
@@ -29,19 +29,13 @@ type Shift = {
 };
 
 const INDUSTRIES = [
-  "Agriculture",
-  "Construction",
-  "Education",
-  "Events & Hospitality",
-  "Food & Beverage",
-  "Healthcare",
-  "Logistics & Warehousing",
-  "Manufacturing",
-  "Office & Admin",
-  "Retail",
-  "Transportation",
-  "Other",
+  "Agriculture", "Construction", "Education", "Events & Hospitality",
+  "Food & Beverage", "Healthcare", "Logistics & Warehousing",
+  "Manufacturing", "Office & Admin", "Retail", "Transportation", "Other",
 ];
+
+const DEFAULT_BENEFITS = ["Provides training", "Provides accommodation"];
+const DEFAULT_PHYSICAL_REQS = ["Requires lifting > 10kg", "Requires standing for long periods"];
 
 export default function PostJob() {
   const navigate = useNavigate();
@@ -53,41 +47,43 @@ export default function PostJob() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    requirements: "",
-    location_region: "",
-    location_area: "",
-    location_country: "New Zealand",
-    job_type: "temporary",
-    duration: "",
-    hourly_rate: "",
-    positions_available: "1",
-    industry: "",
+    title: "", description: "", requirements: "",
+    location_region: "", location_city: "", location_suburb: "",
+    location_country: "New Zealand", job_type: "temporary",
+    duration: "", hourly_rate: "", positions_available: "1", industry: "",
   });
 
-  // New requirement and benefit states
-  const [requiresHeavyLifting, setRequiresHeavyLifting] = useState(false);
-  const [requiresStanding, setRequiresStanding] = useState(false);
+  // Physical requirements (checkboxes)
+  const [physicalRequirements, setPhysicalRequirements] = useState<string[]>([]);
+  const [customPhysicalReq, setCustomPhysicalReq] = useState("");
+  const [allPhysicalReqs, setAllPhysicalReqs] = useState<string[]>(DEFAULT_PHYSICAL_REQS);
+
+  // Logistical requirement
   const [requiresCar, setRequiresCar] = useState(false);
-  const [providesTraining, setProvidesTraining] = useState(false);
-  const [providesAccommodation, setProvidesAccommodation] = useState(false);
+
+  // Benefits (checkboxes)
+  const [selectedBenefits, setSelectedBenefits] = useState<string[]>([]);
+  const [customBenefit, setCustomBenefit] = useState("");
+  const [allBenefits, setAllBenefits] = useState<string[]>(DEFAULT_BENEFITS);
 
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [isSSE, setIsSSE] = useState(false);
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   
-  // Shifts state
   const [shifts, setShifts] = useState<Shift[]>([
     { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
   ]);
-
-  // Fixed term state - simple start and end dates
   const [fixedTermStart, setFixedTermStart] = useState<Date | undefined>();
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
 
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+
+  // Available cities and suburbs based on selection
+  const availableCities = formData.location_region ? getCitiesByRegion(formData.location_region) : [];
+  const availableSuburbs = formData.location_region && formData.location_city 
+    ? getSuburbsByCity(formData.location_region, formData.location_city) : [];
+
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
@@ -98,7 +94,6 @@ export default function PostJob() {
   useEffect(() => {
     async function fetchContractorProfile() {
       if (!user) return;
-
       const { data, error } = await supabase
         .from("contractor_profiles")
         .select("id")
@@ -107,21 +102,13 @@ export default function PostJob() {
 
       if (error) {
         console.error("Error fetching contractor profile:", error);
-        toast({
-          title: "Profile not found",
-          description: "Please complete your contractor profile first.",
-          variant: "destructive",
-        });
+        toast({ title: "Profile not found", description: "Please complete your contractor profile first.", variant: "destructive" });
         return;
       }
-
       setContractorProfile(data);
       setIsLoadingProfile(false);
     }
-
-    if (user && isContractor()) {
-      fetchContractorProfile();
-    }
+    if (user && isContractor()) fetchContractorProfile();
   }, [user, isContractor, toast]);
 
   const addShift = () => {
@@ -129,9 +116,7 @@ export default function PostJob() {
   };
 
   const removeShift = (id: string) => {
-    if (shifts.length > 1) {
-      setShifts(shifts.filter(s => s.id !== id));
-    }
+    if (shifts.length > 1) setShifts(shifts.filter(s => s.id !== id));
   };
 
   const updateShift = (id: string, field: keyof Shift, value: any) => {
@@ -145,15 +130,42 @@ export default function PostJob() {
     }
   };
 
-  const removeSkill = (skill: string) => {
-    setSkills(skills.filter((s) => s !== skill));
+  const removeSkill = (skill: string) => setSkills(skills.filter(s => s !== skill));
+
+  const addCustomPhysicalReq = () => {
+    if (customPhysicalReq.trim() && !allPhysicalReqs.includes(customPhysicalReq.trim())) {
+      const newReq = customPhysicalReq.trim();
+      setAllPhysicalReqs([...allPhysicalReqs, newReq]);
+      setPhysicalRequirements([...physicalRequirements, newReq]);
+      setCustomPhysicalReq("");
+    }
+  };
+
+  const addCustomBenefit = () => {
+    if (customBenefit.trim() && !allBenefits.includes(customBenefit.trim())) {
+      const newBenefit = customBenefit.trim();
+      setAllBenefits([...allBenefits, newBenefit]);
+      setSelectedBenefits([...selectedBenefits, newBenefit]);
+      setCustomBenefit("");
+    }
+  };
+
+  const togglePhysicalReq = (req: string) => {
+    setPhysicalRequirements(prev => 
+      prev.includes(req) ? prev.filter(r => r !== req) : [...prev, req]
+    );
+  };
+
+  const toggleBenefit = (benefit: string) => {
+    setSelectedBenefits(prev => 
+      prev.includes(benefit) ? prev.filter(b => b !== benefit) : [...prev, benefit]
+    );
   };
 
   const calculateDuration = () => {
     if (fixedTermStart && fixedTermEnd) {
       const diffTime = Math.abs(fixedTermEnd.getTime() - fixedTermStart.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     }
     return null;
   };
@@ -162,38 +174,37 @@ export default function PostJob() {
     e.preventDefault();
     if (!contractorProfile) return;
 
-    // Validate schedule
-    if (scheduleType === "shifts") {
-      const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-      if (validShifts.length === 0 && status === "published") {
-        toast({
-          title: "Please add at least one shift",
-          description: "Add shift details before publishing.",
-          variant: "destructive",
-        });
+    // Validation
+    if (status === "published") {
+      if (!formData.hourly_rate) {
+        toast({ title: "Hourly rate required", description: "Please enter an hourly rate.", variant: "destructive" });
         return;
       }
-    } else {
-      if (!fixedTermStart && status === "published") {
-        toast({
-          title: "Please select a start date",
-          description: "A start date is required for fixed term jobs.",
-          variant: "destructive",
-        });
+      if (!formData.location_region || !formData.location_city) {
+        toast({ title: "Location required", description: "Please select a region and city.", variant: "destructive" });
+        return;
+      }
+      if (scheduleType === "shifts") {
+        const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
+        if (validShifts.length === 0) {
+          toast({ title: "Please add at least one shift", description: "Add shift details before publishing.", variant: "destructive" });
+          return;
+        }
+      } else if (!fixedTermStart) {
+        toast({ title: "Please select a start date", description: "A start date is required for fixed term jobs.", variant: "destructive" });
         return;
       }
     }
 
     setIsSubmitting(true);
 
-    // Insert job
     const { data: jobData, error } = await supabase.from("jobs").insert({
       contractor_id: contractorProfile.id,
       title: formData.title,
       description: formData.description,
       requirements: formData.requirements || null,
-      location_city: formData.location_region || null,
-      location_suburb: formData.location_area || null,
+      location_city: formData.location_city || null,
+      location_suburb: formData.location_suburb || null,
       location_country: formData.location_country || null,
       job_type: formData.job_type,
       duration: formData.duration || null,
@@ -208,25 +219,20 @@ export default function PostJob() {
       ends_at: fixedTermEnd ? fixedTermEnd.toISOString() : null,
       experience_required: experienceRequired,
       is_sse: isSSE && formData.industry === "Agriculture",
-      requires_heavy_lifting: requiresHeavyLifting,
-      requires_standing: requiresStanding,
+      requires_heavy_lifting: physicalRequirements.includes("Requires lifting > 10kg"),
+      requires_standing: physicalRequirements.includes("Requires standing for long periods"),
       requires_car: requiresCar,
-      provides_training: providesTraining,
-      provides_accommodation: providesAccommodation,
+      provides_training: selectedBenefits.includes("Provides training"),
+      provides_accommodation: selectedBenefits.includes("Provides accommodation"),
     }).select("id").single();
 
     if (error || !jobData) {
       console.error("Error creating job:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create job posting. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create job posting. Please try again.", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
 
-    // Insert shifts if schedule type is shifts
     if (scheduleType === "shifts") {
       const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
       if (validShifts.length > 0) {
@@ -238,20 +244,15 @@ export default function PostJob() {
           break_minutes: parseInt(s.break_minutes) || 0,
           break_paid: s.break_paid,
         }));
-        
         await supabase.from("job_shifts").insert(shiftsData);
       }
     }
 
     setIsSubmitting(false);
-
     toast({
       title: status === "published" ? "Job Published!" : "Draft Saved",
-      description: status === "published" 
-        ? "Your job posting is now live."
-        : "Your job has been saved as a draft.",
+      description: status === "published" ? "Your job posting is now live." : "Your job has been saved as a draft.",
     });
-
     navigate("/contractor/jobs");
   };
 
@@ -269,12 +270,8 @@ export default function PostJob() {
         <div className="container-tight py-8">
           <div className="text-center py-16">
             <h1 className="text-2xl font-bold mb-4">Complete Your Profile</h1>
-            <p className="text-muted-foreground mb-6">
-              You need to set up your contractor profile before posting jobs.
-            </p>
-            <Button asChild>
-              <Link to="/contractor/profile">Set Up Profile</Link>
-            </Button>
+            <p className="text-muted-foreground mb-6">You need to set up your contractor profile before posting jobs.</p>
+            <Button asChild><Link to="/contractor/profile">Set Up Profile</Link></Button>
           </div>
         </div>
       </div>
@@ -283,27 +280,22 @@ export default function PostJob() {
 
   const durationDays = calculateDuration();
 
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
-          <Link to="/dashboard">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Link>
+          <Link to="/dashboard"><ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard</Link>
         </Button>
 
         <h1 className="text-3xl font-bold mb-2 font-display">Post a Job</h1>
-        <p className="text-muted-foreground mb-8">
-          Create a new job posting to find temporary workers.
-        </p>
+        <p className="text-muted-foreground mb-8">Create a new job posting to find temporary workers.</p>
 
         <form onSubmit={(e) => handleSubmit(e, "published")} className="space-y-6">
-          {/* Two Column Layout */}
           <div className="grid lg:grid-cols-2 gap-6">
             {/* Left Column */}
             <div className="space-y-6">
-              {/* Basic Information Card */}
+              {/* Basic Information */}
               <Card>
                 <CardHeader>
                   <CardTitle>Basic Information</CardTitle>
@@ -312,56 +304,27 @@ export default function PostJob() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="title">Job Title *</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g., Warehouse Assistant"
-                      required
-                    />
+                    <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="e.g., Warehouse Assistant" required />
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="description">Job Description *</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Describe the role, responsibilities, and what you're looking for..."
-                      rows={5}
-                      required
-                    />
+                    <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe the role, responsibilities..." rows={5} required />
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="industry">Industry *</Label>
-                      <Select
-                        value={formData.industry}
-                        onValueChange={(value) => setFormData({ ...formData, industry: value })}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select industry" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INDUSTRIES.map((ind) => (
-                            <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                          ))}
+                      <Label>Industry *</Label>
+                      <Select value={formData.industry} onValueChange={(v) => setFormData({ ...formData, industry: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
+                        <SelectContent position="popper" sideOffset={4}>
+                          {INDUSTRIES.map((ind) => (<SelectItem key={ind} value={ind}>{ind}</SelectItem>))}
                         </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="job_type">Job Type</Label>
-                      <Select
-                        value={formData.job_type}
-                        onValueChange={(value) => setFormData({ ...formData, job_type: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
+                      <Label>Job Type</Label>
+                      <Select value={formData.job_type} onValueChange={(v) => setFormData({ ...formData, job_type: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent position="popper" sideOffset={4}>
                           <SelectItem value="temporary">Temporary</SelectItem>
                           <SelectItem value="short-term">Short-term</SelectItem>
                           <SelectItem value="contract">Contract</SelectItem>
@@ -369,248 +332,152 @@ export default function PostJob() {
                       </Select>
                     </div>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="positions_available">Positions Available *</Label>
-                    <Input
-                      id="positions_available"
-                      type="number"
-                      min="1"
-                      value={formData.positions_available}
-                      onChange={(e) => setFormData({ ...formData, positions_available: e.target.value })}
-                      required
-                    />
+                    <Label>Positions Available *</Label>
+                    <Input type="number" min="1" value={formData.positions_available} onChange={(e) => setFormData({ ...formData, positions_available: e.target.value })} required />
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Physical Requirements Card */}
+              {/* Physical Requirements */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Dumbbell className="w-5 h-5" />
-                    Physical Requirements
-                  </CardTitle>
-                  <CardDescription>Select any physical requirements for this role</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><Dumbbell className="w-5 h-5" />Physical Requirements</CardTitle>
+                  <CardDescription>Select physical demands for this role</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="requires_heavy_lifting"
-                      checked={requiresHeavyLifting}
-                      onCheckedChange={(checked) => setRequiresHeavyLifting(checked as boolean)}
-                    />
-                    <Label htmlFor="requires_heavy_lifting" className="font-normal cursor-pointer">
-                      Requires lifting {'>'} 10kg
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="requires_standing"
-                      checked={requiresStanding}
-                      onCheckedChange={(checked) => setRequiresStanding(checked as boolean)}
-                    />
-                    <Label htmlFor="requires_standing" className="font-normal cursor-pointer">
-                      Requires standing for long periods
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="requires_car"
-                      checked={requiresCar}
-                      onCheckedChange={(checked) => setRequiresCar(checked as boolean)}
-                    />
-                    <Label htmlFor="requires_car" className="font-normal cursor-pointer flex items-center gap-1">
-                      <Car className="w-4 h-4" />
-                      Requires car
-                    </Label>
+                  {allPhysicalReqs.map((req) => (
+                    <div key={req} className="flex items-center space-x-2">
+                      <Checkbox id={`req-${req}`} checked={physicalRequirements.includes(req)} onCheckedChange={() => togglePhysicalReq(req)} />
+                      <Label htmlFor={`req-${req}`} className="font-normal cursor-pointer">{req}</Label>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-2">
+                    <Input value={customPhysicalReq} onChange={(e) => setCustomPhysicalReq(e.target.value)} placeholder="Add custom requirement..." className="flex-1" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomPhysicalReq(); }}} />
+                    <Button type="button" variant="outline" size="icon" onClick={addCustomPhysicalReq}><Plus className="w-4 h-4" /></Button>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Benefits Card */}
+              {/* Logistical Requirements */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Job Benefits
-                  </CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Car className="w-5 h-5" />Logistical Requirements</CardTitle>
+                  <CardDescription>Transport and logistics needs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="requires_car" checked={requiresCar} onCheckedChange={(c) => setRequiresCar(c as boolean)} />
+                    <Label htmlFor="requires_car" className="font-normal cursor-pointer">Requires own vehicle/car</Label>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Job Benefits */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Gift className="w-5 h-5" />Job Benefits</CardTitle>
                   <CardDescription>What benefits do you offer?</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="provides_training"
-                      checked={providesTraining}
-                      onCheckedChange={(checked) => setProvidesTraining(checked as boolean)}
-                    />
-                    <Label htmlFor="provides_training" className="font-normal cursor-pointer flex items-center gap-1">
-                      <GraduationCap className="w-4 h-4" />
-                      Provides training
-                    </Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="provides_accommodation"
-                      checked={providesAccommodation}
-                      onCheckedChange={(checked) => setProvidesAccommodation(checked as boolean)}
-                    />
-                    <Label htmlFor="provides_accommodation" className="font-normal cursor-pointer flex items-center gap-1">
-                      <Home className="w-4 h-4" />
-                      Provides accommodation
-                    </Label>
+                  {allBenefits.map((benefit) => (
+                    <div key={benefit} className="flex items-center space-x-2">
+                      <Checkbox id={`benefit-${benefit}`} checked={selectedBenefits.includes(benefit)} onCheckedChange={() => toggleBenefit(benefit)} />
+                      <Label htmlFor={`benefit-${benefit}`} className="font-normal cursor-pointer flex items-center gap-1">
+                        {benefit === "Provides training" && <GraduationCap className="w-4 h-4" />}
+                        {benefit === "Provides accommodation" && <Home className="w-4 h-4" />}
+                        {benefit}
+                      </Label>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 pt-2">
+                    <Input value={customBenefit} onChange={(e) => setCustomBenefit(e.target.value)} placeholder="Add custom benefit..." className="flex-1" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomBenefit(); }}} />
+                    <Button type="button" variant="outline" size="icon" onClick={addCustomBenefit}><Plus className="w-4 h-4" /></Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
+
             {/* Right Column */}
             <div className="space-y-6">
-              {/* Location & Pay Card */}
+              {/* Location & Pay */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Location & Pay</CardTitle>
-                  <CardDescription>Where and how much</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><MapPin className="w-5 h-5" />Location & Pay</CardTitle>
+                  <CardDescription>Where the job is and compensation</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="location_region">Region *</Label>
-                    <Select
-                      value={formData.location_region}
-                      onValueChange={(value) => {
-                        setFormData({ ...formData, location_region: value, location_area: "" });
-                      }}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select region" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {NZ_REGIONS.map((region) => (
-                          <SelectItem key={region.region} value={region.region}>
-                            {region.region}
-                          </SelectItem>
-                        ))}
+                    <Label>Region *</Label>
+                    <Select value={formData.location_region} onValueChange={(v) => setFormData({ ...formData, location_region: v, location_city: "", location_suburb: "" })}>
+                      <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                        {NZ_REGIONS.map((r) => (<SelectItem key={r.region} value={r.region}>{r.region}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="location_area">Area *</Label>
-                    <Select
-                      value={formData.location_area}
-                      onValueChange={(value) => setFormData({ ...formData, location_area: value })}
-                      disabled={!formData.location_region}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={formData.location_region ? "Select area" : "Select region first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formData.location_region && getAreasByRegion(formData.location_region).map((area) => (
-                          <SelectItem key={area} value={area}>
-                            {area}
-                          </SelectItem>
-                        ))}
+                    <Label>City *</Label>
+                    <Select value={formData.location_city} onValueChange={(v) => setFormData({ ...formData, location_city: v, location_suburb: "" })} disabled={!formData.location_region}>
+                      <SelectTrigger><SelectValue placeholder={formData.location_region ? "Select city" : "Select region first"} /></SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                        {availableCities.map((city) => (<SelectItem key={city} value={city}>{city}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="hourly_rate">Hourly Rate ($/hr) *</Label>
-                    <Input
-                      id="hourly_rate"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.hourly_rate}
-                      onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                      placeholder="e.g., 25.00"
-                      required
-                    />
+                    <Label>Suburb *</Label>
+                    <Select value={formData.location_suburb} onValueChange={(v) => setFormData({ ...formData, location_suburb: v })} disabled={!formData.location_city}>
+                      <SelectTrigger><SelectValue placeholder={formData.location_city ? "Select suburb" : "Select city first"} /></SelectTrigger>
+                      <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                        {availableSuburbs.map((suburb) => (<SelectItem key={suburb} value={suburb}>{suburb}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hourly Rate ($/hr) *</Label>
+                    <Input type="number" step="0.01" min="0" value={formData.hourly_rate} onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })} placeholder="e.g., 25.00" required />
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Additional Details Card */}
+              {/* Additional Details */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Additional Details</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Additional Details</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="requirements">Requirements</Label>
-                    <Textarea
-                      id="requirements"
-                      value={formData.requirements}
-                      onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                      placeholder="List any specific requirements or qualifications..."
-                      rows={3}
-                    />
+                    <Label>Requirements</Label>
+                    <Textarea value={formData.requirements} onChange={(e) => setFormData({ ...formData, requirements: e.target.value })} placeholder="List any specific requirements..." rows={3} />
                   </div>
-
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div>
-                      <Label htmlFor="experience_required" className="font-normal">Experience Required</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Only experienced workers can apply
-                      </p>
+                      <Label className="font-normal">Experience Required</Label>
+                      <p className="text-xs text-muted-foreground">Only experienced workers can apply</p>
                     </div>
-                    <Switch
-                      id="experience_required"
-                      checked={experienceRequired}
-                      onCheckedChange={setExperienceRequired}
-                    />
+                    <Switch checked={experienceRequired} onCheckedChange={setExperienceRequired} />
                   </div>
-
                   {formData.industry === "Agriculture" && (
                     <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
                       <div>
-                        <Label htmlFor="is_sse" className="font-normal text-amber-700 dark:text-amber-400">SSE Position</Label>
-                        <p className="text-xs text-muted-foreground">
-                          For RSE/SSE workers
-                        </p>
+                        <Label className="font-normal text-amber-700 dark:text-amber-400">SSE Position</Label>
+                        <p className="text-xs text-muted-foreground">For RSE/SSE workers</p>
                       </div>
-                      <Switch
-                        id="is_sse"
-                        checked={isSSE}
-                        onCheckedChange={setIsSSE}
-                      />
+                      <Switch checked={isSSE} onCheckedChange={setIsSSE} />
                     </div>
                   )}
-
                   <div className="space-y-2">
                     <Label>Skills Required</Label>
                     <div className="flex gap-2">
-                      <Input
-                        value={skillInput}
-                        onChange={(e) => setSkillInput(e.target.value)}
-                        placeholder="Add a skill..."
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addSkill();
-                          }
-                        }}
-                      />
-                      <Button type="button" variant="outline" onClick={addSkill}>
-                        <Plus className="w-4 h-4" />
-                      </Button>
+                      <Input value={skillInput} onChange={(e) => setSkillInput(e.target.value)} placeholder="Add a skill..." onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(); }}} />
+                      <Button type="button" variant="outline" size="icon" onClick={addSkill}><Plus className="w-4 h-4" /></Button>
                     </div>
                     {skills.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {skills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1"
-                          >
+                          <span key={skill} className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1">
                             {skill}
-                            <button type="button" onClick={() => removeSkill(skill)}>
-                              <X className="w-3 h-3" />
-                            </button>
+                            <button type="button" onClick={() => removeSkill(skill)}><X className="w-3 h-3" /></button>
                           </span>
                         ))}
                       </div>
@@ -619,18 +486,14 @@ export default function PostJob() {
                 </CardContent>
               </Card>
 
-              {/* Schedule Card */}
+              {/* Schedule */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Schedule</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5" />Schedule</CardTitle>
                   <CardDescription>When do you need workers?</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <RadioGroup
-                    value={scheduleType}
-                    onValueChange={(value: "shifts" | "fixed_term") => setScheduleType(value)}
-                    className="flex gap-4"
-                  >
+                  <RadioGroup value={scheduleType} onValueChange={(v: "shifts" | "fixed_term") => setScheduleType(v)} className="flex gap-4">
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="shifts" id="shifts" />
                       <Label htmlFor="shifts" className="font-normal cursor-pointer">Shifts</Label>
@@ -648,96 +511,55 @@ export default function PostJob() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">Shift {index + 1}</span>
                             {shifts.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeShift(shift.id)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeShift(shift.id)}><X className="w-4 h-4" /></Button>
                             )}
                           </div>
-                          
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1 col-span-2">
+                          <div className="space-y-3">
+                            <div className="space-y-1">
                               <Label className="text-xs">Date *</Label>
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "w-full justify-start text-left font-normal",
-                                      !shift.date && "text-muted-foreground"
-                                    )}
-                                  >
+                                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !shift.date && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {shift.date ? format(shift.date, "PPP") : "Select date"}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={shift.date}
-                                    onSelect={(date) => updateShift(shift.id, "date", date)}
-                                    disabled={(date) => date < new Date()}
-                                    initialFocus
-                                    className="pointer-events-auto"
-                                  />
+                                <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+                                  <Calendar mode="single" selected={shift.date} onSelect={(date) => updateShift(shift.id, "date", date)} disabled={(date) => date < new Date()} initialFocus className="pointer-events-auto" />
                                 </PopoverContent>
                               </Popover>
                             </div>
-                            
-                            <div className="space-y-1">
-                              <Label className="text-xs">Start *</Label>
-                              <Input
-                                type="time"
-                                value={shift.start_time}
-                                onChange={(e) => updateShift(shift.id, "start_time", e.target.value)}
-                              />
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Start Time *</Label>
+                                <Input type="time" value={shift.start_time} onChange={(e) => updateShift(shift.id, "start_time", e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">End Time *</Label>
+                                <Input type="time" value={shift.end_time} onChange={(e) => updateShift(shift.id, "end_time", e.target.value)} />
+                              </div>
                             </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">End *</Label>
-                              <Input
-                                type="time"
-                                value={shift.end_time}
-                                onChange={(e) => updateShift(shift.id, "end_time", e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Break (min)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={shift.break_minutes}
-                                onChange={(e) => updateShift(shift.id, "break_minutes", e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Break Paid?</Label>
-                              <Select
-                                value={shift.break_paid ? "yes" : "no"}
-                                onValueChange={(value) => updateShift(shift.id, "break_paid", value === "yes")}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="no">No</SelectItem>
-                                  <SelectItem value="yes">Yes</SelectItem>
-                                </SelectContent>
-                              </Select>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Break (min)</Label>
+                                <Input type="number" min="0" value={shift.break_minutes} onChange={(e) => updateShift(shift.id, "break_minutes", e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Break Paid?</Label>
+                                <Select value={shift.break_paid ? "yes" : "no"} onValueChange={(v) => updateShift(shift.id, "break_paid", v === "yes")}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent position="popper" sideOffset={4}>
+                                    <SelectItem value="no">No</SelectItem>
+                                    <SelectItem value="yes">Yes</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
                           </div>
                         </div>
                       ))}
-                      
                       <Button type="button" variant="outline" onClick={addShift} className="w-full">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Another Shift
+                        <Plus className="w-4 h-4 mr-2" />Add Another Shift
                       </Button>
                     </div>
                   ) : (
@@ -747,64 +569,32 @@ export default function PostJob() {
                           <Label>Start Date *</Label>
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !fixedTermStart && "text-muted-foreground"
-                                )}
-                              >
+                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !fixedTermStart && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {fixedTermStart ? format(fixedTermStart, "PPP") : "Select"}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={fixedTermStart}
-                                onSelect={setFixedTermStart}
-                                disabled={(date) => date < new Date()}
-                                initialFocus
-                                className="pointer-events-auto"
-                              />
+                            <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+                              <Calendar mode="single" selected={fixedTermStart} onSelect={setFixedTermStart} disabled={(date) => date < new Date()} initialFocus className="pointer-events-auto" />
                             </PopoverContent>
                           </Popover>
                         </div>
-                        
                         <div className="space-y-2">
                           <Label>End Date</Label>
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal",
-                                  !fixedTermEnd && "text-muted-foreground"
-                                )}
-                              >
+                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !fixedTermEnd && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {fixedTermEnd ? format(fixedTermEnd, "PPP") : "Select"}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={fixedTermEnd}
-                                onSelect={setFixedTermEnd}
-                                disabled={(date) => date < new Date() || (fixedTermStart && date < fixedTermStart)}
-                                initialFocus
-                                className="pointer-events-auto"
-                              />
+                            <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
+                              <Calendar mode="single" selected={fixedTermEnd} onSelect={setFixedTermEnd} disabled={(date) => date < new Date() || (fixedTermStart && date < fixedTermStart)} initialFocus className="pointer-events-auto" />
                             </PopoverContent>
                           </Popover>
                         </div>
                       </div>
-                      
-                      {durationDays && (
-                        <p className="text-sm text-muted-foreground">
-                          Duration: {durationDays} day{durationDays !== 1 ? 's' : ''}
-                        </p>
-                      )}
+                      {durationDays && <p className="text-sm text-muted-foreground">Duration: {durationDays} day{durationDays !== 1 ? 's' : ''}</p>}
                     </div>
                   )}
                 </CardContent>
@@ -814,21 +604,13 @@ export default function PostJob() {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={(e) => handleSubmit(e as any, "draft")}
-              disabled={isSubmitting}
-            >
-              Save as Draft
-            </Button>
+            <Button type="button" variant="outline" onClick={(e) => handleSubmit(e as any, "draft")} disabled={isSubmitting}>Save as Draft</Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Publish Job
             </Button>
           </div>
         </form>
-
       </div>
     </div>
   );

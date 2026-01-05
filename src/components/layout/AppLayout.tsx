@@ -129,6 +129,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               ? "bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-soft"
               : "bg-background/80 backdrop-blur-sm border-b border-border/30"
           }`}
+          style={{ width: '100vw', maxWidth: '100%' }}
         >
           <div className="container-tight">
             <div className="flex items-center justify-between h-16 lg:h-20">
