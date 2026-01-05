@@ -141,6 +141,8 @@ serve(async (req) => {
 
     // For embedded checkout, create a PaymentIntent or Subscription
     if (config.mode === "subscription") {
+      logStep("Creating subscription", { priceId: stripePrice.id, customerId });
+      
       // For subscriptions, create a subscription with payment_behavior
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
@@ -159,22 +161,37 @@ serve(async (req) => {
       logStep("Subscription created", { 
         subscriptionId: subscription.id,
         status: subscription.status,
-        hasInvoice: !!subscription.latest_invoice
+        hasInvoice: !!subscription.latest_invoice,
+        latestInvoiceType: typeof subscription.latest_invoice
       });
 
-      const invoice = subscription.latest_invoice as Stripe.Invoice | null;
+      // Type guard and null check for invoice
+      if (!subscription.latest_invoice) {
+        throw new Error("Subscription created but no invoice was generated");
+      }
+
+      const invoice = typeof subscription.latest_invoice === 'string' 
+        ? await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] })
+        : subscription.latest_invoice as Stripe.Invoice;
       
       logStep("Invoice details", {
-        invoiceId: invoice?.id,
-        invoiceStatus: invoice?.status,
-        hasPaymentIntent: !!invoice?.payment_intent
+        invoiceId: invoice.id,
+        invoiceStatus: invoice.status,
+        hasPaymentIntent: !!invoice.payment_intent,
+        paymentIntentType: typeof invoice.payment_intent
       });
 
-      const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent | null;
+      // Type guard for payment intent
+      const paymentIntent = typeof invoice.payment_intent === 'string'
+        ? await stripe.paymentIntents.retrieve(invoice.payment_intent)
+        : invoice.payment_intent as Stripe.PaymentIntent | null;
 
       // Check if we got a valid payment intent with client_secret
       if (!paymentIntent || !paymentIntent.client_secret) {
-        logStep("No payment intent from subscription, creating SetupIntent instead");
+        logStep("No payment intent from subscription, creating SetupIntent instead", {
+          hasPaymentIntent: !!paymentIntent,
+          hasClientSecret: !!paymentIntent?.client_secret
+        });
         
         // For $0 subscriptions or when no payment intent is created, use SetupIntent
         const setupIntent = await stripe.setupIntents.create({
@@ -185,6 +202,15 @@ serve(async (req) => {
             plan_id: planId,
             subscription_id: subscription.id,
           },
+        });
+
+        if (!setupIntent.client_secret) {
+          throw new Error("Failed to create setup intent - no client secret returned");
+        }
+
+        logStep("Created SetupIntent", {
+          setupIntentId: setupIntent.id,
+          clientSecret: setupIntent.client_secret.substring(0, 20) + "..."
         });
 
         return new Response(JSON.stringify({
