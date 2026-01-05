@@ -112,7 +112,7 @@ export default function MyConversations({ userId }: MyConversationsProps) {
             status: conv.status,
             updated_at: conv.updated_at,
             job_title: jobTitle,
-            other_party_name: profileData?.full_name || "User",
+            other_party_name: profileData?.full_name,
             last_message_at: lastMessageData?.created_at || null,
             last_message_preview: lastMessageData?.content 
               ? lastMessageData.content.substring(0, 40) + (lastMessageData.content.length > 40 ? "..." : "")

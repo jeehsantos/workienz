@@ -298,7 +298,7 @@ export default function SearchWorkers() {
                         <h3 className="font-semibold truncate">
                           {worker.profile?.first_name || worker.profile?.last_name
                             ? `${worker.profile?.first_name || ''} ${worker.profile?.last_name || ''}`.trim()
-                            : worker.profile?.full_name || "Anonymous"}
+                            : worker.profile?.full_name }
                         </h3>
                         {isApplicant && (
                           <Badge variant="secondary" className="text-xs">Applicant</Badge>

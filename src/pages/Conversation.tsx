@@ -517,7 +517,7 @@ export default function Conversation() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h1 className="font-semibold truncate text-sm sm:text-base">
-                    {conversation.other_party?.full_name || "User"}
+                    {conversation.other_party?.full_name }
                   </h1>
                   <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                     {conversation.job_application && (
