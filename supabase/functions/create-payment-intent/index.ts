@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[CREATE-PAYMENT-INTENT] ${step}${detailsStr}`);
 };
 
@@ -36,10 +36,7 @@ serve(async (req) => {
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     logStep("Stripe key verified");
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
+    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "");
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
@@ -73,12 +70,11 @@ serve(async (req) => {
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId: string | undefined;
+    let customerId: string;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
       logStep("Existing customer found", { customerId });
     } else {
-      // Create new customer
       const customer = await stripe.customers.create({
         email: user.email,
         metadata: { user_id: user.id },
@@ -88,6 +84,7 @@ serve(async (req) => {
     }
 
     const config = planConfig[planId] || { mode: "payment" };
+    logStep("Plan config", { mode: config.mode, interval: config.interval });
 
     // Create or get a price for this plan
     let stripePrice: Stripe.Price;
@@ -126,7 +123,7 @@ serve(async (req) => {
       const supabaseAdmin = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } }
+        { auth: { persistSession: false } },
       );
 
       await supabaseAdmin
@@ -139,11 +136,10 @@ serve(async (req) => {
       logStep("Updated plan with Stripe IDs");
     }
 
-    // For embedded checkout, create a PaymentIntent or Subscription
+    // Handle subscription vs one-time payment
     if (config.mode === "subscription") {
-      logStep("Creating subscription", { priceId: stripePrice.id, customerId });
-      
-      // For subscriptions, create a subscription with payment_behavior
+      logStep("Creating subscription for embedded checkout");
+
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [{ price: stripePrice.id }],
@@ -158,86 +154,82 @@ serve(async (req) => {
         },
       });
 
-      logStep("Subscription created", { 
+      logStep("Subscription created", {
         subscriptionId: subscription.id,
         status: subscription.status,
-        hasInvoice: !!subscription.latest_invoice,
-        latestInvoiceType: typeof subscription.latest_invoice
       });
 
-      // Type guard and null check for invoice
-      if (!subscription.latest_invoice) {
-        throw new Error("Subscription created but no invoice was generated");
+      // Safely extract client_secret from the expanded invoice
+      let clientSecret: string | null = null;
+
+      if (subscription.latest_invoice && typeof subscription.latest_invoice !== "string") {
+        const invoice = subscription.latest_invoice;
+        if (invoice.payment_intent && typeof invoice.payment_intent !== "string") {
+          clientSecret = invoice.payment_intent.client_secret;
+        }
       }
 
-      const invoice = typeof subscription.latest_invoice === 'string' 
-        ? await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] })
-        : subscription.latest_invoice as Stripe.Invoice;
-      
-      logStep("Invoice details", {
-        invoiceId: invoice.id,
-        invoiceStatus: invoice.status,
-        hasPaymentIntent: !!invoice.payment_intent,
-        paymentIntentType: typeof invoice.payment_intent
-      });
+      if (!clientSecret) {
+        logStep("No client_secret from subscription, falling back to direct PaymentIntent");
 
-      // Type guard for payment intent
-      const paymentIntent = typeof invoice.payment_intent === 'string'
-        ? await stripe.paymentIntents.retrieve(invoice.payment_intent)
-        : invoice.payment_intent as Stripe.PaymentIntent | null;
-
-      // Check if we got a valid payment intent with client_secret
-      if (!paymentIntent || !paymentIntent.client_secret) {
-        logStep("No payment intent from subscription, creating SetupIntent instead", {
-          hasPaymentIntent: !!paymentIntent,
-          hasClientSecret: !!paymentIntent?.client_secret
-        });
-        
-        // For $0 subscriptions or when no payment intent is created, use SetupIntent
-        const setupIntent = await stripe.setupIntents.create({
+        // Fallback: Create a PaymentIntent directly
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: planData.price_cents,
+          currency: "nzd",
           customer: customerId,
-          payment_method_types: ["card"],
+          setup_future_usage: "off_session",
           metadata: {
             user_id: user.id,
             plan_id: planId,
+            plan_name: planData.plan_name,
+            plan_type: planData.plan_type,
             subscription_id: subscription.id,
           },
+          automatic_payment_methods: { enabled: true },
         });
 
-        if (!setupIntent.client_secret) {
-          throw new Error("Failed to create setup intent - no client secret returned");
+        clientSecret = paymentIntent.client_secret;
+
+        if (!clientSecret) {
+          throw new Error("Failed to get client_secret from PaymentIntent");
         }
 
-        logStep("Created SetupIntent", {
-          setupIntentId: setupIntent.id,
-          clientSecret: setupIntent.client_secret.substring(0, 20) + "..."
+        logStep("Created fallback PaymentIntent", {
+          paymentIntentId: paymentIntent.id,
         });
 
-        return new Response(JSON.stringify({
-          clientSecret: setupIntent.client_secret,
-          subscriptionId: subscription.id,
-          type: "setup",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({
+            clientSecret,
+            subscriptionId: subscription.id,
+            type: "subscription",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          },
+        );
       }
 
-      logStep("Created subscription with PaymentIntent", { 
-        subscriptionId: subscription.id, 
-        clientSecret: paymentIntent.client_secret.substring(0, 20) + "..." 
+      logStep("Got client_secret from subscription", {
+        clientSecretPrefix: clientSecret.substring(0, 20) + "...",
       });
 
-      return new Response(JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        subscriptionId: subscription.id,
-        type: "subscription",
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          clientSecret,
+          subscriptionId: subscription.id,
+          type: "subscription",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     } else {
-      // For one-time payments, create a PaymentIntent
+      // One-time payment
+      logStep("Creating PaymentIntent for one-time payment");
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: planData.price_cents,
         currency: "nzd",
@@ -251,27 +243,32 @@ serve(async (req) => {
         automatic_payment_methods: { enabled: true },
       });
 
-      if (!paymentIntent.client_secret) {
-        throw new Error("Failed to create payment intent - no client secret returned");
+      const clientSecret = paymentIntent.client_secret;
+
+      if (!clientSecret) {
+        throw new Error("Failed to get client_secret from PaymentIntent");
       }
 
-      logStep("Created PaymentIntent", { 
-        paymentIntentId: paymentIntent.id, 
-        clientSecret: paymentIntent.client_secret.substring(0, 20) + "..." 
+      logStep("Created PaymentIntent", {
+        paymentIntentId: paymentIntent.id,
+        clientSecretPrefix: clientSecret.substring(0, 20) + "...",
       });
 
-      return new Response(JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        type: "payment",
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          clientSecret,
+          paymentIntentId: paymentIntent.id,
+          type: "payment",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-payment-intent", { message: errorMessage });
+    logStep("ERROR", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
