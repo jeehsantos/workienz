@@ -9,7 +9,7 @@ import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info } from "lucide-reac
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
 // Load Stripe outside of component to avoid recreating on re-render
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 interface PlanProduct {
   id: string;
@@ -276,9 +276,9 @@ export default function Checkout() {
                   },
                 },
               }}
+              key={clientSecret} // Force re-render when clientSecret changes
             >
               <StripePaymentForm
-                planName={plan.plan_name}
                 priceFormatted={formatPrice(plan.price_cents)}
                 onSuccess={handlePaymentSuccess}
                 onError={handlePaymentError}
@@ -289,7 +289,11 @@ export default function Checkout() {
               <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">Unable to initialize payment.</p>
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  setClientSecret(null);
+                  setIsCreatingIntent(false);
+                  // This will trigger the useEffect to recreate the payment intent
+                }}
                 className="text-primary hover:underline text-sm mt-2"
               >
                 Try again

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   PaymentElement,
   useStripe,
@@ -9,14 +9,12 @@ import { Loader2, CreditCard, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface StripePaymentFormProps {
-  planName: string;
   priceFormatted: string;
   onSuccess: () => void;
   onError: (error: string) => void;
 }
 
 export function StripePaymentForm({
-  planName,
   priceFormatted,
   onSuccess,
   onError,
@@ -26,11 +24,27 @@ export function StripePaymentForm({
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isElementsReady, setIsElementsReady] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Check if elements are ready - rely primarily on onReady callback
+  useEffect(() => {
+    // Only set ready to false initially, let onReady callback set it to true
+    setIsElementsReady(false);
+  }, [elements]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!stripe || !elements) {
+      console.error("[StripePaymentForm] Stripe or Elements not loaded");
+      return;
+    }
+
+    // Double-check that the Payment Element is mounted
+    const paymentElement = elements.getElement(PaymentElement);
+    if (!paymentElement) {
+      console.error("[StripePaymentForm] Payment Element not found");
+      setErrorMessage("Payment form not ready. Please refresh and try again.");
       return;
     }
 
@@ -38,6 +52,14 @@ export function StripePaymentForm({
     setErrorMessage(null);
 
     try {
+      console.log("[StripePaymentForm] Confirming payment...");
+      
+      // Submit the form to collect payment method data
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        throw new Error(submitError.message || "Failed to submit payment form");
+      }
+      
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -47,6 +69,7 @@ export function StripePaymentForm({
       });
 
       if (error) {
+        console.error("[StripePaymentForm] Payment error:", error);
         setErrorMessage(error.message || "An error occurred during payment.");
         onError(error.message || "Payment failed");
         toast({
@@ -55,15 +78,18 @@ export function StripePaymentForm({
           variant: "destructive",
         });
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        console.log("[StripePaymentForm] Payment succeeded");
         onSuccess();
       } else if (paymentIntent && paymentIntent.status === "requires_action") {
         // 3D Secure or other actions - Stripe handles this
+        console.log("[StripePaymentForm] Payment requires additional action");
         toast({
           title: "Additional verification required",
           description: "Please complete the verification process.",
         });
       }
     } catch (err) {
+      console.error("[StripePaymentForm] Payment exception:", err);
       const message = err instanceof Error ? err.message : "Payment failed";
       setErrorMessage(message);
       onError(message);
@@ -80,6 +106,14 @@ export function StripePaymentForm({
           options={{
             layout: "tabs",
             business: { name: "Workie" },
+          }}
+          onReady={() => {
+            console.log("[StripePaymentForm] Payment Element ready");
+            setIsElementsReady(true);
+          }}
+          onLoadError={(error: any) => {
+            console.error("[StripePaymentForm] Payment Element load error:", error);
+            setErrorMessage("Failed to load payment form. Please refresh and try again.");
           }}
         />
       </div>
@@ -100,7 +134,7 @@ export function StripePaymentForm({
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={!stripe || !elements || isProcessing}
+        disabled={!stripe || !elements || !isElementsReady || isProcessing}
         className="w-full"
         size="lg"
       >
@@ -108,6 +142,11 @@ export function StripePaymentForm({
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Processing...
+          </>
+        ) : !isElementsReady ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Loading payment form...
           </>
         ) : (
           <>
