@@ -3,33 +3,33 @@ import { Search, Users, FileText, Shield, Zap, Globe } from "lucide-react";
 const features = [
   {
     icon: Search,
-    title: "Smart Job Matching",
-    description: "AI-powered algorithms connect the right workers with the right opportunities instantly.",
+    title: "One-to-One Hiring",
+    description: "Each job opens a single hiring slot. One candidate at a time, one direct conversation, and a real chance to get hired — no application flooding.",
   },
   {
     icon: Users,
-    title: "Verified Profiles",
-    description: "Every contractor and employee goes through our verification process for trust and safety.",
+    title: "Ready-to-Work Profiles",
+    description: "Candidates confirm availability, work rights, and start dates upfront, so employers only engage with people ready to start.",
   },
   {
     icon: FileText,
-    title: "Learning Resources",
-    description: "Access exclusive articles and guides to boost your career with a premium subscription.",
+      title: "Quick Hiring",
+      description: "Fill temporary positions in hours, not weeks. Our streamlined process saves you time.",
   },
   {
     icon: Shield,
-    title: "Secure Platform",
-    description: "Enterprise-grade security protects your data and ensures safe transactions.",
+    title: "Secure & Admin-Light",
+    description: "We don’t handle payroll or employment contracts. We provide a secure platform that reduces admin and helps you hire faster with confidence.",
   },
   {
     icon: Zap,
-    title: "Quick Hiring",
-    description: "Fill temporary positions in hours, not weeks. Our streamlined process saves you time.",
+    title: "Direct Employer Chat",
+    description: "Candidates and employers connect instantly via private chat or quick call. No middlemen, no delays.",
   },
   {
     icon: Globe,
-    title: "Location Based",
-    description: "Find opportunities in your city, suburb, or expand your search nationwide.",
+    title: "Built for First Jobs & Temporary Work",
+    description: "Designed for students, migrants, and new arrivals looking for warehouse, farm, hospitality, and other immediate-start roles.",
   },
 ];
 
