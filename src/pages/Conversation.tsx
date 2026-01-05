@@ -78,13 +78,6 @@ export default function Conversation() {
   const [isSending, setIsSending] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isHiring, setIsHiring] = useState(false);
-  // Destructure with a fallback to an empty object
-    const { first_name, last_name, full_name } = worker.profile || {};
-
-    // Create the display name logic
-    const displayName = (first_name || last_name) 
-      ? `${first_name ?? ''} ${last_name ?? ''}`.trim() 
-      : full_name;
 
   useEffect(() => {
     if (!user) {
@@ -524,7 +517,7 @@ export default function Conversation() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h1 className="font-semibold truncate text-sm sm:text-base">
-                    {displayName || "User"}
+                    {conversation.other_party?.full_name || "User"}
                   </h1>
                   <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                     {conversation.job_application && (
