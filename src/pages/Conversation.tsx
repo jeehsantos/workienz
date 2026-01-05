@@ -18,6 +18,10 @@ import {
   Building2,
   Clock,
   AlertTriangle,
+  MoreVertical,
+  UserCircle,
+  Share2,
+  Flag,
 } from "lucide-react";
 import { dispatchUnreadRefresh } from "@/hooks/useProfileRefresh";
 import {
@@ -31,6 +35,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 
 type Message = {
@@ -62,6 +73,7 @@ type ConversationData = {
     email: string;
     phone: string | null;
   } | null;
+  other_party_user_id: string | null;
 };
 
 export default function Conversation() {
@@ -70,6 +82,7 @@ export default function Conversation() {
   const { user, isContractor } = useAuthContext();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [conversation, setConversation] = useState<ConversationData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,6 +91,7 @@ export default function Conversation() {
   const [isSending, setIsSending] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isHiring, setIsHiring] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -116,11 +130,7 @@ export default function Conversation() {
       if (convData.job_application_id) {
         const { data: appData } = await supabase
           .from("job_applications")
-          .select(`
-            id,
-            job_id,
-            status
-          `)
+          .select(`id, job_id, status`)
           .eq("id", convData.job_application_id)
           .single();
 
@@ -155,7 +165,6 @@ export default function Conversation() {
       let phone = profileData?.phone || null;
       if (!phone) {
         if (convData.contractor_user_id === user?.id) {
-          // User is contractor, other is employee
           const { data: empProfile } = await supabase
             .from("employee_profiles")
             .select("phone")
@@ -163,7 +172,6 @@ export default function Conversation() {
             .single();
           phone = empProfile?.phone || null;
         } else {
-          // User is employee, other is contractor
           const { data: contProfile } = await supabase
             .from("contractor_profiles")
             .select("phone")
@@ -182,6 +190,7 @@ export default function Conversation() {
           ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle } } 
           : null,
         other_party: profileData ? { ...profileData, phone } : null,
+        other_party_user_id: otherUserId,
       });
 
       // Fetch messages
@@ -205,8 +214,6 @@ export default function Conversation() {
           }, {
             onConflict: 'conversation_id,user_id'
           });
-        
-        // Dispatch event to refresh unread count immediately
         dispatchUnreadRefresh();
       }
     }
@@ -222,12 +229,7 @@ export default function Conversation() {
       .channel(`messages-${id}`)
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${id}`,
-        },
+        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
         }
@@ -252,7 +254,6 @@ export default function Conversation() {
     
     if (!trimmedMessage || !user || !id || conversation?.status !== "active") return;
 
-    // Validate message length
     if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
       toast({
         title: "Message Too Long",
@@ -283,6 +284,7 @@ export default function Conversation() {
     }
 
     setNewMessage("");
+    inputRef.current?.focus();
   };
 
   const handleCloseConversation = async () => {
@@ -290,13 +292,13 @@ export default function Conversation() {
 
     setIsClosing(true);
 
-    // Delete the conversation - the trigger will handle restoring positions and deleting messages/application
     const { error } = await supabase
       .from("conversations")
       .delete()
       .eq("id", id);
 
     setIsClosing(false);
+    setShowCloseDialog(false);
 
     if (error) {
       console.error("Error closing conversation:", error);
@@ -338,7 +340,6 @@ export default function Conversation() {
       return;
     }
 
-    // Update local state
     setConversation(prev => prev ? {
       ...prev,
       job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null
@@ -355,7 +356,6 @@ export default function Conversation() {
 
     setIsSending(true);
 
-    // Get current user's profile and phone from contractor/employee profile
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, email, phone")
@@ -364,7 +364,6 @@ export default function Conversation() {
 
     let phone = profile?.phone || null;
     
-    // Try to get phone from employee or contractor profile
     if (!phone) {
       const isContractorUser = conversation?.contractor_user_id === user.id;
       if (isContractorUser) {
@@ -415,9 +414,22 @@ export default function Conversation() {
     });
   };
 
+  const handleViewProfile = () => {
+    if (!conversation?.other_party_user_id) return;
+    
+    const isUserContractor = conversation.contractor_user_id === user?.id;
+    if (isUserContractor) {
+      // Contractor viewing employee profile
+      navigate(`/employee/${conversation.other_party_user_id}`);
+    } else {
+      // Employee viewing contractor profile
+      navigate(`/contractor/${conversation.other_party_user_id}`);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -425,7 +437,7 @@ export default function Conversation() {
 
   if (!conversation) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="h-[100dvh] bg-background">
         <div className="container-tight py-8">
           <div className="text-center py-16">
             <h1 className="text-2xl font-bold mb-4">Conversation Not Found</h1>
@@ -442,7 +454,6 @@ export default function Conversation() {
   const isUserContractor = conversation.contractor_user_id === user?.id;
   const isHired = conversation.job_application?.status === "hired";
 
-  // Calculate expiry status
   const getExpiryStatus = () => {
     if (!conversation.activity_started_at || !conversation.last_activity_at || isClosed) {
       return { status: "active" as const, hoursLeft: 0, showWarning: false };
@@ -455,17 +466,14 @@ export default function Conversation() {
     const hoursSinceStart = (now.getTime() - activityStart.getTime()) / (1000 * 60 * 60);
     const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
 
-    // If there's been activity in the last 24 hours, conversation is active
     if (hoursSinceActivity < 24) {
       return { status: "active" as const, hoursLeft: Math.ceil(24 - hoursSinceActivity), showWarning: false };
     }
 
-    // If past 72 hours, it's expired
     if (hoursSinceStart >= 72) {
       return { status: "expired" as const, hoursLeft: 0, showWarning: true };
     }
 
-    // In warning period (24-72 hours)
     const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
     return { status: "warning" as const, hoursLeft, showWarning: true };
   };
@@ -473,253 +481,233 @@ export default function Conversation() {
   const expiryStatus = getExpiryStatus();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* Expiry Warning Banner */}
       {expiryStatus.showWarning && expiryStatus.status === "warning" && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-3">
-          <div className="max-w-4xl mx-auto flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0 animate-pulse">
-              <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-amber-800 dark:text-amber-200 text-sm">
-                Conversation expiring soon
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                This conversation will close in <strong>{expiryStatus.hoursLeft} hours</strong> if there's no activity. 
-                Send a message to keep it active!
-              </p>
-            </div>
-            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex-shrink-0">
+          <div className="max-w-4xl mx-auto flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
+              Expires in <strong>{expiryStatus.hoursLeft}h</strong> - send a message to keep active
+            </p>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="border-b border-border/50 bg-card sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-              <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8 sm:h-9 sm:w-9" asChild>
+      {/* Header - Fixed */}
+      <div className="border-b border-border/50 bg-card flex-shrink-0">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* Left: Back + User Info */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" asChild>
                 <Link to="/dashboard">
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>
               
-              {/* User info with avatar */}
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                   {isUserContractor ? (
-                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                    <User className="w-4 h-4 text-primary" />
                   ) : (
-                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                    <Building2 className="w-4 h-4 text-primary" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h1 className="font-semibold truncate text-sm sm:text-base">
+                  <h1 className="font-semibold truncate text-sm">
                     {conversation.other_party?.full_name || "User"}
                   </h1>
-                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
                     {conversation.job_application && (
-                      <>
-                        <Link 
-                          to={`/jobs/${conversation.job_application.job.id}`}
-                          className="text-xs sm:text-sm text-primary hover:underline flex items-center gap-1 truncate max-w-[120px] sm:max-w-none"
-                        >
-                          <Briefcase className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{conversation.job_application.job.title}</span>
-                        </Link>
-                        <Badge 
-                          variant={
-                            conversation.job_application.status === 'rejected' 
-                              ? 'destructive' 
-                              : conversation.job_application.status === 'hired'
-                              ? 'default'
-                              : 'secondary'
-                          }
-                          className="text-[10px] sm:text-xs px-1.5 py-0"
-                        >
-                          {conversation.job_application.status === 'rejected' 
-                            ? 'Rejected' 
-                            : conversation.job_application.status === 'hired'
-                            ? 'Hired'
-                            : 'Pending'}
-                        </Badge>
-                      </>
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                        {conversation.job_application.job.title}
+                      </span>
                     )}
-                    {!conversation.job_application && (
-                      <span className="text-xs sm:text-sm text-muted-foreground">Direct Contact</span>
+                    {isHired && (
+                      <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">Hired</Badge>
                     )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions - Compact on mobile */}
-            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Show Hired badge or Hire button */}
-              {conversation.job_application && isUserContractor && !isClosed && (
-                isHired ? (
-                  <span className="flex items-center gap-1 px-2 sm:px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-xs sm:text-sm font-medium">
-                    <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Hired</span>
-                  </span>
-                ) : (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        disabled={isHiring}
-                        className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                      >
-                        {isHiring && <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 animate-spin" />}
-                        <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Hire</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Hire</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to hire this applicant? This will update their application status to "Hired".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleHireApplicant} disabled={isHiring}>
-                          {isHiring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Confirm Hire
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )
-              )}
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {/* View Profile Button - Always visible */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewProfile}
+                className="h-9 px-3 hidden sm:flex"
+              >
+                <UserCircle className="w-4 h-4 mr-2" />
+                View Profile
+              </Button>
 
+              {/* Desktop Actions */}
               {!isClosed && (
-                <>
-                  {/* Share Contact - shows text on desktop */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleShareContact}
-                    disabled={isSending}
-                    className="h-8 px-2 sm:px-3"
-                    title="Share Contact Info"
-                  >
-                    <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Share Contact</span>
+                <div className="hidden sm:flex items-center gap-1">
+                  {conversation.job_application && isUserContractor && !isHired && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="default" size="sm" disabled={isHiring} className="h-9">
+                          {isHiring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Hire
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Hire</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to hire this applicant?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleHireApplicant} disabled={isHiring}>
+                            Confirm Hire
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
+                  <Button variant="outline" size="sm" onClick={handleShareContact} disabled={isSending} className="h-9">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share Contact
                   </Button>
 
-                  {/* Close Conversation */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-destructive hover:text-destructive h-8 px-2 sm:px-3"
-                        title="Close Conversation"
-                      >
-                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Close</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Close this conversation?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently remove the chat. If this is linked to a job application, 
-                          the position will become available again for other applicants.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleCloseConversation}
-                          disabled={isClosing}
-                        >
-                          {isClosing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Close Conversation
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-destructive hover:text-destructive h-9"
+                    onClick={() => setShowCloseDialog(true)}
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Close
+                  </Button>
+                </div>
               )}
+
+              {/* Mobile: More Actions Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 sm:hidden">
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={handleViewProfile} className="h-11">
+                    <UserCircle className="w-4 h-4 mr-3" />
+                    View Profile
+                  </DropdownMenuItem>
+                  
+                  {conversation.job_application?.job.id && (
+                    <DropdownMenuItem asChild className="h-11">
+                      <Link to={`/jobs/${conversation.job_application.job.id}`}>
+                        <Briefcase className="w-4 h-4 mr-3" />
+                        View Job Details
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  {!isClosed && (
+                    <>
+                      <DropdownMenuSeparator />
+                      
+                      {conversation.job_application && isUserContractor && !isHired && (
+                        <DropdownMenuItem onClick={handleHireApplicant} disabled={isHiring} className="h-11">
+                          <CheckCircle2 className="w-4 h-4 mr-3" />
+                          Hire Applicant
+                        </DropdownMenuItem>
+                      )}
+
+                      <DropdownMenuItem onClick={handleShareContact} disabled={isSending} className="h-11">
+                        <Share2 className="w-4 h-4 mr-3" />
+                        Share My Contact
+                      </DropdownMenuItem>
+
+                      {conversation.other_party?.phone && (
+                        <DropdownMenuItem asChild className="h-11">
+                          <a href={`tel:${conversation.other_party.phone}`}>
+                            <Phone className="w-4 h-4 mr-3" />
+                            Call {conversation.other_party.full_name?.split(' ')[0] || 'User'}
+                          </a>
+                        </DropdownMenuItem>
+                      )}
+
+                      <DropdownMenuSeparator />
+                      
+                      <DropdownMenuItem 
+                        onClick={() => setShowCloseDialog(true)}
+                        className="h-11 text-destructive focus:text-destructive"
+                      >
+                        <X className="w-4 h-4 mr-3" />
+                        Close Conversation
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-          {/* Job context banner for job applications - hidden on mobile since info is in header */}
+      {/* Messages Area - Flexible, takes remaining space */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-3">
+          {/* Job context banner - Desktop only */}
           {conversation.job_application?.job.id && (
-            <div className="bg-muted/30 rounded-lg p-3 sm:p-4 border border-border/50 hidden sm:block">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Briefcase className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Application for</p>
-                    <p className="font-medium">{conversation.job_application.job.title}</p>
-                  </div>
+            <div className="bg-muted/30 rounded-lg p-3 border border-border/50 hidden sm:flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Briefcase className="w-5 h-5 text-primary" />
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/jobs/${conversation.job_application.job.id}`}>
-                    View Job Details
-                  </Link>
-                </Button>
+                <div>
+                  <p className="text-xs text-muted-foreground">Application for</p>
+                  <p className="font-medium text-sm">{conversation.job_application.job.title}</p>
+                </div>
               </div>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/jobs/${conversation.job_application.job.id}`}>View Job</Link>
+              </Button>
             </div>
           )}
 
           {isClosed && (
             <div className="bg-muted/50 rounded-lg p-4 text-center">
               <AlertCircle className="w-5 h-5 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">
-                This conversation has been closed.
-              </p>
+              <p className="text-sm text-muted-foreground">This conversation has been closed.</p>
             </div>
           )}
 
           {messages.length === 0 && !isClosed && (
-            <div className="text-center py-12 text-muted-foreground">
-              <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                <Send className="w-8 h-8" />
+            <div className="text-center py-8 text-muted-foreground">
+              <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                <Send className="w-6 h-6" />
               </div>
-              <p className="font-medium">No messages yet</p>
-              <p className="text-sm mt-1">Start the conversation by sending a message below.</p>
+              <p className="font-medium text-sm">No messages yet</p>
+              <p className="text-xs mt-1">Start the conversation below</p>
             </div>
           )}
 
           {messages.map((message) => {
             const isOwn = message.sender_user_id === user?.id;
             return (
-              <div
-                key={message.id}
-                className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-              >
+              <div key={message.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-4 py-3 ${
+                  className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
                     isOwn
                       ? "bg-primary text-primary-foreground rounded-br-md"
                       : "bg-muted rounded-bl-md"
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                  <p
-                    className={`text-xs mt-1 ${
-                      isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
-                    }`}
-                  >
-                    {new Date(message.created_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <p className={`text-[10px] sm:text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>
               </div>
@@ -729,29 +717,52 @@ export default function Conversation() {
         </div>
       </div>
 
-      {/* Input Area */}
+      {/* Input Area - Fixed at bottom */}
       {!isClosed && (
-        <div className="border-t border-border/50 bg-card">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <form onSubmit={handleSendMessage} className="flex gap-3">
+        <div className="border-t border-border/50 bg-card flex-shrink-0 safe-area-bottom">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3">
+            <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input
+                ref={inputRef}
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Type a message..."
                 disabled={isSending}
-                className="flex-1"
+                className="flex-1 h-11"
+                autoComplete="off"
               />
-              <Button type="submit" disabled={isSending || !newMessage.trim()} size="icon">
-                {isSending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
+              <Button 
+                type="submit" 
+                disabled={isSending || !newMessage.trim()} 
+                size="icon"
+                className="h-11 w-11 flex-shrink-0"
+              >
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Close Conversation Dialog */}
+      <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close this conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the chat. If linked to a job application, 
+              the position will become available again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCloseConversation} disabled={isClosing}>
+              {isClosing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Close Conversation
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
