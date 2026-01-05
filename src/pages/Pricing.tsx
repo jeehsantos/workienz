@@ -353,7 +353,7 @@ export default function Pricing() {
               {isToggleLocked && (
                 <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5" />
-                  Showing plans for your account type ({isContractor() ? "Employer" : "Job Seeker"})
+                  Showing plans for your account type ({isContractor() ? "The Workie-Maker" : "The Workie"})
                 </p>
               )}
             </div>

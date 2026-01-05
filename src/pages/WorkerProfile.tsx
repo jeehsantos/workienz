@@ -280,7 +280,7 @@ export default function WorkerProfile() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold font-display">
-                    {worker.profile?.full_name || "Job Seeker"}
+                    {worker.profile?.full_name || "The Workie"}
                   </h1>
                   <p className="text-muted-foreground">
                     {worker.headline || "Looking for opportunities"}

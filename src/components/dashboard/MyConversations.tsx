@@ -106,13 +106,16 @@ export default function MyConversations({ userId }: MyConversationsProps) {
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
-
+          const derivedName = profileData?.full_name || 
+          (profileData?.first_name || profileData?.last_name 
+            ? `${profileData.first_name ?? ''} ${profileData.last_name ?? ''}`.trim() 
+            : "User");
           return {
             id: conv.id,
             status: conv.status,
             updated_at: conv.updated_at,
             job_title: jobTitle,
-            other_party_name: profileData?.full_name,
+            other_party_name: derivedName,
             last_message_at: lastMessageData?.created_at || null,
             last_message_preview: lastMessageData?.content 
               ? lastMessageData.content.substring(0, 40) + (lastMessageData.content.length > 40 ? "..." : "")

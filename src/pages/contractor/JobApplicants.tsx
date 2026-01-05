@@ -277,7 +277,7 @@ export default function JobApplicants() {
             <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">No Applications Yet</h2>
             <p className="text-muted-foreground">
-              Check back later for applications from job seekers.
+              Check back later for applications from Workies.
             </p>
           </div>
         ) : (
@@ -295,7 +295,7 @@ export default function JobApplicants() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <h3 className="font-semibold">
-                        {applicant.profile?.full_name || "Job Seeker"}
+                        {applicant.profile?.full_name || "The Workie"}
                       </h3>
                       {getStatusBadge(applicant.status)}
                     </div>

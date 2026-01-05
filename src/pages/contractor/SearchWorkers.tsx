@@ -283,7 +283,13 @@ export default function SearchWorkers() {
             {workers.map((worker) => {
               const isApplicant = applicantUserIds.includes(worker.user_id);
               const canViewFull = hasActiveSubscription || isApplicant;
-              
+              // Destructure with a fallback to an empty object
+              const { first_name, last_name, full_name } = worker.profile || {};
+
+              // Create the display name logic
+              const displayName = (first_name || last_name) 
+                ? `${first_name ?? ''} ${last_name ?? ''}`.trim() 
+                : full_name;
               return (
                 <div
                   key={worker.id}
@@ -296,16 +302,14 @@ export default function SearchWorkers() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold truncate">
-                          {worker.profile?.first_name || worker.profile?.last_name
-                            ? `${worker.profile?.first_name || ''} ${worker.profile?.last_name || ''}`.trim()
-                            : worker.profile?.full_name }
+                          {displayName || "User"}
                         </h3>
                         {isApplicant && (
                           <Badge variant="secondary" className="text-xs">Applicant</Badge>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
-                        {worker.headline || "Job Seeker"}
+                        {worker.headline || "The Workie"}
                       </p>
                     </div>
                   </div>
