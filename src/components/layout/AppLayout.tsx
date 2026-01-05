@@ -10,6 +10,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useProfileRefreshListener } from "@/hooks/useProfileRefresh";
 import { formatDistanceToNow } from "date-fns";
 import workieLogo from "@/assets/workie-logo.png";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
 
@@ -150,6 +151,9 @@ export function AppLayout({ children }: AppLayoutProps) {
                         Dashboard
                       </Link>
                     </Button>
+
+                    {/* Notifications Bell */}
+                    <NotificationBell userId={user?.id} />
 
                     {/* Unread Messages Indicator with Popover */}
                     {canSeeMessages && (

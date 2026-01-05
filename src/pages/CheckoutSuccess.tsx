@@ -1,26 +1,46 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Sparkles, Users, Briefcase, ArrowRight, Loader2 } from "lucide-react";
 
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const navigate = useNavigate();
   const { user, isContractor, isEmployee, isLoading } = useAuthContext();
+  const { toast } = useToast();
   const [showContent, setShowContent] = useState(false);
+  const [hasShownToast, setHasShownToast] = useState(false);
 
   useEffect(() => {
-    // Trigger animation on successful checkout
-    if (sessionId) {
+    // Show success toast and trigger animation on successful checkout
+    if (sessionId && !hasShownToast) {
+      toast({
+        title: "Payment Successful! 🎉",
+        description: "Your subscription is now active. Enjoy all the benefits!",
+        duration: 5000,
+      });
+      setHasShownToast(true);
+
       const timer = setTimeout(() => {
         setShowContent(true);
       }, 300);
-      return () => clearTimeout(timer);
-    } else {
+
+      // Auto-redirect to subscription page after 5 seconds
+      const redirectTimer = setTimeout(() => {
+        navigate("/subscription");
+      }, 5000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(redirectTimer);
+      };
+    } else if (!sessionId) {
       setShowContent(true);
     }
-  }, [sessionId]);
+  }, [sessionId, hasShownToast, toast, navigate]);
 
   if (isLoading) {
     return (
@@ -42,7 +62,7 @@ export default function CheckoutSuccess() {
       >
         <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50 text-center">
           {/* Success Icon */}
-          <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6 animate-pulse">
             <CheckCircle2 className="w-10 h-10 text-success" />
           </div>
 
@@ -88,17 +108,30 @@ export default function CheckoutSuccess() {
             </p>
           )}
 
+          {/* Auto-redirect notice */}
+          {sessionId && (
+            <p className="text-xs text-muted-foreground mb-6 animate-pulse">
+              Redirecting to your subscription page in a few seconds...
+            </p>
+          )}
+
           {/* CTA Buttons */}
           <div className="space-y-3">
             <Button asChild className="w-full" size="lg">
-              <Link to="/dashboard">
-                Go to Dashboard
+              <Link to="/subscription">
+                View Subscription
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
 
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/dashboard">
+                Go to Dashboard
+              </Link>
+            </Button>
+
             {isEmployer && (
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="ghost" className="w-full">
                 <Link to="/contractor/post-job">
                   <Briefcase className="w-4 h-4 mr-2" />
                   Post Your First Job
@@ -107,7 +140,7 @@ export default function CheckoutSuccess() {
             )}
 
             {isJobSeeker && (
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild variant="ghost" className="w-full">
                 <Link to="/jobs">
                   <Briefcase className="w-4 h-4 mr-2" />
                   Browse Jobs
@@ -115,14 +148,6 @@ export default function CheckoutSuccess() {
               </Button>
             )}
           </div>
-
-          {/* Subscription link */}
-          <p className="text-sm text-muted-foreground mt-6">
-            Manage your subscription anytime from{" "}
-            <Link to="/subscription" className="text-primary hover:underline">
-              your account settings
-            </Link>
-          </p>
         </div>
       </div>
     </main>

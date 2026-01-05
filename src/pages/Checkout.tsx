@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Check, CreditCard, Shield } from "lucide-react";
+import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info } from "lucide-react";
+import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
+
+// Load Stripe outside of component to avoid recreating on re-render
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "pk_test_placeholder");
 
 interface PlanProduct {
   id: string;
@@ -26,7 +31,9 @@ export default function Checkout() {
 
   const [plan, setPlan] = useState<PlanProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [isCreatingIntent, setIsCreatingIntent] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -72,51 +79,58 @@ export default function Checkout() {
     }
   }, [planId, user, navigate, toast]);
 
-  const handleConfirmAndPay = async () => {
-    if (!plan || !user) return;
+  // Create payment intent when plan is loaded
+  useEffect(() => {
+    const createPaymentIntent = async () => {
+      if (!plan || !user || clientSecret) return;
 
-    setIsProcessing(true);
+      setIsCreatingIntent(true);
 
-    try {
-      console.log("[Checkout] Invoking create-checkout-session...");
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
-        body: { planId: plan.plan_id },
-      });
+      try {
+        console.log("[Checkout] Creating payment intent for plan:", plan.plan_id);
+        const { data, error } = await supabase.functions.invoke("create-payment-intent", {
+          body: { planId: plan.plan_id },
+        });
 
-      console.log("[Checkout] Response:", { data, error });
+        if (error) throw error;
 
-      if (error) throw error;
-
-      if (data?.url) {
-        console.log("[Checkout] Redirecting to Stripe:", data.url);
-        
-        // Try opening in new tab first (preferred for better UX)
-        const stripeWindow = window.open(data.url, '_blank');
-        
-        // If popup was blocked, redirect current page
-        if (!stripeWindow || stripeWindow.closed || typeof stripeWindow.closed === 'undefined') {
-          console.log("[Checkout] Popup blocked, redirecting current page...");
-          window.location.href = data.url;
+        if (data?.clientSecret) {
+          console.log("[Checkout] Payment intent created successfully");
+          setClientSecret(data.clientSecret);
         } else {
-          // If new tab opened successfully, show toast and reset processing
-          toast({
-            title: "Checkout opened",
-            description: "Complete your payment in the new tab.",
-          });
-          setIsProcessing(false);
+          throw new Error("No client secret returned");
         }
-      } else {
-        throw new Error("No checkout URL returned");
+      } catch (error: any) {
+        console.error("[Checkout] Error creating payment intent:", error);
+        toast({
+          title: "Setup failed",
+          description: error.message || "Failed to initialize payment. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsCreatingIntent(false);
       }
-    } catch (error: any) {
-      console.error("[Checkout] Error:", error);
-      toast({
-        title: "Checkout failed",
-        description: error.message || "Failed to create checkout session. Please try again.",
-        variant: "destructive",
-      });
-      setIsProcessing(false);
-    }
+    };
+
+    createPaymentIntent();
+  }, [plan, user, clientSecret, toast]);
+
+  const handlePaymentSuccess = () => {
+    setPaymentSuccess(true);
+    toast({
+      title: "Payment Successful! 🎉",
+      description: `Your ${plan?.plan_name || "subscription"} is now active.`,
+      duration: 5000,
+    });
+
+    // Redirect to subscription page after a short delay
+    setTimeout(() => {
+      navigate("/subscription");
+    }, 2000);
+  };
+
+  const handlePaymentError = (error: string) => {
+    console.error("[Checkout] Payment error:", error);
   };
 
   const formatPrice = (cents: number) => {
@@ -140,7 +154,29 @@ export default function Checkout() {
     return null;
   }
 
+  if (paymentSuccess) {
+    return (
+      <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
+        <div className="w-full max-w-lg mx-auto text-center">
+          <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
+            <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
+              <Check className="w-10 h-10 text-success" />
+            </div>
+            <h1 className="text-2xl font-bold font-display mb-4">Payment Successful!</h1>
+            <p className="text-muted-foreground mb-4">
+              Your {plan.plan_name} is now active.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Redirecting to your subscription page...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const features = plan.features || [];
+  const isDev = import.meta.env.DEV;
 
   return (
     <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
@@ -160,80 +196,106 @@ export default function Checkout() {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <CreditCard className="w-8 h-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold font-display mb-2">Review Your Selection</h1>
+            <h1 className="text-2xl font-bold font-display mb-2">Complete Your Purchase</h1>
             <p className="text-muted-foreground">
-              Confirm your plan before proceeding to payment
+              Enter your payment details below
             </p>
           </div>
 
-          {/* Plan Details */}
-          <div className="bg-muted/30 rounded-xl p-6 mb-6 border border-border/30">
-            <div className="flex items-start justify-between mb-4">
+          {/* Plan Summary */}
+          <div className="bg-muted/30 rounded-xl p-4 mb-6 border border-border/30">
+            <div className="flex items-start justify-between">
               <div>
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {plan.plan_type === "contractor" ? "Employer Plan" : "Job Seeker Plan"}
                 </span>
-                <h2 className="text-xl font-bold font-display">{plan.plan_name}</h2>
-                {plan.description && (
-                  <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
-                )}
+                <h2 className="text-lg font-bold font-display">{plan.plan_name}</h2>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-bold font-display">{formatPrice(plan.price_cents)}</span>
+                <span className="text-xl font-bold font-display">{formatPrice(plan.price_cents)}</span>
                 <span className="text-muted-foreground text-sm">{formatInterval(plan.interval)}</span>
-                {plan.price_cents > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">+ GST</p>
-                )}
               </div>
             </div>
 
             {/* Features */}
             {features.length > 0 && (
-              <div className="pt-4 border-t border-border/30">
-                <p className="text-sm font-medium mb-3">Includes:</p>
-                <ul className="space-y-2">
-                  {features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Check className="w-2.5 h-2.5 text-primary" />
-                      </div>
-                      <span className="text-sm text-foreground/80">{feature}</span>
+              <div className="pt-3 mt-3 border-t border-border/30">
+                <ul className="space-y-1">
+                  {features.slice(0, 3).map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2 text-sm text-foreground/80">
+                      <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      {feature}
                     </li>
                   ))}
+                  {features.length > 3 && (
+                    <li className="text-xs text-muted-foreground">+{features.length - 3} more</li>
+                  )}
                 </ul>
               </div>
             )}
           </div>
 
-          {/* Security Note */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground mb-6 p-3 bg-muted/20 rounded-lg">
-            <Shield className="w-5 h-5 text-primary flex-shrink-0" />
-            <span>Your payment is secured by Stripe. We never store your card details.</span>
-          </div>
+          {/* Test Card Info (Dev Mode Only) */}
+          {isDev && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 mb-6 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900 dark:text-blue-200 mb-2">Test Mode - Use these credentials:</p>
+                  <div className="space-y-1 text-blue-800 dark:text-blue-300 font-mono text-xs">
+                    <p>Card: <span className="font-bold">4242 4242 4242 4242</span></p>
+                    <p>Expiry: <span className="font-bold">12/34</span> (any future date)</p>
+                    <p>CVC: <span className="font-bold">123</span> (any 3 digits)</p>
+                    <p>ZIP: <span className="font-bold">12345</span> (any valid ZIP)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* CTA Button */}
-          <Button
-            onClick={handleConfirmAndPay}
-            disabled={isProcessing}
-            className="w-full"
-            size="lg"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <CreditCard className="w-4 h-4 mr-2" />
-                Confirm & Pay {formatPrice(plan.price_cents)}
-              </>
-            )}
-          </Button>
-
-          <p className="text-xs text-center text-muted-foreground mt-4">
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </p>
+          {/* Stripe Payment Form */}
+          {isCreatingIntent ? (
+            <div className="py-12 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">Setting up secure payment...</p>
+            </div>
+          ) : clientSecret ? (
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret,
+                appearance: {
+                  theme: "stripe",
+                  variables: {
+                    colorPrimary: "#6366f1",
+                    colorBackground: "#ffffff",
+                    colorText: "#1f2937",
+                    colorDanger: "#ef4444",
+                    fontFamily: "system-ui, sans-serif",
+                    borderRadius: "8px",
+                  },
+                },
+              }}
+            >
+              <StripePaymentForm
+                planName={plan.plan_name}
+                priceFormatted={formatPrice(plan.price_cents)}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </Elements>
+          ) : (
+            <div className="py-12 text-center">
+              <Shield className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">Unable to initialize payment.</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-primary hover:underline text-sm mt-2"
+              >
+                Try again
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </main>

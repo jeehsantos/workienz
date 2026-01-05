@@ -101,6 +101,43 @@ serve(async (req) => {
           logStep("Error upserting subscription", { error: upsertError.message });
         } else {
           logStep("Subscription record created/updated", { userId, planName });
+
+          // Send welcome email and create notification
+          try {
+            // Get user email and name
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("email, full_name, first_name")
+              .eq("user_id", userId)
+              .single();
+
+            if (profile?.email) {
+              // Invoke send-subscription-email function
+              const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+              const response = await fetch(`${supabaseUrl}/functions/v1/send-subscription-email`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+                },
+                body: JSON.stringify({
+                  type: "welcome",
+                  userId,
+                  email: profile.email,
+                  name: profile.first_name || profile.full_name,
+                  planName: planName || "subscription",
+                }),
+              });
+              
+              if (response.ok) {
+                logStep("Welcome email sent successfully");
+              } else {
+                logStep("Failed to send welcome email", { status: response.status });
+              }
+            }
+          } catch (emailError) {
+            logStep("Error sending welcome email", { error: String(emailError) });
+          }
         }
         break;
       }
