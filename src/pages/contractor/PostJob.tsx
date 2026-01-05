@@ -8,17 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X, CalendarIcon, Dumbbell, Gift, Car, GraduationCap, Home, MapPin, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, Dumbbell, Gift, Car, GraduationCap, Home, MapPin, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
 import { TimePicker } from "@/components/ui/time-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type Shift = {
   id: string;
@@ -518,17 +517,12 @@ export default function PostJob() {
                           <div className="space-y-3">
                             <div className="space-y-1">
                               <Label className="text-xs">Date *</Label>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !shift.date && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {shift.date ? format(shift.date, "PPP") : "Select date"}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-                                  <Calendar mode="single" selected={shift.date} onSelect={(date) => updateShift(shift.id, "date", date)} disabled={(date) => date < new Date()} initialFocus className="pointer-events-auto" />
-                                </PopoverContent>
-                              </Popover>
+                              <DatePicker
+                                value={shift.date}
+                                onChange={(date) => updateShift(shift.id, "date", date)}
+                                placeholder="Select date"
+                                disabledDates={(date) => date < new Date()}
+                              />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
@@ -576,31 +570,21 @@ export default function PostJob() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Start Date *</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !fixedTermStart && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {fixedTermStart ? format(fixedTermStart, "PPP") : "Select"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-                              <Calendar mode="single" selected={fixedTermStart} onSelect={setFixedTermStart} disabled={(date) => date < new Date()} initialFocus className="pointer-events-auto" />
-                            </PopoverContent>
-                          </Popover>
+                          <DatePicker
+                            value={fixedTermStart}
+                            onChange={setFixedTermStart}
+                            placeholder="Select start"
+                            disabledDates={(date) => date < new Date()}
+                          />
                         </div>
                         <div className="space-y-2">
                           <Label>End Date</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !fixedTermEnd && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {fixedTermEnd ? format(fixedTermEnd, "PPP") : "Select"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
-                              <Calendar mode="single" selected={fixedTermEnd} onSelect={setFixedTermEnd} disabled={(date) => date < new Date() || (fixedTermStart && date < fixedTermStart)} initialFocus className="pointer-events-auto" />
-                            </PopoverContent>
-                          </Popover>
+                          <DatePicker
+                            value={fixedTermEnd}
+                            onChange={setFixedTermEnd}
+                            placeholder="Select end"
+                            disabledDates={(date) => date < new Date() || (fixedTermStart ? date < fixedTermStart : false)}
+                          />
                         </div>
                       </div>
                       {durationDays && <p className="text-sm text-muted-foreground">Duration: {durationDays} day{durationDays !== 1 ? 's' : ''}</p>}
