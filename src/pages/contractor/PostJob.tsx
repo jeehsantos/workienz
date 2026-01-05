@@ -18,6 +18,7 @@ import { Loader2, ArrowLeft, Plus, X, CalendarIcon, Dumbbell, Gift, Car, Graduat
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
+import { TimePicker } from "@/components/ui/time-picker";
 
 type Shift = {
   id: string;
@@ -532,11 +533,19 @@ export default function PostJob() {
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs">Start Time *</Label>
-                                <Input type="time" value={shift.start_time} onChange={(e) => updateShift(shift.id, "start_time", e.target.value)} />
+                                <TimePicker 
+                                  value={shift.start_time} 
+                                  onChange={(value) => updateShift(shift.id, "start_time", value)} 
+                                  placeholder="Start time"
+                                />
                               </div>
                               <div className="space-y-1">
                                 <Label className="text-xs">End Time *</Label>
-                                <Input type="time" value={shift.end_time} onChange={(e) => updateShift(shift.id, "end_time", e.target.value)} />
+                                <TimePicker 
+                                  value={shift.end_time} 
+                                  onChange={(value) => updateShift(shift.id, "end_time", value)} 
+                                  placeholder="End time"
+                                />
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
