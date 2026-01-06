@@ -325,15 +325,21 @@ export type Database = {
           availability: string | null
           bio: string | null
           city: string | null
+          comfortable_heavy_lifting: boolean | null
+          comfortable_standing: boolean | null
           country: string | null
           created_at: string
           date_of_birth: string | null
           experience_years: number | null
+          has_car: boolean | null
+          has_ird_number: boolean | null
           headline: string | null
           id: string
           industry: string | null
+          ird_number: string | null
           is_available: boolean | null
           languages: string[] | null
+          location_region: string | null
           phone: string | null
           skills: string[] | null
           suburb: string | null
@@ -345,15 +351,21 @@ export type Database = {
           availability?: string | null
           bio?: string | null
           city?: string | null
+          comfortable_heavy_lifting?: boolean | null
+          comfortable_standing?: boolean | null
           country?: string | null
           created_at?: string
           date_of_birth?: string | null
           experience_years?: number | null
+          has_car?: boolean | null
+          has_ird_number?: boolean | null
           headline?: string | null
           id?: string
           industry?: string | null
+          ird_number?: string | null
           is_available?: boolean | null
           languages?: string[] | null
+          location_region?: string | null
           phone?: string | null
           skills?: string[] | null
           suburb?: string | null
@@ -365,15 +377,21 @@ export type Database = {
           availability?: string | null
           bio?: string | null
           city?: string | null
+          comfortable_heavy_lifting?: boolean | null
+          comfortable_standing?: boolean | null
           country?: string | null
           created_at?: string
           date_of_birth?: string | null
           experience_years?: number | null
+          has_car?: boolean | null
+          has_ird_number?: boolean | null
           headline?: string | null
           id?: string
           industry?: string | null
+          ird_number?: string | null
           is_available?: boolean | null
           languages?: string[] | null
+          location_region?: string | null
           phone?: string | null
           skills?: string[] | null
           suburb?: string | null
@@ -517,7 +535,12 @@ export type Database = {
           location_suburb: string | null
           positions_available: number
           positions_filled: number
+          provides_accommodation: boolean | null
+          provides_training: boolean | null
           requirements: string | null
+          requires_car: boolean | null
+          requires_heavy_lifting: boolean | null
+          requires_standing: boolean | null
           schedule_type: string | null
           skills_required: string[] | null
           starts_at: string | null
@@ -543,7 +566,12 @@ export type Database = {
           location_suburb?: string | null
           positions_available?: number
           positions_filled?: number
+          provides_accommodation?: boolean | null
+          provides_training?: boolean | null
           requirements?: string | null
+          requires_car?: boolean | null
+          requires_heavy_lifting?: boolean | null
+          requires_standing?: boolean | null
           schedule_type?: string | null
           skills_required?: string[] | null
           starts_at?: string | null
@@ -569,7 +597,12 @@ export type Database = {
           location_suburb?: string | null
           positions_available?: number
           positions_filled?: number
+          provides_accommodation?: boolean | null
+          provides_training?: boolean | null
           requirements?: string | null
+          requires_car?: boolean | null
+          requires_heavy_lifting?: boolean | null
+          requires_standing?: boolean | null
           schedule_type?: string | null
           skills_required?: string[] | null
           starts_at?: string | null

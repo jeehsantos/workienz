@@ -137,17 +137,18 @@ serve(async (req) => {
     }
 
     // Handle subscription vs one-time payment
+    const origin = req.headers.get("origin") || "https://workie.lovable.app";
+    
     if (config.mode === "subscription") {
-      logStep("Creating subscription for embedded checkout");
+      logStep("Creating embedded checkout session for subscription");
 
-      // Use Checkout Session for subscriptions instead of incomplete subscription
+      // Use Embedded Checkout Session for subscriptions (works in iframes)
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [{ price: stripePrice.id, quantity: 1 }],
         mode: "subscription",
-        payment_method_types: ["card"],
-        success_url: `${req.headers.get("origin")}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get("origin")}/pricing`,
+        ui_mode: "embedded", // Enable embedded mode for iframe compatibility
+        return_url: `${origin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
         metadata: {
           user_id: user.id,
           plan_id: planId,
@@ -164,12 +165,12 @@ serve(async (req) => {
         },
       });
 
-      logStep("Created Checkout Session", { sessionId: session.id, url: session.url });
+      logStep("Created Embedded Checkout Session", { sessionId: session.id });
 
       return new Response(JSON.stringify({
-        url: session.url,
+        clientSecret: session.client_secret,
         sessionId: session.id,
-        type: "checkout_session",
+        type: "embedded_checkout",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
