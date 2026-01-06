@@ -6,6 +6,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 import { StripeEmbeddedCheckout } from "@/components/checkout/StripeEmbeddedCheckout";
 
@@ -36,6 +37,7 @@ export default function Checkout() {
   const [checkoutType, setCheckoutType] = useState<"payment" | "embedded_checkout" | null>(null);
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -81,43 +83,40 @@ export default function Checkout() {
     }
   }, [planId, user, navigate, toast]);
 
-  // Create payment intent or checkout session when plan is loaded
-  useEffect(() => {
-    const createPaymentIntent = async () => {
-      if (!plan || !user || clientSecret) return;
+  // Create payment intent or checkout session when user clicks payment button
+  const handleStartPayment = async () => {
+    if (!plan || !user || clientSecret) return;
 
-      setIsCreatingIntent(true);
+    setShowPaymentForm(true);
+    setIsCreatingIntent(true);
 
-      try {
-        console.log("[Checkout] Creating payment intent for plan:", plan.plan_id);
-        const { data, error } = await supabase.functions.invoke("create-payment-intent", {
-          body: { planId: plan.plan_id },
-        });
+    try {
+      console.log("[Checkout] Creating payment intent for plan:", plan.plan_id);
+      const { data, error } = await supabase.functions.invoke("create-payment-intent", {
+        body: { planId: plan.plan_id },
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Handle embedded checkout (both subscriptions and one-time payments now use embedded)
-        if (data?.clientSecret) {
-          console.log("[Checkout] Client secret received, type:", data.type);
-          setClientSecret(data.clientSecret);
-          setCheckoutType(data.type || "payment");
-        } else {
-          throw new Error("No client secret returned");
-        }
-      } catch (error: any) {
-        console.error("[Checkout] Error creating payment intent:", error);
-        toast({
-          title: "Setup failed",
-          description: error.message || "Failed to initialize payment. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsCreatingIntent(false);
+      if (data?.clientSecret) {
+        console.log("[Checkout] Client secret received, type:", data.type);
+        setClientSecret(data.clientSecret);
+        setCheckoutType(data.type || "payment");
+      } else {
+        throw new Error("No client secret returned");
       }
-    };
-
-    createPaymentIntent();
-  }, [plan, user, clientSecret, toast]);
+    } catch (error: any) {
+      console.error("[Checkout] Error creating payment intent:", error);
+      toast({
+        title: "Setup failed",
+        description: error.message || "Failed to initialize payment. Please try again.",
+        variant: "destructive",
+      });
+      setShowPaymentForm(false);
+    } finally {
+      setIsCreatingIntent(false);
+    }
+  };
 
   const handlePaymentSuccess = () => {
     setPaymentSuccess(true);
@@ -258,14 +257,33 @@ export default function Checkout() {
           )}
 
           {/* Stripe Payment Form */}
-          {isCreatingIntent ? (
+          {!showPaymentForm ? (
+            // Show Payment Button initially
+            <div className="space-y-4">
+              <Button
+                onClick={handleStartPayment}
+                className="w-full"
+                size="lg"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Pay {formatPrice(plan.price_cents)}
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Secure payment powered by Stripe</span>
+              </div>
+            </div>
+          ) : isCreatingIntent ? (
             <div className="py-12 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">Setting up secure payment...</p>
             </div>
           ) : clientSecret && checkoutType === "embedded_checkout" ? (
             // Embedded Checkout for subscriptions
-            <StripeEmbeddedCheckout clientSecret={clientSecret} />
+            <StripeEmbeddedCheckout 
+              clientSecret={clientSecret} 
+              onComplete={handlePaymentSuccess}
+            />
           ) : clientSecret && checkoutType === "payment" ? (
             // Payment Element for one-time payments
             <Elements
@@ -300,7 +318,7 @@ export default function Checkout() {
                 onClick={() => {
                   setClientSecret(null);
                   setCheckoutType(null);
-                  setIsCreatingIntent(false);
+                  setShowPaymentForm(false);
                 }}
                 className="text-primary hover:underline text-sm mt-2"
               >

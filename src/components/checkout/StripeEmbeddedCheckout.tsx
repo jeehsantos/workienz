@@ -6,18 +6,22 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 interface StripeEmbeddedCheckoutProps {
   clientSecret: string;
+  onComplete?: () => void;
 }
 
-export function StripeEmbeddedCheckout({ clientSecret }: StripeEmbeddedCheckoutProps) {
+export function StripeEmbeddedCheckout({ clientSecret, onComplete }: StripeEmbeddedCheckoutProps) {
   // EmbeddedCheckoutProvider requires fetchClientSecret as an async callback
-  const fetchClientSecret = useCallback(() => {
-    return Promise.resolve(clientSecret);
+  const fetchClientSecret = useCallback(async () => {
+    return clientSecret;
   }, [clientSecret]);
 
   return (
     <EmbeddedCheckoutProvider
       stripe={stripePromise}
-      options={{ fetchClientSecret }}
+      options={{ 
+        fetchClientSecret,
+        onComplete,
+      }}
     >
       <EmbeddedCheckout className="w-full" />
     </EmbeddedCheckoutProvider>
