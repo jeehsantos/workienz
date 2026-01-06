@@ -146,10 +146,15 @@ export default function ViewProfile() {
             
             <div className="flex items-center gap-2">
               {viewMode === 'formal' && (
-                <Button variant="outline" onClick={handlePrint}>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print to PDF
-                </Button>
+                <div className="flex flex-col items-end gap-1">
+                  <Button variant="outline" onClick={handlePrint}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print to PDF
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground hidden sm:block">
+                    Tip: Disable "Headers and footers" in print settings
+                  </p>
+                </div>
               )}
               <Button asChild>
                 <Link to="/employee/profile">
