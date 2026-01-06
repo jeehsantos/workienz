@@ -79,7 +79,7 @@ export default function Checkout() {
     }
   }, [planId, user, navigate, toast]);
 
-  // Create payment intent when plan is loaded
+  // Create payment intent or checkout session when plan is loaded
   useEffect(() => {
     const createPaymentIntent = async () => {
       if (!plan || !user || clientSecret) return;
@@ -94,6 +94,14 @@ export default function Checkout() {
 
         if (error) throw error;
 
+        // Handle redirect-based checkout (for subscriptions)
+        if (data?.type === "checkout_session" && data?.url) {
+          console.log("[Checkout] Redirecting to Stripe Checkout");
+          window.location.href = data.url;
+          return;
+        }
+
+        // Handle embedded checkout (for one-time payments)
         if (data?.clientSecret) {
           console.log("[Checkout] Payment intent created successfully");
           setClientSecret(data.clientSecret);
