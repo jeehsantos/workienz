@@ -281,6 +281,7 @@ export default function Checkout() {
           ) : clientSecret && checkoutType === "embedded_checkout" ? (
             // Embedded Checkout for subscriptions
             <StripeEmbeddedCheckout 
+              key={clientSecret}
               clientSecret={clientSecret} 
               onComplete={handlePaymentSuccess}
             />
