@@ -1,19 +1,28 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Edit, MapPin, Calendar, Briefcase, Phone, Globe, User } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2, ArrowLeft, Edit, Printer } from "lucide-react";
 import { useProfileRefreshListener } from "@/hooks/useProfileRefresh";
+import { SocialProfileView } from "@/components/profile/SocialProfileView";
+import { FormalCVView } from "@/components/profile/FormalCVView";
+import { ProfileViewToggle } from "@/components/profile/ProfileViewToggle";
+import type { EmployeeProfileData, ProfileViewMode } from "@/types/employeeProfile";
 
 export default function ViewProfile() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
   const [isLoading, setIsLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [profileData, setProfileData] = useState<EmployeeProfileData | null>(null);
+  
+  // Get view mode from URL or default to 'social'
+  const viewMode = (searchParams.get('view') as ProfileViewMode) || 'social';
+
+  const handleModeChange = (mode: ProfileViewMode) => {
+    setSearchParams({ view: mode });
+  };
 
   useEffect(() => {
     if (!authLoading && (!user || !isEmployee())) {
@@ -32,12 +41,44 @@ export default function ViewProfile() {
 
     const { data: userProf } = await supabase
       .from("profiles")
-      .select("full_name, email, avatar_url")
+      .select("full_name, first_name, last_name, email, avatar_url")
       .eq("user_id", user.id)
       .single();
 
-    setProfile(empProfile);
-    setUserProfile(userProf);
+    if (empProfile && userProf) {
+      // Transform to centralized profile schema
+      const transformedProfile: EmployeeProfileData = {
+        fullName: userProf.full_name || `${userProf.first_name || ''} ${userProf.last_name || ''}`.trim(),
+        firstName: userProf.first_name || '',
+        lastName: userProf.last_name || '',
+        email: userProf.email || user.email || '',
+        avatarUrl: userProf.avatar_url,
+        dateOfBirth: (empProfile as any).date_of_birth,
+        professionalTitle: empProfile.headline || '',
+        bio: (empProfile as any).bio || '',
+        industry: (empProfile as any).industry || '',
+        experienceYears: empProfile.experience_years,
+        availability: empProfile.availability || 'flexible',
+        isAvailable: empProfile.is_available ?? true,
+        phone: (empProfile as any).phone || '',
+        country: empProfile.country || 'New Zealand',
+        region: (empProfile as any).location_region || '',
+        city: empProfile.city || '',
+        suburb: empProfile.suburb || '',
+        skills: empProfile.skills || [],
+        languages: (empProfile as any).languages || [],
+        visaStatus: (empProfile as any).visa_status || '',
+        irdNumber: (empProfile as any).ird_number || '',
+        comfortableHeavyLifting: (empProfile as any).comfortable_heavy_lifting || false,
+        comfortableStanding: (empProfile as any).comfortable_standing || false,
+        hasCar: (empProfile as any).has_car || false,
+        hasIrdNumber: (empProfile as any).has_ird_number || false,
+      };
+      setProfileData(transformedProfile);
+    } else {
+      setProfileData(null);
+    }
+
     setIsLoading(false);
   }, [user]);
 
@@ -49,6 +90,11 @@ export default function ViewProfile() {
 
   // Listen for profile updates and refetch
   useProfileRefreshListener(fetchProfile);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -57,7 +103,7 @@ export default function ViewProfile() {
     );
   }
 
-  if (!profile) {
+  if (!profileData) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container-tight py-8">
@@ -74,107 +120,47 @@ export default function ViewProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container-tight py-8">
-        <Button variant="ghost" asChild className="mb-6">
-          <Link to="/dashboard">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Link>
-        </Button>
-
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold font-display">My Profile</h1>
-          <Button asChild>
-            <Link to="/employee/profile">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
+    <div className="min-h-screen bg-background print:bg-white print:min-h-0">
+      <div className="container-tight py-8 print:p-0 print:max-w-none">
+        {/* Navigation - Hidden on print */}
+        <div className="print:hidden">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link to="/dashboard">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
             </Link>
           </Button>
-        </div>
 
-        <div className="bg-card rounded-xl p-6 border border-border/50 space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-10 h-10 text-primary" />
+          {/* Header with Toggle and Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <h1 className="text-3xl font-bold font-display">My Profile</h1>
+              <ProfileViewToggle mode={viewMode} onModeChange={handleModeChange} />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">{userProfile?.full_name || "No name set"}</h2>
-              {profile.headline && <p className="text-muted-foreground">{profile.headline}</p>}
-              <Badge variant={profile.is_available ? "default" : "secondary"} className="mt-2">
-                {profile.is_available ? "Available for work" : "Not available"}
-              </Badge>
+            
+            <div className="flex items-center gap-2">
+              {viewMode === 'formal' && (
+                <Button variant="outline" onClick={handlePrint}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print to PDF
+                </Button>
+              )}
+              <Button asChild>
+                <Link to="/employee/profile">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Link>
+              </Button>
             </div>
           </div>
-
-          {profile.bio && (
-            <div>
-              <h3 className="font-semibold mb-2">About Me</h3>
-              <p className="text-muted-foreground whitespace-pre-wrap">{profile.bio}</p>
-            </div>
-          )}
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            {(profile.city || profile.country) && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                {[profile.suburb, profile.city, profile.country].filter(Boolean).join(", ")}
-              </div>
-            )}
-            {profile.industry && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Briefcase className="w-4 h-4" />
-                {profile.industry}
-              </div>
-            )}
-            {profile.experience_years !== null && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                {profile.experience_years} years experience
-              </div>
-            )}
-            {profile.phone && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="w-4 h-4" />
-                {profile.phone}
-              </div>
-            )}
-            {profile.visa_status && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Globe className="w-4 h-4" />
-                {profile.visa_status}
-              </div>
-            )}
-            {profile.date_of_birth && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="w-4 h-4" />
-                Born {format(new Date(profile.date_of_birth), "MMM d, yyyy")}
-              </div>
-            )}
-          </div>
-
-          {profile.languages?.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-2">Languages</h3>
-              <div className="flex flex-wrap gap-2">
-                {profile.languages.map((lang: string) => (
-                  <Badge key={lang} variant="secondary">{lang}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {profile.skills?.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-2">Skills</h3>
-              <div className="flex flex-wrap gap-2">
-                {profile.skills.map((skill: string) => (
-                  <Badge key={skill} variant="outline">{skill}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Profile Views */}
+        {viewMode === 'social' ? (
+          <SocialProfileView profile={profileData} />
+        ) : (
+          <FormalCVView profile={profileData} />
+        )}
       </div>
     </div>
   );

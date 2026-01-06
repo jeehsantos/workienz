@@ -192,3 +192,99 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+
+/* Print Styles for Formal CV */
+@media print {
+  /* Reset everything for print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Hide all UI elements during print */
+  nav,
+  header,
+  footer,
+  button,
+  .print\\:hidden,
+  [class*="print:hidden"] {
+    display: none !important;
+  }
+
+  /* Page setup for A4 */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    font-size: 11pt;
+    line-height: 1.4;
+    overflow: visible !important;
+  }
+
+  /* CV Container - fit to single A4 page */
+  .cv-container {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: hidden !important;
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure content fits */
+  .cv-container > div {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Typography adjustments for print */
+  h1 {
+    font-size: 20pt !important;
+  }
+
+  h2 {
+    font-size: 11pt !important;
+  }
+
+  p, li, span {
+    font-size: 9pt !important;
+  }
+
+  /* Ensure colors print correctly */
+  .bg-green-500 {
+    background-color: #22c55e !important;
+  }
+
+  .bg-gray-300 {
+    background-color: #d1d5db !important;
+  }
+
+  /* Show print-only elements */
+  .print\\:block,
+  [class*="print:block"] {
+    display: block !important;
+  }
+
+  /* Watermark styling */
+  .cv-container footer {
+    position: absolute;
+    bottom: 15mm;
+    left: 15mm;
+    right: 15mm;
+  }
+}
