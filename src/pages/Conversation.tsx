@@ -346,8 +346,8 @@ export default function Conversation() {
     } : null);
 
     toast({
-      title: "Applicant Hired!",
-      description: "The application status has been updated to hired.",
+      title: "🎉 Applicant Hired!",
+      description: "Congratulations message sent. Other applications have been automatically closed. This chat will be archived in 48 hours.",
     });
   };
 
@@ -560,8 +560,14 @@ export default function Conversation() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Confirm Hire</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to hire this applicant?
+                          <AlertDialogDescription className="space-y-2">
+                            <p>Are you sure you want to hire this applicant? This will:</p>
+                            <ul className="list-disc list-inside text-sm space-y-1 mt-2">
+                              <li>Send a congratulations message to the worker</li>
+                              <li>Set their availability to "unavailable"</li>
+                              <li>Automatically close their other pending applications</li>
+                              <li>Archive this conversation after 48 hours</li>
+                            </ul>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
