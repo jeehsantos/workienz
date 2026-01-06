@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
-import { StripeEmbeddedCheckout } from "@/components/checkout/StripeEmbeddedCheckout";
 
 // Load Stripe outside of component to avoid recreating on re-render
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
@@ -34,7 +33,6 @@ export default function Checkout() {
   const [plan, setPlan] = useState<PlanProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [checkoutType, setCheckoutType] = useState<"payment" | "embedded_checkout" | null>(null);
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -99,9 +97,8 @@ export default function Checkout() {
       if (error) throw error;
 
       if (data?.clientSecret) {
-        console.log("[Checkout] Client secret received, type:", data.type);
+        console.log("[Checkout] Client secret received");
         setClientSecret(data.clientSecret);
-        setCheckoutType(data.type || "payment");
       } else {
         throw new Error("No client secret returned");
       }
@@ -278,15 +275,8 @@ export default function Checkout() {
               <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">Setting up secure payment...</p>
             </div>
-          ) : clientSecret && checkoutType === "embedded_checkout" ? (
-            // Embedded Checkout for subscriptions
-            <StripeEmbeddedCheckout 
-              key={clientSecret}
-              clientSecret={clientSecret} 
-              onComplete={handlePaymentSuccess}
-            />
-          ) : clientSecret && checkoutType === "payment" ? (
-            // Payment Element for one-time payments
+          ) : clientSecret ? (
+            // Payment Element for all payments
             <Elements
               stripe={stripePromise}
               options={{
@@ -318,7 +308,6 @@ export default function Checkout() {
               <button
                 onClick={() => {
                   setClientSecret(null);
-                  setCheckoutType(null);
                   setShowPaymentForm(false);
                 }}
                 className="text-primary hover:underline text-sm mt-2"
