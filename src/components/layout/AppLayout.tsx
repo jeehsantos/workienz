@@ -124,7 +124,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Navbar */}
       {!isAuthFlowRoute && (
         <nav
-          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 print:hidden ${
             scrolled
               ? "bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-soft"
               : "bg-background/80 backdrop-blur-sm border-b border-border/30"
@@ -364,7 +364,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       )}
 
       {/* Main content with top padding for fixed navbar */}
-      <main className={isAuthFlowRoute ? "" : "pt-16 lg:pt-20"}>{children}</main>
+      <main className={isAuthFlowRoute ? "" : "pt-16 lg:pt-20 print:pt-0"}>{children}</main>
     </div>
   );
 }

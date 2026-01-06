@@ -209,7 +209,7 @@
     margin: 0;
   }
 
-  /* Hide EVERYTHING except CV container */
+  /* Base print reset */
   html, body {
     width: 210mm !important;
     height: 297mm !important;
@@ -221,36 +221,22 @@
     overflow: hidden !important;
   }
 
-  /* Aggressively hide navbar - target all possible nav elements */
-  body > div > nav,
-  body > div > div > nav,
-  body > div > div > div > nav,
-  nav,
-  nav[class*="fixed"],
-  [class*="fixed"][class*="top"],
-  [class*="z-50"],
-  .fixed,
-  .sticky,
-  button,
-  .print\\:hidden,
-  [class*="print:hidden"],
-  [data-radix-popper-content-wrapper] {
+  /* Hide elements with print:hidden class */
+  .print\:hidden,
+  [class*="print:hidden"] {
     display: none !important;
     visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
   }
 
   /* Remove padding from main content */
-  main,
-  main[class*="pt-"] {
-    padding: 0 !important;
-    margin: 0 !important;
+  .print\:pt-0,
+  [class*="print:pt-0"] {
     padding-top: 0 !important;
+  }
+
+  /* Hide buttons during print */
+  button {
+    display: none !important;
   }
 
   /* Remove all container padding */
@@ -321,12 +307,7 @@
   }
 
   /* Show print-only elements */
-  .print\\:block,
-  [class*="print:block"] {
-    display: block !important;
-  }
-
-  .print\\:flex,
+  .print\:flex,
   [class*="print:flex"] {
     display: flex !important;
   }
