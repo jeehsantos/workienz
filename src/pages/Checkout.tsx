@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info } from "lucide-react";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
+import { StripeEmbeddedCheckout } from "@/components/checkout/StripeEmbeddedCheckout";
 
 // Load Stripe outside of component to avoid recreating on re-render
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
@@ -32,6 +33,7 @@ export default function Checkout() {
   const [plan, setPlan] = useState<PlanProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [checkoutType, setCheckoutType] = useState<"payment" | "embedded_checkout" | null>(null);
   const [isCreatingIntent, setIsCreatingIntent] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
@@ -94,17 +96,11 @@ export default function Checkout() {
 
         if (error) throw error;
 
-        // Handle redirect-based checkout (for subscriptions)
-        if (data?.type === "checkout_session" && data?.url) {
-          console.log("[Checkout] Redirecting to Stripe Checkout");
-          window.location.href = data.url;
-          return;
-        }
-
-        // Handle embedded checkout (for one-time payments)
+        // Handle embedded checkout (both subscriptions and one-time payments now use embedded)
         if (data?.clientSecret) {
-          console.log("[Checkout] Payment intent created successfully");
+          console.log("[Checkout] Client secret received, type:", data.type);
           setClientSecret(data.clientSecret);
+          setCheckoutType(data.type || "payment");
         } else {
           throw new Error("No client secret returned");
         }
@@ -267,7 +263,11 @@ export default function Checkout() {
               <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">Setting up secure payment...</p>
             </div>
-          ) : clientSecret ? (
+          ) : clientSecret && checkoutType === "embedded_checkout" ? (
+            // Embedded Checkout for subscriptions
+            <StripeEmbeddedCheckout clientSecret={clientSecret} />
+          ) : clientSecret && checkoutType === "payment" ? (
+            // Payment Element for one-time payments
             <Elements
               stripe={stripePromise}
               options={{
@@ -284,7 +284,7 @@ export default function Checkout() {
                   },
                 },
               }}
-              key={clientSecret} // Force re-render when clientSecret changes
+              key={clientSecret}
             >
               <StripePaymentForm
                 priceFormatted={formatPrice(plan.price_cents)}
@@ -299,8 +299,8 @@ export default function Checkout() {
               <button
                 onClick={() => {
                   setClientSecret(null);
+                  setCheckoutType(null);
                   setIsCreatingIntent(false);
-                  // This will trigger the useEffect to recreate the payment intent
                 }}
                 className="text-primary hover:underline text-sm mt-2"
               >
