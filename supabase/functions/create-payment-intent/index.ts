@@ -66,7 +66,7 @@ serve(async (req) => {
     logStep("Plan details fetched", { planName: planData.plan_name, price: planData.price_cents });
 
     // Initialize Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -138,43 +138,52 @@ serve(async (req) => {
 
     // Handle subscription vs one-time payment
     const origin = req.headers.get("origin") || "https://workie.lovable.app";
-    
-    if (config.mode === "subscription") {
-      logStep("Creating embedded checkout session for subscription");
 
-      // Use Embedded Checkout Session for subscriptions (works in iframes)
-      const session = await stripe.checkout.sessions.create({
+    if (config.mode === "subscription") {
+      logStep("Creating subscription with payment intent");
+
+      // Create a subscription with payment_behavior: default_incomplete
+      // This returns a client_secret we can use with Payment Element
+      const subscription = await stripe.subscriptions.create({
         customer: customerId,
-        line_items: [{ price: stripePrice.id, quantity: 1 }],
-        mode: "subscription",
-        ui_mode: "embedded", // Enable embedded mode for iframe compatibility
-        return_url: `${origin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+        items: [{ price: stripePrice.id }],
+        payment_behavior: "default_incomplete",
+        payment_settings: {
+          save_default_payment_method: "on_subscription",
+          payment_method_types: ["card"],
+        },
+        expand: ["latest_invoice.payment_intent"],
         metadata: {
           user_id: user.id,
           plan_id: planId,
           plan_name: planData.plan_name,
           plan_type: planData.plan_type,
         },
-        subscription_data: {
-          metadata: {
-            user_id: user.id,
-            plan_id: planId,
-            plan_name: planData.plan_name,
-            plan_type: planData.plan_type,
-          },
+      });
+
+      const invoice = subscription.latest_invoice as Stripe.Invoice;
+      const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+
+      if (!paymentIntent?.client_secret) {
+        throw new Error("Failed to create subscription payment intent");
+      }
+
+      logStep("Created subscription with payment intent", {
+        subscriptionId: subscription.id,
+        paymentIntentId: paymentIntent.id,
+      });
+
+      return new Response(
+        JSON.stringify({
+          clientSecret: paymentIntent.client_secret,
+          subscriptionId: subscription.id,
+          type: "payment", // Use payment type so it uses Payment Element
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
         },
-      });
-
-      logStep("Created Embedded Checkout Session", { sessionId: session.id });
-
-      return new Response(JSON.stringify({
-        clientSecret: session.client_secret,
-        sessionId: session.id,
-        type: "embedded_checkout",
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      );
     } else {
       // For one-time payments, create a PaymentIntent
       const paymentIntent = await stripe.paymentIntents.create({
@@ -194,19 +203,22 @@ serve(async (req) => {
         throw new Error("Failed to create payment intent - no client secret returned");
       }
 
-      logStep("Created PaymentIntent", { 
-        paymentIntentId: paymentIntent.id, 
-        clientSecret: paymentIntent.client_secret.substring(0, 20) + "..." 
+      logStep("Created PaymentIntent", {
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret.substring(0, 20) + "...",
       });
 
-      return new Response(JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        type: "payment",
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          type: "payment",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
