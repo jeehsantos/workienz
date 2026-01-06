@@ -106,10 +106,7 @@ export default function MyConversations({ userId }: MyConversationsProps) {
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
-          const derivedName = profileData?.full_name || 
-          (profileData?.first_name || profileData?.last_name 
-            ? `${profileData.first_name ?? ''} ${profileData.last_name ?? ''}`.trim() 
-            : "User");
+          const derivedName = profileData?.full_name || "User";
           return {
             id: conv.id,
             status: conv.status,

@@ -140,97 +140,36 @@ serve(async (req) => {
     if (config.mode === "subscription") {
       logStep("Creating subscription for embedded checkout");
 
-      const subscription = await stripe.subscriptions.create({
+      // Use Checkout Session for subscriptions instead of incomplete subscription
+      const session = await stripe.checkout.sessions.create({
         customer: customerId,
-        items: [{ price: stripePrice.id }],
-        payment_behavior: "default_incomplete",
-        payment_settings: { save_default_payment_method: "on_subscription" },
-        expand: ["latest_invoice.payment_intent"],
+        line_items: [{ price: stripePrice.id, quantity: 1 }],
+        mode: "subscription",
+        payment_method_types: ["card"],
+        success_url: `${req.headers.get("origin")}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get("origin")}/pricing`,
         metadata: {
           user_id: user.id,
           plan_id: planId,
           plan_name: planData.plan_name,
           plan_type: planData.plan_type,
         },
-      });
-
-      logStep("Subscription created", {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        hasInvoice: !!subscription.latest_invoice,
-        latestInvoiceType: typeof subscription.latest_invoice
-      });
-
-      // Type guard and null check for invoice
-      if (!subscription.latest_invoice) {
-        throw new Error("Subscription created but no invoice was generated");
-      }
-
-      const invoice = typeof subscription.latest_invoice === 'string' 
-        ? await stripe.invoices.retrieve(subscription.latest_invoice, { expand: ['payment_intent'] })
-        : subscription.latest_invoice as Stripe.Invoice;
-      
-      logStep("Invoice details", {
-        invoiceId: invoice.id,
-        invoiceStatus: invoice.status,
-        hasPaymentIntent: !!invoice.payment_intent,
-        paymentIntentType: typeof invoice.payment_intent
-      });
-
-      // Type guard for payment intent
-      const paymentIntent = typeof invoice.payment_intent === 'string'
-        ? await stripe.paymentIntents.retrieve(invoice.payment_intent)
-        : invoice.payment_intent as Stripe.PaymentIntent | null;
-
-      // Check if we got a valid payment intent with client_secret
-      if (!paymentIntent || !paymentIntent.client_secret) {
-        logStep("No payment intent from subscription, creating SetupIntent instead", {
-          hasPaymentIntent: !!paymentIntent,
-          hasClientSecret: !!paymentIntent?.client_secret
-        });
-        
-        // For $0 subscriptions or when no payment intent is created, use SetupIntent
-        const setupIntent = await stripe.setupIntents.create({
-          customer: customerId,
-          setup_future_usage: "off_session",
+        subscription_data: {
           metadata: {
             user_id: user.id,
             plan_id: planId,
             plan_name: planData.plan_name,
             plan_type: planData.plan_type,
-            subscription_id: subscription.id,
           },
-          automatic_payment_methods: { enabled: true },
-        });
-
-        if (!setupIntent.client_secret) {
-          throw new Error("Failed to create setup intent - no client secret returned");
-        }
-
-        logStep("Created SetupIntent", {
-          setupIntentId: setupIntent.id,
-          clientSecret: setupIntent.client_secret.substring(0, 20) + "..."
-        });
-
-        return new Response(JSON.stringify({
-          clientSecret: setupIntent.client_secret,
-          subscriptionId: subscription.id,
-          type: "setup",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-
-      logStep("Created subscription with PaymentIntent", { 
-        subscriptionId: subscription.id, 
-        clientSecret: paymentIntent.client_secret.substring(0, 20) + "..." 
+        },
       });
 
+      logStep("Created Checkout Session", { sessionId: session.id, url: session.url });
+
       return new Response(JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        subscriptionId: subscription.id,
-        type: "subscription",
+        url: session.url,
+        sessionId: session.id,
+        type: "checkout_session",
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
