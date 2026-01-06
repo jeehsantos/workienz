@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 
@@ -8,10 +9,15 @@ interface StripeEmbeddedCheckoutProps {
 }
 
 export function StripeEmbeddedCheckout({ clientSecret }: StripeEmbeddedCheckoutProps) {
+  // EmbeddedCheckoutProvider requires fetchClientSecret as an async callback
+  const fetchClientSecret = useCallback(() => {
+    return Promise.resolve(clientSecret);
+  }, [clientSecret]);
+
   return (
     <EmbeddedCheckoutProvider
       stripe={stripePromise}
-      options={{ clientSecret }}
+      options={{ fetchClientSecret }}
     >
       <EmbeddedCheckout className="w-full" />
     </EmbeddedCheckoutProvider>
