@@ -24,9 +24,16 @@ import {
   Sparkle,
   Info,
   Zap,
-  Lock
+  Lock,
+  HelpCircle
 } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Feature matrix for contractor plans
 const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
@@ -224,6 +231,57 @@ const comingSoonFeatures = [
     icon: Globe,
     title: "Native Language Chat Bridge",
     description: "Communicate with confidence. Send messages or voice notes in your own language, and we'll translate them into English for the contractor. You receive their replies back in your preferred language instantly.",
+  },
+];
+
+// FAQ data
+const faqItems = [
+  {
+    category: "Billing",
+    questions: [
+      {
+        question: "How does billing work?",
+        answer: "We offer flexible billing options. One-time purchases (Single Post, 14-Day Sprint) are charged immediately. Subscription plans (Monthly, Quarterly) are billed at the start of each billing cycle. All prices are in NZD and GST is added at checkout."
+      },
+      {
+        question: "What payment methods do you accept?",
+        answer: "We accept all major credit and debit cards (Visa, Mastercard, American Express) through our secure payment processor, Stripe. All transactions are encrypted and PCI-compliant."
+      },
+      {
+        question: "Can I change my plan at any time?",
+        answer: "Yes! You can upgrade or downgrade your plan at any time. When upgrading, you'll be charged the prorated difference. When downgrading, the change takes effect at the end of your current billing period."
+      },
+    ]
+  },
+  {
+    category: "Refunds",
+    questions: [
+      {
+        question: "What is your refund policy?",
+        answer: "We offer a 7-day money-back guarantee for all subscription plans. If you're not satisfied within the first 7 days, contact our support team for a full refund. One-time purchases are non-refundable once a job has been posted."
+      },
+      {
+        question: "How do I request a refund?",
+        answer: "To request a refund, please contact our support team at support@workie.co.nz with your account email and reason for the refund. We typically process refunds within 3-5 business days."
+      },
+    ]
+  },
+  {
+    category: "Plan Differences",
+    questions: [
+      {
+        question: "What's the difference between Single Post and 14-Day Sprint?",
+        answer: "Single Post allows you to create one job listing that stays active for 14 days. The 14-Day Sprint gives you unlimited job posts during a 14-day period - perfect for seasonal hiring or when you need to fill multiple positions quickly."
+      },
+      {
+        question: "What does 'Database Access' include?",
+        answer: "Database Access (available on Monthly and Quarterly plans) lets you browse and search through all job seeker profiles on Workie. You can filter by skills, location, availability, and more - then reach out directly to candidates who match your needs."
+      },
+      {
+        question: "What benefits do Premium job seekers get?",
+        answer: "Premium job seekers get 3 applications every 3 days (vs 1 for free users), access to our full article library with career tips, a Priority Badge that makes their profile stand out, and enhanced visibility in employer searches."
+      },
+    ]
   },
 ];
 
@@ -690,8 +748,54 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* FAQ or CTA Section */}
-      <section className="py-16 bg-muted/30">
+      {/* FAQ Section */}
+      <section className="py-16 lg:py-20 bg-muted/30">
+        <div className="container-tight">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <HelpCircle className="w-5 h-5 text-primary" />
+              </div>
+              <h2 className="text-2xl lg:text-3xl font-bold font-display">
+                Frequently Asked Questions
+              </h2>
+            </div>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Got questions? We've got answers. If you can't find what you're looking for, feel free to contact us.
+            </p>
+          </div>
+
+          <div className="max-w-3xl mx-auto space-y-8">
+            {faqItems.map((category) => (
+              <div key={category.category}>
+                <h3 className="text-lg font-semibold font-display text-foreground mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary"></span>
+                  {category.category}
+                </h3>
+                <Accordion type="single" collapsible className="bg-card rounded-xl border border-border/50 shadow-soft overflow-hidden">
+                  {category.questions.map((item, index) => (
+                    <AccordionItem 
+                      key={index} 
+                      value={`${category.category}-${index}`}
+                      className="border-b border-border/50 last:border-b-0"
+                    >
+                      <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 text-left font-medium">
+                        {item.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="px-5 pb-4 text-muted-foreground">
+                        {item.answer}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16">
         <div className="container-tight text-center">
           <h2 className="text-2xl lg:text-3xl font-bold font-display mb-4">
             Ready to get started?

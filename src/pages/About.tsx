@@ -1,5 +1,5 @@
 import { Footer } from "@/components/landing/Footer";
-import { Users, Target, Eye, Handshake, UserCheck, Globe, Clock, Briefcase } from "lucide-react";
+import { Users, Target, Eye, Handshake, UserCheck, Globe, Clock, Briefcase, Building2 } from "lucide-react";
 import ourStoryImg from "@/assets/about/our-story.png";
 import missionImg from "@/assets/about/mission.png";
 import connectingPeopleImg from "@/assets/about/connecting-people.png";
@@ -20,6 +20,18 @@ const targetGroups = [{
   title: "Experienced Operational Staff",
   description: "We welcome individuals with practical experience in fields like logistics, retail, hospitality, and essential services, offering a fast track to new roles without the complexity of specialised recruitment."
 }];
+
+// Partner companies - placeholder logos using company initials
+const partners = [
+  { name: "AgriWorks NZ", initials: "AW" },
+  { name: "Kiwi Hospitality Group", initials: "KH" },
+  { name: "BuildRight Construction", initials: "BR" },
+  { name: "CleanPro Services", initials: "CP" },
+  { name: "FreshPick Orchards", initials: "FP" },
+  { name: "Metro Logistics", initials: "ML" },
+  { name: "Coastal Resorts", initials: "CR" },
+  { name: "Urban Retail Co", initials: "UR" },
+];
 export default function About() {
   return <main className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -162,8 +174,44 @@ export default function About() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* Our Partners Section */}
       <section className="py-16 lg:py-24">
+        <div className="container-tight">
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-primary" />
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold font-display text-foreground">Our Partners</h2>
+            </div>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Trusted by leading companies across New Zealand's key industries.
+            </p>
+          </div>
+          
+          {/* Partners Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 lg:gap-6">
+            {partners.map((partner) => (
+              <div 
+                key={partner.name}
+                className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-medium hover:border-primary/20 transition-all flex flex-col items-center justify-center aspect-[3/2]"
+              >
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mb-3">
+                  <span className="text-lg font-bold font-display text-primary">{partner.initials}</span>
+                </div>
+                <span className="text-sm font-medium text-foreground text-center">{partner.name}</span>
+              </div>
+            ))}
+          </div>
+          
+          <p className="text-center text-sm text-muted-foreground mt-8">
+            Want to partner with us? <a href="/contact" className="text-primary hover:underline">Get in touch</a>
+          </p>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 lg:py-24 bg-muted/30">
         <div className="container-tight">
           <div className="bg-gradient-to-r from-primary to-primary/80 rounded-3xl p-8 md:p-12 lg:p-16 text-center relative overflow-hidden">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_hsl(var(--accent)/0.3),_transparent_70%)]" />

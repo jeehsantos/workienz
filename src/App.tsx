@@ -38,6 +38,9 @@ import About from "./pages/About";
 import Checkout from "./pages/Checkout";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
 import Subscription from "./pages/Subscription";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +85,9 @@ const App = () => (
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/checkout/success" element={<CheckoutSuccess />} />
               <Route path="/subscription" element={<Subscription />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
