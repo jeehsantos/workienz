@@ -203,14 +203,17 @@
     color-adjust: exact !important;
   }
 
-  /* Hide all UI elements during print */
+  /* Hide ALL UI elements during print */
   nav,
-  header,
-  footer,
+  header:not(.cv-container header),
   button,
   .print\\:hidden,
-  [class*="print:hidden"] {
+  [class*="print:hidden"],
+  [data-radix-popper-content-wrapper],
+  .fixed,
+  .sticky {
     display: none !important;
+    visibility: hidden !important;
   }
 
   /* Page setup for A4 */
@@ -243,6 +246,7 @@
     overflow: hidden !important;
     page-break-after: avoid;
     page-break-inside: avoid;
+    position: relative;
   }
 
   /* Ensure content fits */
@@ -280,11 +284,15 @@
     display: block !important;
   }
 
-  /* Watermark styling */
+  .print\\:flex,
+  [class*="print:flex"] {
+    display: flex !important;
+  }
+
+  /* Watermark footer positioning */
   .cv-container footer {
     position: absolute;
-    bottom: 15mm;
-    left: 15mm;
+    bottom: 12mm;
     right: 15mm;
   }
 }

@@ -1,6 +1,7 @@
 import { MapPin, Phone, Mail, Globe, Calendar, Briefcase } from "lucide-react";
 import { format } from "date-fns";
 import type { EmployeeProfileData } from "@/types/employeeProfile";
+import workieLogo from "@/assets/workie-logo.png";
 
 interface FormalCVViewProps {
   profile: EmployeeProfileData;
@@ -185,11 +186,14 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
           </div>
         </div>
 
-        {/* Print-only Watermark Footer */}
-        <footer className="hidden print:block pt-4 mt-auto border-t border-gray-200">
-          <p className="text-xs text-gray-400 text-center">
-            Powered by Workie • Generated on {format(new Date(), "MMMM d, yyyy")}
-          </p>
+        {/* Print-only Watermark Footer - Right aligned */}
+        <footer className="hidden print:flex print:items-center print:justify-end print:gap-1.5 pt-4 mt-auto">
+          <span className="text-[8pt] text-gray-400">Powered by</span>
+          <img 
+            src={workieLogo} 
+            alt="Workie" 
+            className="h-4 w-auto opacity-60"
+          />
         </footer>
       </div>
     </div>
