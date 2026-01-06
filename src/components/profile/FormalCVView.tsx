@@ -13,11 +13,11 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
   const locationString = locationParts.join(", ");
 
   return (
-    <div className="cv-container bg-white text-gray-900 max-w-[210mm] mx-auto print:max-w-none print:mx-0">
+    <div className="cv-container bg-white text-gray-900 max-w-[210mm] mx-auto print:max-w-none print:mx-0 print:shadow-none shadow-lg">
       {/* CV Content - A4 optimized */}
-      <div className="p-8 print:p-[15mm] space-y-6 print:space-y-4">
+      <div className="p-8 print:p-[12mm] print:pb-[18mm]">
         {/* Header - No profile image in formal mode */}
-        <header className="border-b-2 border-gray-800 pb-4 print:pb-3">
+        <header className="cv-header border-b-2 border-gray-800 pb-4 print:pb-3">
           <h1 className="text-3xl print:text-2xl font-bold text-gray-900 tracking-tight">
             {profile.fullName}
           </h1>
@@ -49,9 +49,9 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
         </header>
 
         {/* Two Column Layout */}
-        <div className="grid grid-cols-[1fr_250px] print:grid-cols-[1fr_200px] gap-8 print:gap-6">
+        <div className="grid grid-cols-[1fr_250px] print:grid-cols-[1fr_180px] gap-8 print:gap-5 mt-5 print:mt-4">
           {/* Main Column */}
-          <div className="space-y-5 print:space-y-4">
+          <div className="space-y-4 print:space-y-3">
             {/* Professional Summary */}
             {profile.bio && (
               <section>
@@ -136,7 +136,7 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
           </div>
 
           {/* Sidebar Column */}
-          <div className="space-y-5 print:space-y-4">
+          <div className="space-y-4 print:space-y-3">
             {/* Skills */}
             {profile.skills?.length > 0 && (
               <section>
@@ -186,15 +186,15 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
           </div>
         </div>
 
-        {/* Print-only Watermark Footer - Right aligned */}
-        <footer className="hidden print:flex print:items-center print:justify-end print:gap-1.5 pt-4 mt-auto">
+        {/* Print-only Watermark - Positioned absolutely at bottom right */}
+        <div className="cv-watermark hidden print:flex items-center gap-1.5">
           <span className="text-[8pt] text-gray-400">Powered by</span>
           <img 
             src={workieLogo} 
             alt="Workie" 
-            className="h-4 w-auto opacity-60"
+            className="h-3 w-auto opacity-50"
           />
-        </footer>
+        </div>
       </div>
     </div>
   );

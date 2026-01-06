@@ -92,7 +92,13 @@ export default function ViewProfile() {
   useProfileRefreshListener(fetchProfile);
 
   const handlePrint = () => {
+    // Add print class to body for better print styling control
+    document.body.classList.add('printing-cv');
     window.print();
+    // Remove class after print dialog closes
+    setTimeout(() => {
+      document.body.classList.remove('printing-cv');
+    }, 100);
   };
 
   if (authLoading || isLoading) {

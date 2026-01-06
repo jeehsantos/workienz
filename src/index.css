@@ -203,70 +203,112 @@
     color-adjust: exact !important;
   }
 
-  /* Hide ALL UI elements during print */
-  nav,
-  header:not(.cv-container header),
-  button,
-  .print\\:hidden,
-  [class*="print:hidden"],
-  [data-radix-popper-content-wrapper],
-  .fixed,
-  .sticky {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
   /* Page setup for A4 */
   @page {
     size: A4 portrait;
     margin: 0;
   }
 
+  /* Hide EVERYTHING except CV container */
   html, body {
-    width: 210mm;
-    height: 297mm;
+    width: 210mm !important;
+    height: 297mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
     font-size: 11pt;
     line-height: 1.4;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
-  /* CV Container - fit to single A4 page */
+  /* Aggressively hide navbar - target all possible nav elements */
+  body > div > nav,
+  body > div > div > nav,
+  body > div > div > div > nav,
+  nav,
+  nav[class*="fixed"],
+  [class*="fixed"][class*="top"],
+  [class*="z-50"],
+  .fixed,
+  .sticky,
+  button,
+  .print\\:hidden,
+  [class*="print:hidden"],
+  [data-radix-popper-content-wrapper] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+  }
+
+  /* Remove padding from main content */
+  main,
+  main[class*="pt-"] {
+    padding: 0 !important;
+    margin: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Remove all container padding */
+  .container-tight,
+  [class*="container"] {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Hide min-h-screen wrapper backgrounds */
+  .min-h-screen {
+    min-height: auto !important;
+    height: auto !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  /* CV Container - fit exactly to single A4 page */
   .cv-container {
     width: 210mm !important;
-    min-height: 297mm !important;
+    height: 297mm !important;
     max-height: 297mm !important;
+    min-height: 297mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
     box-shadow: none !important;
     border: none !important;
     overflow: hidden !important;
-    page-break-after: avoid;
-    page-break-inside: avoid;
-    position: relative;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    position: relative !important;
   }
 
-  /* Ensure content fits */
+  /* Inner content wrapper */
   .cv-container > div {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+    position: relative !important;
+    box-sizing: border-box !important;
   }
 
   /* Typography adjustments for print */
-  h1 {
-    font-size: 20pt !important;
+  .cv-container h1 {
+    font-size: 18pt !important;
   }
 
-  h2 {
-    font-size: 11pt !important;
+  .cv-container h2 {
+    font-size: 10pt !important;
   }
 
-  p, li, span {
-    font-size: 9pt !important;
+  .cv-container p, 
+  .cv-container li, 
+  .cv-container span,
+  .cv-container div {
+    font-size: 8pt !important;
   }
 
   /* Ensure colors print correctly */
@@ -289,10 +331,22 @@
     display: flex !important;
   }
 
-  /* Watermark footer positioning */
-  .cv-container footer {
-    position: absolute;
-    bottom: 12mm;
-    right: 15mm;
+  /* Watermark footer - positioned at bottom right of CV */
+  .cv-watermark {
+    position: absolute !important;
+    bottom: 8mm !important;
+    right: 10mm !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .cv-watermark span {
+    font-size: 7pt !important;
+  }
+
+  .cv-watermark img {
+    height: 10px !important;
+    width: auto !important;
   }
 }
