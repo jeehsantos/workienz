@@ -56,18 +56,7 @@ export function StripeEmbeddedCheckout({ clientSecret, onComplete }: StripeEmbed
           onComplete: handleComplete,
         }}
       >
-        <EmbeddedCheckout 
-          className="w-full"
-          onLoadError={(event) => {
-            console.error("[StripeEmbeddedCheckout] Load error:", event);
-            setError("Failed to load payment form. Please try again.");
-            setIsLoading(false);
-          }}
-          onReady={() => {
-            console.log("[StripeEmbeddedCheckout] Ready");
-            setIsLoading(false);
-          }}
-        />
+        <EmbeddedCheckout className="w-full" />
       </EmbeddedCheckoutProvider>
     </div>
   );
