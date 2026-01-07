@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,9 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
-
-// Get Stripe publishable key safely
-const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
 interface PlanProduct {
   id: string;
@@ -37,15 +34,8 @@ export default function Checkout() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
-
-  // Only load Stripe if key exists
-  const stripePromise = useMemo(() => {
-    if (!STRIPE_PUBLISHABLE_KEY) {
-      console.error("[Checkout] Missing VITE_STRIPE_PUBLISHABLE_KEY");
-      return null;
-    }
-    return loadStripe(STRIPE_PUBLISHABLE_KEY);
-  }, []);
+  const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
+  const stripeLoadAttempted = useRef(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -91,26 +81,45 @@ export default function Checkout() {
     }
   }, [planId, user, navigate, toast]);
 
+  // Load Stripe when user clicks pay - only load once
+  const initializeStripe = async () => {
+    if (stripeLoadAttempted.current) return stripeInstance;
+    stripeLoadAttempted.current = true;
+
+    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (!key) {
+      console.error("[Checkout] Missing VITE_STRIPE_PUBLISHABLE_KEY");
+      setStripeError("Payment system configuration error. Please contact support.");
+      return null;
+    }
+
+    try {
+      const stripe = await loadStripe(key);
+      setStripeInstance(stripe);
+      return stripe;
+    } catch (error) {
+      console.error("[Checkout] Failed to load Stripe:", error);
+      setStripeError("Failed to initialize payment system.");
+      return null;
+    }
+  };
+
   // Create payment intent when user clicks payment button
   const handleStartPayment = async () => {
     if (!plan || !user || clientSecret) return;
-
-    // Check if Stripe key exists before proceeding
-    if (!STRIPE_PUBLISHABLE_KEY) {
-      setStripeError("Payment system is not configured. Please contact support.");
-      toast({
-        title: "Payment unavailable",
-        description: "Payment system is not properly configured.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setShowPaymentForm(true);
     setIsCreatingIntent(true);
     setStripeError(null);
 
     try {
+      // Initialize Stripe first
+      const stripe = await initializeStripe();
+      if (!stripe) {
+        setIsCreatingIntent(false);
+        return;
+      }
+
       console.log("[Checkout] Creating payment intent for plan:", plan.plan_id);
       const { data, error } = await supabase.functions.invoke("create-payment-intent", {
         body: { planId: plan.plan_id },
@@ -159,6 +168,8 @@ export default function Checkout() {
     setClientSecret(null);
     setShowPaymentForm(false);
     setStripeError(null);
+    stripeLoadAttempted.current = false;
+    setStripeInstance(null);
   };
 
   const formatPrice = (cents: number) => {
@@ -205,7 +216,6 @@ export default function Checkout() {
 
   const features = plan.features || [];
   const isDev = import.meta.env.DEV;
-  const isStripeConfigured = !!STRIPE_PUBLISHABLE_KEY;
 
   return (
     <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
@@ -287,14 +297,7 @@ export default function Checkout() {
           <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
             <h2 className="text-lg font-bold font-display mb-6">Payment Details</h2>
 
-            {/* Stripe not configured error */}
-            {!isStripeConfigured ? (
-              <div className="py-8 text-center">
-                <AlertTriangle className="w-10 h-10 text-destructive mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">Payment system is not configured.</p>
-                <p className="text-xs text-muted-foreground">Please contact support for assistance.</p>
-              </div>
-            ) : !showPaymentForm ? (
+            {!showPaymentForm ? (
               // Show Payment Button initially
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground mb-4">
@@ -318,10 +321,21 @@ export default function Checkout() {
                 <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground">Setting up secure payment...</p>
               </div>
-            ) : clientSecret && stripePromise ? (
+            ) : stripeError ? (
+              <div className="py-12 text-center">
+                <AlertTriangle className="w-8 h-8 text-destructive mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground mb-2">{stripeError}</p>
+                <button
+                  onClick={handleRetry}
+                  className="text-primary hover:underline text-sm mt-2"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : clientSecret && stripeInstance ? (
               // Payment Element
               <Elements
-                stripe={stripePromise}
+                stripe={stripeInstance}
                 options={{
                   clientSecret,
                   appearance: {
@@ -347,9 +361,7 @@ export default function Checkout() {
             ) : (
               <div className="py-12 text-center">
                 <AlertTriangle className="w-8 h-8 text-destructive mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  {stripeError || "Unable to initialize payment."}
-                </p>
+                <p className="text-sm text-muted-foreground mb-2">Unable to initialize payment.</p>
                 <button
                   onClick={handleRetry}
                   className="text-primary hover:underline text-sm mt-2"
