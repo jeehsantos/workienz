@@ -9,6 +9,9 @@ import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info, AlertTriangle } fr
 import { Button } from "@/components/ui/button";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 
+// Stripe publishable key (safe to expose in frontend)
+const STRIPE_PUBLISHABLE_KEY = "pk_test_51SlOSuLpM66OQZ3PLtksU9feUwDZ1AImfhFr6Kn8s6uSZ5v1Wi7kbblbcVJA9p3TLTd3T0O837IHeElItmvNbOB900WMcPPR4K";
+
 interface PlanProduct {
   id: string;
   plan_id: string;
@@ -86,15 +89,8 @@ export default function Checkout() {
     if (stripeLoadAttempted.current) return stripeInstance;
     stripeLoadAttempted.current = true;
 
-    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-    if (!key) {
-      console.error("[Checkout] Missing VITE_STRIPE_PUBLISHABLE_KEY");
-      setStripeError("Payment system configuration error. Please contact support.");
-      return null;
-    }
-
     try {
-      const stripe = await loadStripe(key);
+      const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
       setStripeInstance(stripe);
       return stripe;
     } catch (error) {
