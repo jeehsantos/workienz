@@ -12,7 +12,8 @@ import {
   Crown, 
   ArrowRight,
   ExternalLink,
-  Sparkles
+  Sparkles,
+  XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -44,6 +45,7 @@ export default function Subscription() {
   const [currentPlan, setCurrentPlan] = useState<PlanProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isManaging, setIsManaging] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -73,13 +75,39 @@ export default function Subscription() {
         if (subData) {
           setSubscription(subData);
 
-          // Get plan details based on plan_name
-          const planId = subData.plan_name.toLowerCase().replace(/\s+/g, "_");
-          const { data: planData } = await supabase
-            .from("plan_products")
-            .select("*")
-            .eq("plan_id", planId)
-            .maybeSingle();
+          // Get plan details - try matching by stripe_price_id first, then by plan_name
+          let planData = null;
+          
+          if (subData.stripe_price_id) {
+            // First try to match using stripe_price_id which stores the plan_id
+            const { data: planByPriceId } = await supabase
+              .from("plan_products")
+              .select("*")
+              .eq("plan_id", subData.stripe_price_id)
+              .maybeSingle();
+            
+            if (planByPriceId) {
+              planData = planByPriceId;
+            } else {
+              // Try matching by actual stripe_price_id
+              const { data: planByStripePriceId } = await supabase
+                .from("plan_products")
+                .select("*")
+                .eq("stripe_price_id", subData.stripe_price_id)
+                .maybeSingle();
+              planData = planByStripePriceId;
+            }
+          }
+          
+          // Fallback: try matching by plan_name
+          if (!planData && subData.plan_name) {
+            const { data: planByName } = await supabase
+              .from("plan_products")
+              .select("*")
+              .eq("plan_name", subData.plan_name)
+              .maybeSingle();
+            planData = planByName;
+          }
 
           if (planData) {
             setCurrentPlan(planData as PlanProduct);
@@ -119,6 +147,57 @@ export default function Subscription() {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!subscription?.stripe_subscription_id) {
+      toast({
+        title: "Cannot Cancel",
+        description: "This subscription cannot be cancelled through this portal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("cancel-subscription", {
+        body: { subscriptionId: subscription.stripe_subscription_id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Subscription Cancelled",
+        description: "Your subscription will remain active until the end of the current billing period.",
+      });
+
+      // Refresh subscription data
+      const { data: subData } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subData) {
+        setSubscription(subData);
+      } else {
+        setSubscription(null);
+        setCurrentPlan(null);
+      }
+    } catch (error: any) {
+      console.error("Cancel error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel subscription. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const formatPrice = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
   };
@@ -127,6 +206,9 @@ export default function Subscription() {
     if (!interval || interval === "one_time") return "";
     return ` / ${interval}`;
   };
+
+  // Check if the subscription is a recurring type (not one-time payment)
+  const isRecurringSubscription = currentPlan?.interval && currentPlan.interval !== "one_time";
 
   if (authLoading || isLoading) {
     return (
@@ -247,6 +329,20 @@ export default function Subscription() {
                           <ExternalLink className="w-4 h-4 mr-2" />
                         )}
                         Manage Billing
+                      </Button>
+                    )}
+                    {isRecurringSubscription && subscription.stripe_subscription_id && (
+                      <Button
+                        onClick={handleCancelSubscription}
+                        disabled={isCancelling}
+                        variant="destructive"
+                      >
+                        {isCancelling ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <XCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Cancel Subscription
                       </Button>
                     )}
                     <Button variant="outline" asChild>
