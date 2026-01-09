@@ -98,9 +98,16 @@ serve(async (req) => {
           : session.subscription.id;
         
         logStep("Session has subscription", { stripeSubscriptionId });
-        subscription = typeof session.subscription === "object" 
-          ? session.subscription as Stripe.Subscription
-          : await stripe.subscriptions.retrieve(stripeSubscriptionId);
+        
+        // Always retrieve subscription separately to ensure proper structure
+        // The inline expanded object may have timestamps nested differently
+        subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+        
+        logStep("Subscription retrieved", {
+          status: subscription.status,
+          currentPeriodStart: subscription.current_period_start,
+          currentPeriodEnd: subscription.current_period_end,
+        });
       }
     } 
     // Handle PaymentIntent flow (embedded payments)
@@ -149,8 +156,21 @@ serve(async (req) => {
       planId = subscription.metadata?.plan_id ?? resolvedPlanId ?? null;
       planName = subscription.metadata?.plan_name ?? resolvedPlanName ?? null;
 
-      startsAt = new Date(subscription.current_period_start * 1000).toISOString();
-      endsAt = new Date(subscription.current_period_end * 1000).toISOString();
+      // Validate timestamps before converting
+      const periodStart = subscription.current_period_start;
+      const periodEnd = subscription.current_period_end;
+
+      if (typeof periodStart === 'number' && typeof periodEnd === 'number') {
+        startsAt = new Date(periodStart * 1000).toISOString();
+        endsAt = new Date(periodEnd * 1000).toISOString();
+      } else {
+        logStep("WARNING: Invalid period timestamps, using fallback", { periodStart, periodEnd });
+        // Fallback to subscription start_date and calculate end based on interval
+        startsAt = new Date(subscription.start_date * 1000).toISOString();
+        const endDate = new Date(subscription.start_date * 1000);
+        endDate.setMonth(endDate.getMonth() + 1);
+        endsAt = endDate.toISOString();
+      }
 
       if (subscription.status === "active" || subscription.status === "trialing") {
         statusToStore = "active";
@@ -161,7 +181,8 @@ serve(async (req) => {
       logStep("Resolved subscription purchase", {
         planId,
         status: subscription.status,
-        currentPeriodEnd: subscription.current_period_end,
+        startsAt,
+        endsAt,
       });
     } else {
       // One-time payment
