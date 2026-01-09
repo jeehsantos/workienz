@@ -143,17 +143,42 @@ export default function Checkout() {
     }
   };
 
-  const handlePaymentSuccess = () => {
-    setPaymentSuccess(true);
-    toast({
-      title: "Payment Successful! 🎉",
-      description: `Your ${plan?.plan_name || "subscription"} is now active.`,
-      duration: 5000,
-    });
+  const handlePaymentSuccess = async (paymentIntentId: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("finalize-purchase", {
+        body: {
+          paymentIntentId,
+          planId: plan?.plan_id,
+        },
+      });
 
-    setTimeout(() => {
-      navigate("/subscription");
-    }, 2000);
+      if (error) throw error;
+
+      setPaymentSuccess(true);
+      toast({
+        title: "Payment Successful! 🎉",
+        description: `Your ${plan?.plan_name || "subscription"} is now active.`,
+        duration: 5000,
+      });
+
+      setTimeout(() => {
+        navigate("/subscription");
+      }, 2000);
+    } catch (error: any) {
+      console.error("[Checkout] finalize-purchase failed:", error);
+      setPaymentSuccess(true);
+      toast({
+        title: "Payment received",
+        description:
+          "Your payment went through, but we couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
+        variant: "destructive",
+        duration: 7000,
+      });
+
+      setTimeout(() => {
+        navigate("/subscription");
+      }, 2000);
+    }
   };
 
   const handlePaymentError = (error: string) => {

@@ -66,7 +66,7 @@ serve(async (req) => {
     logStep("Plan details fetched", { planName: planData.plan_name, price: planData.price_cents });
 
     // Initialize Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
