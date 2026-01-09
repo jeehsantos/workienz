@@ -164,12 +164,39 @@ serve(async (req) => {
         startsAt = new Date(periodStart * 1000).toISOString();
         endsAt = new Date(periodEnd * 1000).toISOString();
       } else {
-        logStep("WARNING: Invalid period timestamps, using fallback", { periodStart, periodEnd });
-        // Fallback to subscription start_date and calculate end based on interval
-        startsAt = new Date(subscription.start_date * 1000).toISOString();
-        const endDate = new Date(subscription.start_date * 1000);
-        endDate.setMonth(endDate.getMonth() + 1);
-        endsAt = endDate.toISOString();
+        logStep("WARNING: Root period timestamps invalid, trying item-level", { periodStart, periodEnd });
+        
+        // Try item-level timestamps (Stripe sometimes nests these)
+        const item = subscription.items?.data?.[0];
+        const itemPeriodStart = item?.current_period_start;
+        const itemPeriodEnd = item?.current_period_end;
+        
+        if (typeof itemPeriodStart === 'number' && typeof itemPeriodEnd === 'number') {
+          startsAt = new Date(itemPeriodStart * 1000).toISOString();
+          endsAt = new Date(itemPeriodEnd * 1000).toISOString();
+          logStep("Used item-level period timestamps", { itemPeriodStart, itemPeriodEnd });
+        } else {
+          // Final fallback: use start_date and interval from price
+          startsAt = new Date(subscription.start_date * 1000).toISOString();
+          const endDate = new Date(subscription.start_date * 1000);
+          
+          const recurring = item?.price?.recurring;
+          const interval = recurring?.interval ?? 'month';
+          const intervalCount = recurring?.interval_count ?? 1;
+          
+          if (interval === 'year') {
+            endDate.setFullYear(endDate.getFullYear() + intervalCount);
+          } else if (interval === 'month') {
+            endDate.setMonth(endDate.getMonth() + intervalCount);
+          } else if (interval === 'week') {
+            endDate.setDate(endDate.getDate() + (7 * intervalCount));
+          } else {
+            endDate.setDate(endDate.getDate() + intervalCount);
+          }
+          
+          endsAt = endDate.toISOString();
+          logStep("Used fallback interval calculation", { interval, intervalCount, endsAt });
+        }
       }
 
       if (subscription.status === "active" || subscription.status === "trialing") {
@@ -236,7 +263,15 @@ serve(async (req) => {
         { onConflict: "user_id" },
       );
 
-    if (upsertError) throw upsertError;
+    if (upsertError) {
+      logStep("DB upsert failed", {
+        message: upsertError.message,
+        code: upsertError.code,
+        details: upsertError.details,
+        hint: upsertError.hint,
+      });
+      throw new Error(upsertError.message ?? JSON.stringify(upsertError));
+    }
 
     return new Response(
       JSON.stringify({

@@ -51,6 +51,31 @@ export default function CheckoutSuccess() {
   }, [sessionId, isStripeRedirectSuccess, hasShownToast, toast, navigate]);
 
   useEffect(() => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [0, 2000, 5000]; // immediate, 2s, 5s
+
+    const attemptFinalize = async (body: Record<string, string>, attempt = 0): Promise<boolean> => {
+      try {
+        const { error } = await supabase.functions.invoke("finalize-purchase", { body });
+        if (!error) return true;
+        
+        console.error(`Finalize attempt ${attempt + 1} failed:`, error);
+        
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt + 1]));
+          return attemptFinalize(body, attempt + 1);
+        }
+        return false;
+      } catch (err) {
+        console.error(`Finalize attempt ${attempt + 1} exception:`, err);
+        if (attempt < MAX_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt + 1]));
+          return attemptFinalize(body, attempt + 1);
+        }
+        return false;
+      }
+    };
+
     const finalize = async () => {
       if (hasFinalized.current) return;
 
@@ -58,23 +83,17 @@ export default function CheckoutSuccess() {
       if (user && sessionId) {
         hasFinalized.current = true;
         setIsFinalizing(true);
-        try {
-          const { error } = await supabase.functions.invoke("finalize-purchase", {
-            body: { sessionId },
-          });
-          if (error) throw error;
-        } catch (error: any) {
-          console.error("[CheckoutSuccess] finalize-purchase failed (session):", error);
+        
+        const success = await attemptFinalize({ sessionId });
+        
+        if (!success) {
           toast({
             title: "Payment received",
-            description:
-              "We couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
+            description: "We couldn't sync your subscription. Please visit your Subscription page and refresh.",
             variant: "destructive",
-            duration: 7000,
           });
-        } finally {
-          setIsFinalizing(false);
         }
+        setIsFinalizing(false);
         return;
       }
 
@@ -82,23 +101,18 @@ export default function CheckoutSuccess() {
       if (user && isStripeRedirectSuccess && paymentIntentId) {
         hasFinalized.current = true;
         setIsFinalizing(true);
-        try {
-          const { error } = await supabase.functions.invoke("finalize-purchase", {
-            body: { paymentIntentId },
-          });
-          if (error) throw error;
-        } catch (error: any) {
-          console.error("[CheckoutSuccess] finalize-purchase failed (paymentIntent):", error);
+        
+        const success = await attemptFinalize({ paymentIntentId });
+        
+        if (!success) {
           toast({
             title: "Payment received",
-            description:
-              "We couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
+            description: "We couldn't sync your subscription. Please visit your Subscription page and refresh.",
             variant: "destructive",
-            duration: 7000,
           });
-        } finally {
-          setIsFinalizing(false);
         }
+        setIsFinalizing(false);
+        return;
       }
     };
 
