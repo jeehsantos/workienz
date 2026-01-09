@@ -345,9 +345,6 @@ export default function Subscription() {
                         Cancel Subscription
                       </Button>
                     )}
-                    <Button variant="outline" asChild>
-                      <Link to="/pricing">View All Plans</Link>
-                    </Button>
                   </div>
                 </div>
               ) : (
