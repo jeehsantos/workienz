@@ -109,13 +109,6 @@ export default function Checkout() {
     setStripeError(null);
 
     try {
-      // Initialize Stripe first
-      const stripe = await initializeStripe();
-      if (!stripe) {
-        setIsCreatingIntent(false);
-        return;
-      }
-
       console.log("[Checkout] Creating payment intent for plan:", plan.plan_id);
       const { data, error } = await supabase.functions.invoke("create-payment-intent", {
         body: { planId: plan.plan_id },
@@ -123,11 +116,24 @@ export default function Checkout() {
 
       if (error) throw error;
 
+      // If backend returns a checkout URL (subscription), redirect to Stripe hosted checkout
+      if (data?.type === "checkout" && data?.url) {
+        console.log("[Checkout] Redirecting to Stripe Checkout:", data.url);
+        window.location.href = data.url;
+        return;
+      }
+
+      // For embedded payment (one-time), load Stripe and show payment form
       if (data?.clientSecret) {
+        const stripe = await initializeStripe();
+        if (!stripe) {
+          setIsCreatingIntent(false);
+          return;
+        }
         console.log("[Checkout] Client secret received");
         setClientSecret(data.clientSecret);
       } else {
-        throw new Error("No client secret returned");
+        throw new Error("No client secret or checkout URL returned");
       }
     } catch (error: any) {
       console.error("[Checkout] Error creating payment intent:", error);

@@ -140,7 +140,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://workie.lovable.app";
 
     if (config.mode === "subscription") {
-      logStep("Creating subscription with payment intent");
+      logStep("Using Stripe Hosted Checkout for subscription");
 
       // Cancel any existing incomplete subscriptions for this customer to avoid duplicates
       try {
@@ -160,128 +160,41 @@ serve(async (req) => {
         });
       }
 
-      // Create a subscription with payment_behavior: default_incomplete
-      // This returns a client_secret we can use with Payment Element
-      let subscription: Stripe.Subscription;
-      try {
-        subscription = await stripe.subscriptions.create({
-          customer: customerId,
-          items: [{ price: stripePrice.id }],
-          // Ensure Stripe generates an invoice + PaymentIntent (some accounts default to send_invoice)
-          collection_method: "charge_automatically",
-          payment_behavior: "default_incomplete",
-          payment_settings: {
-            save_default_payment_method: "on_subscription",
-            payment_method_types: ["card"],
+      // Create a Stripe Checkout session for the subscription
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        line_items: [
+          {
+            price: stripePrice.id,
+            quantity: 1,
           },
-          expand: ["latest_invoice.payment_intent"],
+        ],
+        mode: "subscription",
+        success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/checkout?plan=${planId}`,
+        subscription_data: {
           metadata: {
             user_id: user.id,
             plan_id: planId,
             plan_name: planData.plan_name,
             plan_type: planData.plan_type,
           },
-        });
-      } catch (subError) {
-        logStep("Stripe subscription creation failed", {
-          error: subError instanceof Error ? subError.message : String(subError),
-        });
-        throw subError;
-      }
-
-      logStep("Subscription created", {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        latestInvoice: subscription.latest_invoice ? "present" : "missing",
+        },
+        metadata: {
+          user_id: user.id,
+          plan_id: planId,
+          plan_name: planData.plan_name,
+          plan_type: planData.plan_type,
+        },
       });
 
-      // Robustly resolve invoice + payment intent (force-retrieve the invoice to avoid partial objects)
-      const invoiceRef = subscription.latest_invoice;
-      if (!invoiceRef) {
-        throw new Error("Subscription created but no invoice was generated");
-      }
-
-      const invoiceId = typeof invoiceRef === "string" ? invoiceRef : invoiceRef.id;
-      let invoice = await stripe.invoices.retrieve(invoiceId, { expand: ["payment_intent"] });
-
-      logStep("Invoice details", {
-        invoiceId: invoice.id,
-        status: invoice.status,
-        collectionMethod: invoice.collection_method,
-        billingReason: invoice.billing_reason,
-        amountDue: invoice.amount_due,
-        total: invoice.total,
-        currency: invoice.currency,
-        paymentIntentType: typeof invoice.payment_intent,
-        paymentIntentPresent: !!invoice.payment_intent,
-      });
-
-      // If invoice has no PI, try to force automatic collection and finalize it
-      if (!invoice.payment_intent) {
-        logStep("Invoice has no payment_intent; attempting to finalize", {
-          invoiceId: invoice.id,
-          status: invoice.status,
-          collectionMethod: invoice.collection_method,
-        });
-
-        if (invoice.status === "draft") {
-          try {
-            await stripe.invoices.update(invoice.id, { collection_method: "charge_automatically" });
-            logStep("Updated invoice collection_method to charge_automatically", { invoiceId: invoice.id });
-          } catch (updateError) {
-            logStep("Invoice update failed (continuing)", {
-              invoiceId: invoice.id,
-              error: updateError instanceof Error ? updateError.message : String(updateError),
-            });
-          }
-        }
-
-        try {
-          await stripe.invoices.finalizeInvoice(invoice.id, { auto_advance: true });
-        } catch (finalizeError) {
-          logStep("Invoice finalize failed (continuing)", {
-            invoiceId: invoice.id,
-            error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
-          });
-        }
-
-        invoice = await stripe.invoices.retrieve(invoice.id, { expand: ["payment_intent"] });
-
-        logStep("Invoice after finalize", {
-          invoiceId: invoice.id,
-          status: invoice.status,
-          collectionMethod: invoice.collection_method,
-          paymentIntentType: typeof invoice.payment_intent,
-          paymentIntentPresent: !!invoice.payment_intent,
-        });
-      }
-
-      let paymentIntent: Stripe.PaymentIntent | null = null;
-      if (typeof invoice.payment_intent === "string") {
-        paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
-      } else if (invoice.payment_intent) {
-        paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
-      }
-
-      if (!paymentIntent?.client_secret) {
-        logStep("No payment intent client secret", {
-          invoiceId: invoice.id,
-          invoiceStatus: invoice.status,
-          paymentIntent: paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : null,
-        });
-        throw new Error("Failed to create subscription payment intent - no client secret returned");
-      }
-
-      logStep("Created subscription with payment intent", {
-        subscriptionId: subscription.id,
-        paymentIntentId: paymentIntent.id,
-      });
+      logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
       return new Response(
         JSON.stringify({
-          clientSecret: paymentIntent.client_secret,
-          subscriptionId: subscription.id,
-          type: "payment", // Use payment type so it uses Payment Element
+          url: session.url,
+          sessionId: session.id,
+          type: "checkout",
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
