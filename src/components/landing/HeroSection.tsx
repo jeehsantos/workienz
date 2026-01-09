@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 export function HeroSection() {
   return (
-    <section className="relative pt-32 pb-20 lg:pt-20 lg:pb-28 gradient-hero overflow-hidden">
+    <section className="relative pt-32 pb-20 lg:pt-20 lg:pb-20 gradient-hero overflow-hidden">
       {/* Decorative background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/5 blur-3xl" />
