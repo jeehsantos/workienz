@@ -51,30 +51,54 @@ export default function CheckoutSuccess() {
 
   useEffect(() => {
     const finalize = async () => {
-      if (!user || !isStripeRedirectSuccess || !paymentIntentId || isFinalizing) return;
+      // Handle session_id from Stripe Checkout (hosted)
+      if (user && sessionId && !isFinalizing) {
+        setIsFinalizing(true);
+        try {
+          const { error } = await supabase.functions.invoke("finalize-purchase", {
+            body: { sessionId },
+          });
+          if (error) throw error;
+        } catch (error: any) {
+          console.error("[CheckoutSuccess] finalize-purchase failed (session):", error);
+          toast({
+            title: "Payment received",
+            description:
+              "We couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
+            variant: "destructive",
+            duration: 7000,
+          });
+        } finally {
+          setIsFinalizing(false);
+        }
+        return;
+      }
 
-      setIsFinalizing(true);
-      try {
-        const { error } = await supabase.functions.invoke("finalize-purchase", {
-          body: { paymentIntentId },
-        });
-        if (error) throw error;
-      } catch (error: any) {
-        console.error("[CheckoutSuccess] finalize-purchase failed:", error);
-        toast({
-          title: "Payment received",
-          description:
-            "We couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
-          variant: "destructive",
-          duration: 7000,
-        });
-      } finally {
-        setIsFinalizing(false);
+      // Handle payment_intent from embedded payments
+      if (user && isStripeRedirectSuccess && paymentIntentId && !isFinalizing) {
+        setIsFinalizing(true);
+        try {
+          const { error } = await supabase.functions.invoke("finalize-purchase", {
+            body: { paymentIntentId },
+          });
+          if (error) throw error;
+        } catch (error: any) {
+          console.error("[CheckoutSuccess] finalize-purchase failed (paymentIntent):", error);
+          toast({
+            title: "Payment received",
+            description:
+              "We couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
+            variant: "destructive",
+            duration: 7000,
+          });
+        } finally {
+          setIsFinalizing(false);
+        }
       }
     };
 
     finalize();
-  }, [user, isStripeRedirectSuccess, paymentIntentId, isFinalizing, toast]);
+  }, [user, sessionId, isStripeRedirectSuccess, paymentIntentId, isFinalizing, toast]);
 
   if (isLoading || isFinalizing) {
     return (
