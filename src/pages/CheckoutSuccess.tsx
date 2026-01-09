@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ export default function CheckoutSuccess() {
   const [showContent, setShowContent] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const hasFinalized = useRef(false);
 
   useEffect(() => {
     const shouldShowSuccess = !!sessionId || isStripeRedirectSuccess;
@@ -51,8 +52,11 @@ export default function CheckoutSuccess() {
 
   useEffect(() => {
     const finalize = async () => {
+      if (hasFinalized.current) return;
+
       // Handle session_id from Stripe Checkout (hosted)
-      if (user && sessionId && !isFinalizing) {
+      if (user && sessionId) {
+        hasFinalized.current = true;
         setIsFinalizing(true);
         try {
           const { error } = await supabase.functions.invoke("finalize-purchase", {
@@ -75,7 +79,8 @@ export default function CheckoutSuccess() {
       }
 
       // Handle payment_intent from embedded payments
-      if (user && isStripeRedirectSuccess && paymentIntentId && !isFinalizing) {
+      if (user && isStripeRedirectSuccess && paymentIntentId) {
+        hasFinalized.current = true;
         setIsFinalizing(true);
         try {
           const { error } = await supabase.functions.invoke("finalize-purchase", {
@@ -98,7 +103,7 @@ export default function CheckoutSuccess() {
     };
 
     finalize();
-  }, [user, sessionId, isStripeRedirectSuccess, paymentIntentId, isFinalizing, toast]);
+  }, [user, sessionId, isStripeRedirectSuccess, paymentIntentId, toast]);
 
   if (isLoading || isFinalizing) {
     return (
