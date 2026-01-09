@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface StripePaymentFormProps {
   priceFormatted: string;
-  onSuccess: () => void;
+  onSuccess: (paymentIntentId: string) => void;
   onError: (error: string) => void;
 }
 
@@ -79,7 +79,10 @@ export function StripePaymentForm({
         });
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
         console.log("[StripePaymentForm] Payment succeeded");
-        onSuccess();
+        if (!paymentIntent.id) {
+          throw new Error("Payment succeeded but no payment intent id was returned");
+        }
+        onSuccess(paymentIntent.id);
       } else if (paymentIntent && paymentIntent.status === "requires_action") {
         // 3D Secure or other actions - Stripe handles this
         console.log("[StripePaymentForm] Payment requires additional action");

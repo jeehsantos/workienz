@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, Sparkles, Users, Briefcase, ArrowRight, Loader2 } from "lucide-react";
@@ -8,15 +9,21 @@ import { CheckCircle2, Sparkles, Users, Briefcase, ArrowRight, Loader2 } from "l
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const paymentIntentId = searchParams.get("payment_intent");
+  const redirectStatus = searchParams.get("redirect_status");
+  const isStripeRedirectSuccess = !!paymentIntentId && redirectStatus === "succeeded";
+
   const navigate = useNavigate();
   const { user, isContractor, isEmployee, isLoading } = useAuthContext();
   const { toast } = useToast();
   const [showContent, setShowContent] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   useEffect(() => {
-    // Show success toast and trigger animation on successful checkout
-    if (sessionId && !hasShownToast) {
+    const shouldShowSuccess = !!sessionId || isStripeRedirectSuccess;
+
+    if (shouldShowSuccess && !hasShownToast) {
       toast({
         title: "Payment Successful! 🎉",
         description: "Your subscription is now active. Enjoy all the benefits!",
@@ -37,12 +44,39 @@ export default function CheckoutSuccess() {
         clearTimeout(timer);
         clearTimeout(redirectTimer);
       };
-    } else if (!sessionId) {
+    } else if (!sessionId && !isStripeRedirectSuccess) {
       setShowContent(true);
     }
-  }, [sessionId, hasShownToast, toast, navigate]);
+  }, [sessionId, isStripeRedirectSuccess, hasShownToast, toast, navigate]);
 
-  if (isLoading) {
+  useEffect(() => {
+    const finalize = async () => {
+      if (!user || !isStripeRedirectSuccess || !paymentIntentId || isFinalizing) return;
+
+      setIsFinalizing(true);
+      try {
+        const { error } = await supabase.functions.invoke("finalize-purchase", {
+          body: { paymentIntentId },
+        });
+        if (error) throw error;
+      } catch (error: any) {
+        console.error("[CheckoutSuccess] finalize-purchase failed:", error);
+        toast({
+          title: "Payment received",
+          description:
+            "We couldn't sync your subscription yet. Please refresh your Subscription page in a moment.",
+          variant: "destructive",
+          duration: 7000,
+        });
+      } finally {
+        setIsFinalizing(false);
+      }
+    };
+
+    finalize();
+  }, [user, isStripeRedirectSuccess, paymentIntentId, isFinalizing, toast]);
+
+  if (isLoading || isFinalizing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -109,7 +143,7 @@ export default function CheckoutSuccess() {
           )}
 
           {/* Auto-redirect notice */}
-          {sessionId && (
+          {(sessionId || isStripeRedirectSuccess) && (
             <p className="text-xs text-muted-foreground mb-6 animate-pulse">
               Redirecting to your subscription page in a few seconds...
             </p>
