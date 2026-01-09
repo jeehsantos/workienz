@@ -142,30 +142,75 @@ serve(async (req) => {
     if (config.mode === "subscription") {
       logStep("Creating subscription with payment intent");
 
+      // Cancel any existing incomplete subscriptions for this customer to avoid duplicates
+      try {
+        const existingSubscriptions = await stripe.subscriptions.list({
+          customer: customerId,
+          status: "incomplete",
+          limit: 10,
+        });
+
+        for (const sub of existingSubscriptions.data) {
+          logStep("Cancelling incomplete subscription", { subscriptionId: sub.id });
+          await stripe.subscriptions.cancel(sub.id);
+        }
+      } catch (cancelError) {
+        logStep("Error cancelling incomplete subscriptions (continuing anyway)", {
+          error: cancelError instanceof Error ? cancelError.message : String(cancelError),
+        });
+      }
+
       // Create a subscription with payment_behavior: default_incomplete
       // This returns a client_secret we can use with Payment Element
-      const subscription = await stripe.subscriptions.create({
-        customer: customerId,
-        items: [{ price: stripePrice.id }],
-        payment_behavior: "default_incomplete",
-        payment_settings: {
-          save_default_payment_method: "on_subscription",
-          payment_method_types: ["card"],
-        },
-        expand: ["latest_invoice.payment_intent"],
-        metadata: {
-          user_id: user.id,
-          plan_id: planId,
-          plan_name: planData.plan_name,
-          plan_type: planData.plan_type,
-        },
+      let subscription: Stripe.Subscription;
+      try {
+        subscription = await stripe.subscriptions.create({
+          customer: customerId,
+          items: [{ price: stripePrice.id }],
+          payment_behavior: "default_incomplete",
+          payment_settings: {
+            save_default_payment_method: "on_subscription",
+            payment_method_types: ["card"],
+          },
+          expand: ["latest_invoice.payment_intent"],
+          metadata: {
+            user_id: user.id,
+            plan_id: planId,
+            plan_name: planData.plan_name,
+            plan_type: planData.plan_type,
+          },
+        });
+      } catch (subError) {
+        logStep("Stripe subscription creation failed", {
+          error: subError instanceof Error ? subError.message : String(subError),
+        });
+        throw subError;
+      }
+
+      logStep("Subscription created", {
+        subscriptionId: subscription.id,
+        status: subscription.status,
+        latestInvoice: subscription.latest_invoice ? "present" : "missing",
       });
 
-      const invoice = subscription.latest_invoice as Stripe.Invoice;
-      const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+      const invoice = subscription.latest_invoice as Stripe.Invoice | null;
+      if (!invoice) {
+        throw new Error("Subscription created but no invoice was generated");
+      }
+
+      logStep("Invoice details", {
+        invoiceId: invoice.id,
+        paymentIntentType: typeof invoice.payment_intent,
+        paymentIntentPresent: !!invoice.payment_intent,
+      });
+
+      const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | null;
 
       if (!paymentIntent?.client_secret) {
-        throw new Error("Failed to create subscription payment intent");
+        logStep("No payment intent client secret", {
+          paymentIntent: paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : null,
+        });
+        throw new Error("Failed to create subscription payment intent - no client secret returned");
       }
 
       logStep("Created subscription with payment intent", {
