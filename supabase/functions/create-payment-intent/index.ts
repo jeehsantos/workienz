@@ -167,6 +167,8 @@ serve(async (req) => {
         subscription = await stripe.subscriptions.create({
           customer: customerId,
           items: [{ price: stripePrice.id }],
+          // Ensure Stripe generates an invoice + PaymentIntent (some accounts default to send_invoice)
+          collection_method: "charge_automatically",
           payment_behavior: "default_incomplete",
           payment_settings: {
             save_default_payment_method: "on_subscription",
@@ -193,21 +195,78 @@ serve(async (req) => {
         latestInvoice: subscription.latest_invoice ? "present" : "missing",
       });
 
-      const invoice = subscription.latest_invoice as Stripe.Invoice | null;
-      if (!invoice) {
+      // Robustly resolve invoice + payment intent (force-retrieve the invoice to avoid partial objects)
+      const invoiceRef = subscription.latest_invoice;
+      if (!invoiceRef) {
         throw new Error("Subscription created but no invoice was generated");
       }
 
+      const invoiceId = typeof invoiceRef === "string" ? invoiceRef : invoiceRef.id;
+      let invoice = await stripe.invoices.retrieve(invoiceId, { expand: ["payment_intent"] });
+
       logStep("Invoice details", {
         invoiceId: invoice.id,
+        status: invoice.status,
+        collectionMethod: invoice.collection_method,
+        billingReason: invoice.billing_reason,
+        amountDue: invoice.amount_due,
+        total: invoice.total,
+        currency: invoice.currency,
         paymentIntentType: typeof invoice.payment_intent,
         paymentIntentPresent: !!invoice.payment_intent,
       });
 
-      const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | null;
+      // If invoice has no PI, try to force automatic collection and finalize it
+      if (!invoice.payment_intent) {
+        logStep("Invoice has no payment_intent; attempting to finalize", {
+          invoiceId: invoice.id,
+          status: invoice.status,
+          collectionMethod: invoice.collection_method,
+        });
+
+        if (invoice.status === "draft") {
+          try {
+            await stripe.invoices.update(invoice.id, { collection_method: "charge_automatically" });
+            logStep("Updated invoice collection_method to charge_automatically", { invoiceId: invoice.id });
+          } catch (updateError) {
+            logStep("Invoice update failed (continuing)", {
+              invoiceId: invoice.id,
+              error: updateError instanceof Error ? updateError.message : String(updateError),
+            });
+          }
+        }
+
+        try {
+          await stripe.invoices.finalizeInvoice(invoice.id, { auto_advance: true });
+        } catch (finalizeError) {
+          logStep("Invoice finalize failed (continuing)", {
+            invoiceId: invoice.id,
+            error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
+          });
+        }
+
+        invoice = await stripe.invoices.retrieve(invoice.id, { expand: ["payment_intent"] });
+
+        logStep("Invoice after finalize", {
+          invoiceId: invoice.id,
+          status: invoice.status,
+          collectionMethod: invoice.collection_method,
+          paymentIntentType: typeof invoice.payment_intent,
+          paymentIntentPresent: !!invoice.payment_intent,
+        });
+      }
+
+      let paymentIntent: Stripe.PaymentIntent | null = null;
+      if (typeof invoice.payment_intent === "string") {
+        paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
+      } else if (invoice.payment_intent) {
+        paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+      }
 
       if (!paymentIntent?.client_secret) {
         logStep("No payment intent client secret", {
+          invoiceId: invoice.id,
+          invoiceStatus: invoice.status,
           paymentIntent: paymentIntent ? { id: paymentIntent.id, status: paymentIntent.status } : null,
         });
         throw new Error("Failed to create subscription payment intent - no client secret returned");
