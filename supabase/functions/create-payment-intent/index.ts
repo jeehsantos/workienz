@@ -140,7 +140,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://workie.lovable.app";
 
     if (config.mode === "subscription") {
-      logStep("Using Stripe Hosted Checkout for subscription");
+      logStep("Using Embedded Checkout for subscription");
 
       // Cancel any existing incomplete subscriptions for this customer to avoid duplicates
       try {
@@ -160,7 +160,7 @@ serve(async (req) => {
         });
       }
 
-      // Create a Stripe Checkout session for the subscription
+      // Create a Stripe Checkout session with embedded mode for subscriptions
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [
@@ -170,8 +170,8 @@ serve(async (req) => {
           },
         ],
         mode: "subscription",
-        success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/checkout?plan=${planId}`,
+        ui_mode: "embedded",
+        return_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
         subscription_data: {
           metadata: {
             user_id: user.id,
@@ -188,13 +188,13 @@ serve(async (req) => {
         },
       });
 
-      logStep("Checkout session created", { sessionId: session.id, url: session.url });
+      logStep("Embedded checkout session created", { sessionId: session.id, clientSecret: session.client_secret?.substring(0, 20) + "..." });
 
       return new Response(
         JSON.stringify({
-          url: session.url,
+          clientSecret: session.client_secret,
           sessionId: session.id,
-          type: "checkout",
+          type: "embedded_checkout",
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

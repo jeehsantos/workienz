@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
-
+import { StripeEmbeddedCheckout } from "@/components/checkout/StripeEmbeddedCheckout";
 // Stripe publishable key (safe to expose in frontend)
 const STRIPE_PUBLISHABLE_KEY = "pk_test_51SlOSuLpM66OQZ3PLtksU9feUwDZ1AImfhFr6Kn8s6uSZ5v1Wi7kbblbcVJA9p3TLTd3T0O837IHeElItmvNbOB900WMcPPR4K";
 
@@ -38,6 +38,7 @@ export default function Checkout() {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
+  const [paymentType, setPaymentType] = useState<"payment" | "embedded_checkout" | null>(null);
   const stripeLoadAttempted = useRef(false);
 
   // Redirect if not logged in
@@ -116,24 +117,29 @@ export default function Checkout() {
 
       if (error) throw error;
 
-      // If backend returns a checkout URL (subscription), redirect to Stripe hosted checkout
-      if (data?.type === "checkout" && data?.url) {
-        console.log("[Checkout] Redirecting to Stripe Checkout:", data.url);
-        window.location.href = data.url;
-        return;
-      }
-
-      // For embedded payment (one-time), load Stripe and show payment form
-      if (data?.clientSecret) {
+      // Handle embedded checkout for subscriptions
+      if (data?.type === "embedded_checkout" && data?.clientSecret) {
+        console.log("[Checkout] Using embedded checkout for subscription");
         const stripe = await initializeStripe();
         if (!stripe) {
           setIsCreatingIntent(false);
           return;
         }
-        console.log("[Checkout] Client secret received");
+        setPaymentType("embedded_checkout");
+        setClientSecret(data.clientSecret);
+      }
+      // Handle payment intent for one-time payments
+      else if (data?.type === "payment" && data?.clientSecret) {
+        const stripe = await initializeStripe();
+        if (!stripe) {
+          setIsCreatingIntent(false);
+          return;
+        }
+        console.log("[Checkout] Client secret received for payment intent");
+        setPaymentType("payment");
         setClientSecret(data.clientSecret);
       } else {
-        throw new Error("No client secret or checkout URL returned");
+        throw new Error("Invalid response from payment service");
       }
     } catch (error: any) {
       console.error("[Checkout] Error creating payment intent:", error);
@@ -195,8 +201,22 @@ export default function Checkout() {
     setClientSecret(null);
     setShowPaymentForm(false);
     setStripeError(null);
+    setPaymentType(null);
     stripeLoadAttempted.current = false;
     setStripeInstance(null);
+  };
+
+  const handleEmbeddedCheckoutComplete = () => {
+    console.log("[Checkout] Embedded checkout completed");
+    setPaymentSuccess(true);
+    toast({
+      title: "Payment Successful! 🎉",
+      description: `Your ${plan?.plan_name || "subscription"} is now active.`,
+      duration: 5000,
+    });
+    setTimeout(() => {
+      navigate("/subscription");
+    }, 2000);
   };
 
   const formatPrice = (cents: number) => {
@@ -359,8 +379,14 @@ export default function Checkout() {
                   Try again
                 </button>
               </div>
-            ) : clientSecret && stripeInstance ? (
-              // Payment Element
+            ) : clientSecret && stripeInstance && paymentType === "embedded_checkout" ? (
+              // Embedded Checkout for subscriptions
+              <StripeEmbeddedCheckout
+                clientSecret={clientSecret}
+                onComplete={handleEmbeddedCheckoutComplete}
+              />
+            ) : clientSecret && stripeInstance && paymentType === "payment" ? (
+              // Payment Element for one-time payments
               <Elements
                 stripe={stripeInstance}
                 options={{
