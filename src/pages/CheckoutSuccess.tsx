@@ -19,6 +19,7 @@ export default function CheckoutSuccess() {
   const [showContent, setShowContent] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [finalizingTimeout, setFinalizingTimeout] = useState(false);
   const hasFinalized = useRef(false);
 
   useEffect(() => {
@@ -119,10 +120,41 @@ export default function CheckoutSuccess() {
     finalize();
   }, [user, sessionId, isStripeRedirectSuccess, paymentIntentId, toast]);
 
-  if (isLoading || isFinalizing) {
+  // Start timeout timer when finalizing
+  useEffect(() => {
+    if (isFinalizing) {
+      const timer = setTimeout(() => {
+        setFinalizingTimeout(true);
+      }, 8000); // 8 second timeout
+      return () => clearTimeout(timer);
+    } else {
+      setFinalizingTimeout(false);
+    }
+  }, [isFinalizing]);
+
+  // Show syncing UI only if still loading auth, but allow content after timeout
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show finalizing state with progress, but allow skip after timeout
+  if (isFinalizing && !finalizingTimeout) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Syncing your subscription...</p>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setFinalizingTimeout(true)}
+          className="text-xs"
+        >
+          Continue anyway
+        </Button>
       </div>
     );
   }
