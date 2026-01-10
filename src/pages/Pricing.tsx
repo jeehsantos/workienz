@@ -25,7 +25,9 @@ import {
   Info,
   Zap,
   Lock,
-  HelpCircle
+  HelpCircle,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
 import {
@@ -34,6 +36,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { PlanChangeModal } from "@/components/subscription/PlanChangeModal";
 
 // Feature matrix for contractor plans
 const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
@@ -317,7 +320,20 @@ export default function Pricing() {
   };
   
   const [activeTab, setActiveTab] = useState(getInitialTab);
-  const [currentSubscription, setCurrentSubscription] = useState<string | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<{
+    planId: string | null;
+    planName: string | null;
+    price: number | null;
+    nextBillingDate: string | null;
+  }>({ planId: null, planName: null, price: null, nextBillingDate: null });
+  
+  // Modal state for plan changes
+  const [planChangeModal, setPlanChangeModal] = useState<{
+    isOpen: boolean;
+    newPlanId: string;
+    newPlanName: string;
+    newPrice: number;
+  } | null>(null);
   
   // Update tab when user role changes
   useEffect(() => {
@@ -327,19 +343,31 @@ export default function Pricing() {
     }
   }, [user, isContractor, isEmployee]);
   
-  // Fetch current subscription
+  // Fetch current subscription with plan details
   useEffect(() => {
     const fetchSubscription = async () => {
       if (user) {
         const { data } = await supabase
           .from("subscriptions")
-          .select("stripe_price_id, plan_name, status")
+          .select("stripe_price_id, plan_name, status, ends_at")
           .eq("user_id", user.id)
           .eq("status", "active")
           .single();
         
         if (data) {
-          setCurrentSubscription(data.stripe_price_id);
+          // Get price for current plan
+          const { data: planData } = await supabase
+            .from("plan_products")
+            .select("price_cents")
+            .eq("plan_id", data.stripe_price_id)
+            .single();
+          
+          setCurrentSubscription({
+            planId: data.stripe_price_id,
+            planName: data.plan_name,
+            price: planData?.price_cents ?? null,
+            nextBillingDate: data.ends_at,
+          });
         }
       }
     };
@@ -349,17 +377,94 @@ export default function Pricing() {
   // Check if toggle should be locked
   const isToggleLocked = user && (isContractor() || isEmployee());
 
-  const handleSelectPlan = (planId: string) => {
+  // Get plan price from static data
+  const getPlanPrice = (planId: string): number => {
+    const contractor = contractorPlans.find(p => p.planId === planId);
+    if (contractor) {
+      // Parse price from string like "$24" or "$40"
+      return parseInt(contractor.price.replace("$", "")) * 100;
+    }
+    const seeker = seekerPlans.find(p => p.planId === planId);
+    if (seeker) {
+      return parseInt(seeker.price.replace("$", "")) * 100;
+    }
+    return 0;
+  };
+
+  // Determine if a plan is an upgrade, downgrade, or current
+  const getPlanAction = (planId: string, planPrice: number): "current" | "upgrade" | "downgrade" | "purchase" => {
+    if (!currentSubscription.planId) return "purchase";
+    if (currentSubscription.planId === planId) return "current";
+    if (currentSubscription.price === null) return "purchase";
+    if (planPrice > currentSubscription.price) return "upgrade";
+    return "downgrade";
+  };
+
+  const handleSelectPlan = (planId: string, planName: string) => {
     // Free plan - just go to signup
     if (planId === "free_seeker") {
       navigate("/auth?mode=signup");
       return;
     }
     
-    if (user) {
+    const planPrice = getPlanPrice(planId);
+    const action = getPlanAction(planId, planPrice);
+    
+    if (action === "upgrade" || action === "downgrade") {
+      // Show confirmation modal for plan changes
+      setPlanChangeModal({
+        isOpen: true,
+        newPlanId: planId,
+        newPlanName: planName,
+        newPrice: planPrice,
+      });
+    } else if (user) {
       navigate(`/checkout?plan=${planId}`);
     } else {
       navigate(`/auth?mode=signup&plan=${planId}`);
+    }
+  };
+
+  const handlePlanChangeSuccess = async () => {
+    // Refresh subscription data
+    if (user) {
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("stripe_price_id, plan_name, status, ends_at")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .single();
+      
+      if (data) {
+        const { data: planData } = await supabase
+          .from("plan_products")
+          .select("price_cents")
+          .eq("plan_id", data.stripe_price_id)
+          .single();
+        
+        setCurrentSubscription({
+          planId: data.stripe_price_id,
+          planName: data.plan_name,
+          price: planData?.price_cents ?? null,
+          nextBillingDate: data.ends_at,
+        });
+      }
+    }
+  };
+
+  // Get button label and variant for a plan
+  const getPlanButtonConfig = (planId: string, planPrice: number, defaultCta: string) => {
+    const action = getPlanAction(planId, planPrice);
+    
+    switch (action) {
+      case "current":
+        return { label: "Current Plan", variant: "secondary" as const, disabled: true, icon: null };
+      case "upgrade":
+        return { label: "Upgrade", variant: "default" as const, disabled: false, icon: ArrowUp };
+      case "downgrade":
+        return { label: "Downgrade", variant: "outline" as const, disabled: false, icon: ArrowDown };
+      default:
+        return { label: defaultCta, variant: "outline" as const, disabled: false, icon: null };
     }
   };
 
@@ -449,8 +554,11 @@ export default function Pricing() {
               {/* Contractor Plans Grid */}
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
                 {contractorPlans.map((plan) => {
-                  const isCurrentPlan = currentSubscription === plan.planId;
+                  const planPrice = getPlanPrice(plan.planId);
+                  const action = getPlanAction(plan.planId, planPrice);
+                  const isCurrentPlan = action === "current";
                   const features = contractorFeatureMatrix[plan.planId] || {};
+                  const buttonConfig = getPlanButtonConfig(plan.planId, planPrice, plan.cta);
                   
                   return (
                     <div
@@ -511,12 +619,13 @@ export default function Pricing() {
                       </ul>
 
                       <Button
-                        variant={isCurrentPlan ? "secondary" : plan.highlighted ? "default" : "outline"}
-                        className="w-full"
-                        onClick={() => handleSelectPlan(plan.planId)}
-                        disabled={isCurrentPlan}
+                        variant={buttonConfig.variant}
+                        className={`w-full ${action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`}
+                        onClick={() => handleSelectPlan(plan.planId, plan.name)}
+                        disabled={buttonConfig.disabled}
                       >
-                        {isCurrentPlan ? "Current Plan" : plan.cta}
+                        {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
+                        {buttonConfig.label}
                       </Button>
                     </div>
                   );
@@ -586,8 +695,11 @@ export default function Pricing() {
               {/* Seeker Plans Grid */}
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
                 {seekerPlans.map((plan) => {
-                  const isCurrentPlan = currentSubscription === plan.planId;
+                  const planPrice = getPlanPrice(plan.planId);
+                  const action = getPlanAction(plan.planId, planPrice);
+                  const isCurrentPlan = action === "current";
                   const features = seekerFeatureMatrix[plan.planId] || {};
+                  const buttonConfig = getPlanButtonConfig(plan.planId, planPrice, plan.cta);
                   
                   return (
                     <div
@@ -641,12 +753,13 @@ export default function Pricing() {
                       </ul>
 
                       <Button
-                        variant={isCurrentPlan ? "secondary" : plan.highlighted ? "default" : "outline"}
-                        className="w-full"
-                        onClick={() => handleSelectPlan(plan.planId)}
-                        disabled={isCurrentPlan}
+                        variant={buttonConfig.variant}
+                        className={`w-full ${action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`}
+                        onClick={() => handleSelectPlan(plan.planId, plan.name)}
+                        disabled={buttonConfig.disabled}
                       >
-                        {isCurrentPlan ? "Current Plan" : plan.cta}
+                        {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
+                        {buttonConfig.label}
                       </Button>
                     </div>
                   );
@@ -815,6 +928,22 @@ export default function Pricing() {
       </section>
 
       <Footer />
+
+      {/* Plan Change Confirmation Modal */}
+      {planChangeModal && currentSubscription.planId && currentSubscription.planName && currentSubscription.price !== null && (
+        <PlanChangeModal
+          isOpen={planChangeModal.isOpen}
+          onClose={() => setPlanChangeModal(null)}
+          currentPlanId={currentSubscription.planId}
+          currentPlanName={currentSubscription.planName}
+          currentPrice={currentSubscription.price}
+          newPlanId={planChangeModal.newPlanId}
+          newPlanName={planChangeModal.newPlanName}
+          newPrice={planChangeModal.newPrice}
+          nextBillingDate={currentSubscription.nextBillingDate}
+          onSuccess={handlePlanChangeSuccess}
+        />
+      )}
     </main>
   );
 }
