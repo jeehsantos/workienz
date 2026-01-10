@@ -65,24 +65,38 @@ serve(async (req) => {
       cancel_at_period_end: true,
     });
 
+    // Get period end with fallback to item-level data
+    const periodEnd = cancelledSubscription.current_period_end 
+      ?? cancelledSubscription.items?.data?.[0]?.current_period_end;
+
     logStep("Subscription set to cancel at period end", { 
       subscriptionId: cancelledSubscription.id,
       cancelAtPeriodEnd: cancelledSubscription.cancel_at_period_end,
-      currentPeriodEnd: cancelledSubscription.current_period_end
+      rootPeriodEnd: cancelledSubscription.current_period_end,
+      itemPeriodEnd: cancelledSubscription.items?.data?.[0]?.current_period_end,
+      using: periodEnd
     });
+
+    // Calculate ends_at date with validation
+    let endsAtDate: string | null = null;
+    if (typeof periodEnd === 'number' && periodEnd > 0) {
+      endsAtDate = new Date(periodEnd * 1000).toISOString();
+    } else {
+      logStep("WARNING: No valid period end found, using null for ends_at");
+    }
 
     // Update local subscription record - mark as cancelled but with ends_at in future
     // The subscription will remain "active" in Stripe until period end
     await supabaseClient
       .from("subscriptions")
       .update({
-        ends_at: new Date(cancelledSubscription.current_period_end * 1000).toISOString(),
+        ends_at: endsAtDate,
       })
       .eq("stripe_subscription_id", subscriptionId);
 
     return new Response(JSON.stringify({ 
       success: true,
-      endsAt: new Date(cancelledSubscription.current_period_end * 1000).toISOString()
+      endsAt: endsAtDate
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
