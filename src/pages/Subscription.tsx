@@ -13,7 +13,9 @@ import {
   ArrowRight,
   ExternalLink,
   Sparkles,
-  XCircle
+  XCircle,
+  AlertTriangle,
+  Clock
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -36,6 +38,12 @@ interface PlanProduct {
   features: string[] | null | unknown;
 }
 
+interface PendingChange {
+  newPlanId: string;
+  newPlanName: string;
+  effectiveDate: string;
+}
+
 export default function Subscription() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isContractor, isEmployee } = useAuthContext();
@@ -46,6 +54,8 @@ export default function Subscription() {
   const [isLoading, setIsLoading] = useState(true);
   const [isManaging, setIsManaging] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -121,6 +131,38 @@ export default function Subscription() {
     };
 
     fetchSubscription();
+  }, [user]);
+
+  // Fetch pending changes
+  useEffect(() => {
+    const fetchPendingChanges = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase.functions.invoke("get-pending-changes");
+
+        if (error) {
+          console.error("Error fetching pending changes:", error);
+          return;
+        }
+
+        if (data?.hasPendingChanges && data?.pendingChange) {
+          setPendingChange({
+            newPlanId: data.pendingChange.planId,
+            newPlanName: data.pendingChange.planName,
+            effectiveDate: data.pendingChange.effectiveDate,
+          });
+        }
+
+        if (data?.cancelAtPeriodEnd) {
+          setCancelAtPeriodEnd(true);
+        }
+      } catch (error) {
+        console.error("Error fetching pending changes:", error);
+      }
+    };
+
+    fetchPendingChanges();
   }, [user]);
 
   const handleManageSubscription = async () => {
@@ -289,14 +331,48 @@ export default function Subscription() {
                       <div className="flex items-center gap-3">
                         <Calendar className="w-5 h-5 text-muted-foreground" />
                         <div>
-                          <p className="text-sm text-muted-foreground">Next billing</p>
-                          <p className="font-medium">
+                          <p className="text-sm text-muted-foreground">
+                            {cancelAtPeriodEnd ? "Cancels on" : "Next billing"}
+                          </p>
+                          <p className={`font-medium ${cancelAtPeriodEnd ? "text-amber-600 dark:text-amber-400" : ""}`}>
                             {format(new Date(subscription.ends_at), "MMMM d, yyyy")}
                           </p>
                         </div>
                       </div>
                     )}
                   </div>
+
+                  {/* Cancellation Warning */}
+                  {cancelAtPeriodEnd && subscription.ends_at && (
+                    <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-amber-800 dark:text-amber-200">
+                          Subscription Cancelling
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          Your subscription will end on {format(new Date(subscription.ends_at), "MMMM d, yyyy")}. 
+                          You'll continue to have access until then.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pending Plan Change */}
+                  {pendingChange && (
+                    <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-blue-800 dark:text-blue-200">
+                          Pending Plan Change
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Your plan will change to <strong>{pendingChange.newPlanName}</strong> on{" "}
+                          {format(new Date(pendingChange.effectiveDate), "MMMM d, yyyy")}.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Features */}
                   {currentPlan.features && Array.isArray(currentPlan.features) && currentPlan.features.length > 0 && (
@@ -331,7 +407,7 @@ export default function Subscription() {
                         Manage Billing
                       </Button>
                     )}
-                    {isRecurringSubscription && subscription.stripe_subscription_id && (
+                    {isRecurringSubscription && subscription.stripe_subscription_id && !cancelAtPeriodEnd && (
                       <Button
                         onClick={handleCancelSubscription}
                         disabled={isCancelling}

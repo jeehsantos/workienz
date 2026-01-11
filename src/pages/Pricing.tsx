@@ -393,6 +393,10 @@ export default function Pricing() {
 
   // Determine if a plan is an upgrade, downgrade, or current
   const getPlanAction = (planId: string, planPrice: number): "current" | "upgrade" | "downgrade" | "purchase" => {
+    // If employee with no subscription, free tier is their current plan
+    if (!currentSubscription.planId && user && isEmployee() && planId === "free_seeker") {
+      return "current";
+    }
     if (!currentSubscription.planId) return "purchase";
     if (currentSubscription.planId === planId) return "current";
     if (currentSubscription.price === null) return "purchase";

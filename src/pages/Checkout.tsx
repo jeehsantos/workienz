@@ -85,6 +85,9 @@ export default function Checkout() {
     }
   }, [planId, user, navigate, toast]);
 
+  // Create a promise for the Stripe instance
+  const stripePromise = useRef<Promise<Stripe | null> | null>(null);
+
   // Load Stripe when user clicks pay - only load once
   const initializeStripe = async () => {
     if (stripeLoadAttempted.current) return stripeInstance;
@@ -93,6 +96,7 @@ export default function Checkout() {
     try {
       const stripe = await loadStripe(STRIPE_PUBLISHABLE_KEY);
       setStripeInstance(stripe);
+      stripePromise.current = Promise.resolve(stripe);
       return stripe;
     } catch (error) {
       console.error("[Checkout] Failed to load Stripe:", error);
@@ -379,10 +383,11 @@ export default function Checkout() {
                   Try again
                 </button>
               </div>
-            ) : clientSecret && stripeInstance && paymentType === "embedded_checkout" ? (
+            ) : clientSecret && stripeInstance && stripePromise.current && paymentType === "embedded_checkout" ? (
               // Embedded Checkout for subscriptions
               <StripeEmbeddedCheckout
                 clientSecret={clientSecret}
+                stripeInstance={stripePromise.current}
                 onComplete={handleEmbeddedCheckoutComplete}
               />
             ) : clientSecret && stripeInstance && paymentType === "payment" ? (
