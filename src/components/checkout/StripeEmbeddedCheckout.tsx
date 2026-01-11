@@ -1,16 +1,15 @@
 import { useCallback, useState } from "react";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { Stripe } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 interface StripeEmbeddedCheckoutProps {
   clientSecret: string;
+  stripeInstance: Promise<Stripe | null>;
   onComplete?: () => void;
 }
 
-export function StripeEmbeddedCheckout({ clientSecret, onComplete }: StripeEmbeddedCheckoutProps) {
+export function StripeEmbeddedCheckout({ clientSecret, stripeInstance, onComplete }: StripeEmbeddedCheckoutProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,6 +18,11 @@ export function StripeEmbeddedCheckout({ clientSecret, onComplete }: StripeEmbed
     console.log("[StripeEmbeddedCheckout] Fetching client secret...");
     return clientSecret;
   }, [clientSecret]);
+
+  const handleReady = useCallback(() => {
+    console.log("[StripeEmbeddedCheckout] Checkout form ready");
+    setIsLoading(false);
+  }, []);
 
   const handleComplete = useCallback(() => {
     console.log("[StripeEmbeddedCheckout] Checkout completed");
@@ -50,13 +54,15 @@ export function StripeEmbeddedCheckout({ clientSecret, onComplete }: StripeEmbed
         </div>
       )}
       <EmbeddedCheckoutProvider
-        stripe={stripePromise}
+        stripe={stripeInstance}
         options={{ 
           fetchClientSecret,
           onComplete: handleComplete,
         }}
       >
-        <EmbeddedCheckout className="w-full" />
+        <div onLoad={() => setIsLoading(false)}>
+          <EmbeddedCheckout className="w-full" />
+        </div>
       </EmbeddedCheckoutProvider>
     </div>
   );
