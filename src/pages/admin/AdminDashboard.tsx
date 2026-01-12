@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2,
@@ -18,10 +19,13 @@ import {
   HardHat,
   BarChart3,
   AlertTriangle,
+  Settings,
+  Save,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -97,6 +101,10 @@ export default function AdminDashboard() {
   const [reports, setReports] = useState<ArticleReport[]>([]);
   
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Platform settings state
+  const [maxPositionsPerJob, setMaxPositionsPerJob] = useState("10");
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin())) {
@@ -121,6 +129,8 @@ export default function AdminDashboard() {
       await fetchJobs();
     } else if (activeTab === "reports") {
       await fetchReports();
+    } else if (activeTab === "settings") {
+      await fetchSettings();
     }
 
     // Always fetch packages for contractor subscriptions
@@ -131,6 +141,35 @@ export default function AdminDashboard() {
     setPackages(pkgData || []);
 
     setIsLoading(false);
+  }
+
+  async function fetchSettings() {
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("setting_key, setting_value")
+      .eq("setting_key", "max_positions_per_job")
+      .maybeSingle();
+    
+    if (data) {
+      setMaxPositionsPerJob(data.setting_value);
+    }
+  }
+
+  async function saveSettings() {
+    setIsSavingSettings(true);
+    
+    const { error } = await supabase
+      .from("platform_settings")
+      .update({ setting_value: maxPositionsPerJob })
+      .eq("setting_key", "max_positions_per_job");
+    
+    if (error) {
+      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: "Settings saved successfully" });
+    }
+    
+    setIsSavingSettings(false);
   }
 
   async function fetchUsers() {
@@ -489,7 +528,7 @@ export default function AdminDashboard() {
 
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Users
@@ -510,18 +549,24 @@ export default function AdminDashboard() {
               <AlertTriangle className="w-4 h-4" />
               Reports
             </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          {/* Search - hide on settings tab */}
+          {activeTab !== "settings" && (
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          )}
 
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
@@ -807,6 +852,40 @@ export default function AdminDashboard() {
                     </TableBody>
                   </Table>
                 </div>
+              </TabsContent>
+
+              {/* Settings Tab */}
+              <TabsContent value="settings" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Platform Settings</CardTitle>
+                    <CardDescription>Configure platform-wide settings</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-2 max-w-xs">
+                      <Label htmlFor="maxPositions">Maximum Positions Per Job</Label>
+                      <Input
+                        id="maxPositions"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={maxPositionsPerJob}
+                        onChange={(e) => setMaxPositionsPerJob(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Contractors cannot post jobs with more positions than this limit.
+                      </p>
+                    </div>
+                    <Button onClick={saveSettings} disabled={isSavingSettings}>
+                      {isSavingSettings ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Save Settings
+                    </Button>
+                  </CardContent>
+                </Card>
               </TabsContent>
             </>
           )}
