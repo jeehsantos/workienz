@@ -398,6 +398,20 @@ export default function Pricing() {
       return "current";
     }
     if (!currentSubscription.planId) return "purchase";
+    
+    // For one-time purchases (single_post, 14_day_sprint), always allow re-purchase
+    const oneTimePlans = ["single_post", "14_day_sprint"];
+    if (oneTimePlans.includes(planId) && currentSubscription.planId === planId) {
+      // Check if the one-time purchase has expired
+      if (currentSubscription.nextBillingDate) {
+        const expiryDate = new Date(currentSubscription.nextBillingDate);
+        if (expiryDate < new Date()) {
+          return "purchase"; // Expired, allow re-purchase
+        }
+      }
+      return "current"; // Still active
+    }
+    
     if (currentSubscription.planId === planId) return "current";
     if (currentSubscription.price === null) return "purchase";
     if (planPrice > currentSubscription.price) return "upgrade";

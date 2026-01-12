@@ -251,6 +251,7 @@ export default function Subscription() {
 
   // Check if the subscription is a recurring type (not one-time payment)
   const isRecurringSubscription = currentPlan?.interval && currentPlan.interval !== "one_time";
+  const isOneTimePurchase = currentPlan?.interval === "one_time" || !currentPlan?.interval;
 
   if (authLoading || isLoading) {
     return (
@@ -332,7 +333,11 @@ export default function Subscription() {
                         <Calendar className="w-5 h-5 text-muted-foreground" />
                         <div>
                           <p className="text-sm text-muted-foreground">
-                            {cancelAtPeriodEnd ? "Cancels on" : "Next billing"}
+                            {isOneTimePurchase 
+                              ? "Expires on" 
+                              : cancelAtPeriodEnd 
+                                ? "Cancels on" 
+                                : "Next billing"}
                           </p>
                           <p className={`font-medium ${cancelAtPeriodEnd ? "text-amber-600 dark:text-amber-400" : ""}`}>
                             {format(new Date(subscription.ends_at), "MMMM d, yyyy")}
