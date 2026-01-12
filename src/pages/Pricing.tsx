@@ -553,22 +553,6 @@ export default function Pricing() {
                 ))}
               </div>
 
-              {/* Minimum Wage Callout */}
-              <div className="max-w-2xl mx-auto mb-10">
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex gap-4 items-start">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Info className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">The Minimum Wage Principle</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Our single-post price is anchored to the 2026 NZ Minimum Wage ($23.95). 
-                      We believe finding help should be as fair as the work itself.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
               {/* Contractor Plans Grid */}
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
                 {contractorPlans.map((plan) => {
