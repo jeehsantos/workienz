@@ -339,6 +339,7 @@ export type Database = {
           ird_number: string | null
           is_available: boolean | null
           languages: string[] | null
+          last_application_at: string | null
           location_region: string | null
           phone: string | null
           skills: string[] | null
@@ -365,6 +366,7 @@ export type Database = {
           ird_number?: string | null
           is_available?: boolean | null
           languages?: string[] | null
+          last_application_at?: string | null
           location_region?: string | null
           phone?: string | null
           skills?: string[] | null
@@ -391,6 +393,7 @@ export type Database = {
           ird_number?: string | null
           is_available?: boolean | null
           languages?: string[] | null
+          last_application_at?: string | null
           location_region?: string | null
           phone?: string | null
           skills?: string[] | null
@@ -524,6 +527,7 @@ export type Database = {
           duration: string | null
           ends_at: string | null
           experience_required: boolean | null
+          form_data: Json | null
           hourly_rate_max: number | null
           hourly_rate_min: number | null
           id: string
@@ -547,6 +551,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           title: string
           updated_at: string
+          wizard_step: number | null
         }
         Insert: {
           contractor_id: string
@@ -555,6 +560,7 @@ export type Database = {
           duration?: string | null
           ends_at?: string | null
           experience_required?: boolean | null
+          form_data?: Json | null
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
@@ -578,6 +584,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"]
           title: string
           updated_at?: string
+          wizard_step?: number | null
         }
         Update: {
           contractor_id?: string
@@ -586,6 +593,7 @@ export type Database = {
           duration?: string | null
           ends_at?: string | null
           experience_required?: boolean | null
+          form_data?: Json | null
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
@@ -609,6 +617,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
           updated_at?: string
+          wizard_step?: number | null
         }
         Relationships: [
           {

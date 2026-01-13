@@ -104,6 +104,9 @@ export default function AdminDashboard() {
   
   // Platform settings state
   const [maxPositionsPerJob, setMaxPositionsPerJob] = useState("10");
+  const [freeTierCooldownDays, setFreeTierCooldownDays] = useState("3");
+  const [paidTierMaxActiveApps, setPaidTierMaxActiveApps] = useState("3");
+  const [paidTierCooldownDays, setPaidTierCooldownDays] = useState("3");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
@@ -147,24 +150,58 @@ export default function AdminDashboard() {
     const { data } = await supabase
       .from("platform_settings")
       .select("setting_key, setting_value")
-      .eq("setting_key", "max_positions_per_job")
-      .maybeSingle();
+      .in("setting_key", [
+        "max_positions_per_job",
+        "free_tier_cooldown_days",
+        "paid_tier_max_active_apps",
+        "paid_tier_cooldown_days",
+      ]);
     
     if (data) {
-      setMaxPositionsPerJob(data.setting_value);
+      data.forEach(setting => {
+        switch (setting.setting_key) {
+          case "max_positions_per_job":
+            setMaxPositionsPerJob(setting.setting_value);
+            break;
+          case "free_tier_cooldown_days":
+            setFreeTierCooldownDays(setting.setting_value);
+            break;
+          case "paid_tier_max_active_apps":
+            setPaidTierMaxActiveApps(setting.setting_value);
+            break;
+          case "paid_tier_cooldown_days":
+            setPaidTierCooldownDays(setting.setting_value);
+            break;
+        }
+      });
     }
   }
 
   async function saveSettings() {
     setIsSavingSettings(true);
     
-    const { error } = await supabase
-      .from("platform_settings")
-      .update({ setting_value: maxPositionsPerJob })
-      .eq("setting_key", "max_positions_per_job");
+    const updates = [
+      { key: "max_positions_per_job", value: maxPositionsPerJob },
+      { key: "free_tier_cooldown_days", value: freeTierCooldownDays },
+      { key: "paid_tier_max_active_apps", value: paidTierMaxActiveApps },
+      { key: "paid_tier_cooldown_days", value: paidTierCooldownDays },
+    ];
+
+    let hasError = false;
+    for (const update of updates) {
+      const { error } = await supabase
+        .from("platform_settings")
+        .update({ setting_value: update.value })
+        .eq("setting_key", update.key);
+      
+      if (error) {
+        console.error(`Failed to update ${update.key}:`, error);
+        hasError = true;
+      }
+    }
     
-    if (error) {
-      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
+    if (hasError) {
+      toast({ title: "Error", description: "Failed to save some settings", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Settings saved successfully" });
     }
@@ -859,30 +896,90 @@ export default function AdminDashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Platform Settings</CardTitle>
-                    <CardDescription>Configure platform-wide settings</CardDescription>
+                    <CardDescription>Configure platform-wide settings for job posting and applications</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-2 max-w-xs">
-                      <Label htmlFor="maxPositions">Maximum Positions Per Job</Label>
-                      <Input
-                        id="maxPositions"
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={maxPositionsPerJob}
-                        onChange={(e) => setMaxPositionsPerJob(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Contractors cannot post jobs with more positions than this limit.
-                      </p>
+                  <CardContent className="space-y-8">
+                    {/* Job Posting Settings */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Job Posting Limits</h3>
+                      <div className="space-y-2 max-w-xs">
+                        <Label htmlFor="maxPositions">Maximum Positions Per Job</Label>
+                        <Input
+                          id="maxPositions"
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={maxPositionsPerJob}
+                          onChange={(e) => setMaxPositionsPerJob(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Contractors cannot post jobs with more positions than this limit.
+                        </p>
+                      </div>
                     </div>
-                    <Button onClick={saveSettings} disabled={isSavingSettings}>
+
+                    {/* Application Throttling Settings */}
+                    <div className="space-y-4 pt-4 border-t">
+                      <h3 className="text-lg font-semibold">Application Throttling (Workers)</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Control how frequently workers can apply to jobs based on their subscription tier.
+                      </p>
+                      
+                      <div className="grid sm:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="freeTierCooldown">Free Tier Cooldown (Days)</Label>
+                          <Input
+                            id="freeTierCooldown"
+                            type="number"
+                            min="0"
+                            max="30"
+                            value={freeTierCooldownDays}
+                            onChange={(e) => setFreeTierCooldownDays(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Days free users must wait between applications.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="paidTierMaxApps">Paid Tier Max Active Apps</Label>
+                          <Input
+                            id="paidTierMaxApps"
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={paidTierMaxActiveApps}
+                            onChange={(e) => setPaidTierMaxActiveApps(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Max pending/shortlisted applications for subscribers.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="paidTierCooldown">Paid Tier Cooldown (Days)</Label>
+                          <Input
+                            id="paidTierCooldown"
+                            type="number"
+                            min="0"
+                            max="30"
+                            value={paidTierCooldownDays}
+                            onChange={(e) => setPaidTierCooldownDays(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Days subscribers must wait between applications.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button onClick={saveSettings} disabled={isSavingSettings} className="mt-6">
                       {isSavingSettings ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <Save className="w-4 h-4 mr-2" />
                       )}
-                      Save Settings
+                      Save All Settings
                     </Button>
                   </CardContent>
                 </Card>

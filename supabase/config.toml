@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.send-chat-reminder]
 verify_jwt = false
+
+[functions.hire-applicant]
+verify_jwt = false
+
+[functions.validate-application]
+verify_jwt = false
+
+[functions.submit-application]
+verify_jwt = false
