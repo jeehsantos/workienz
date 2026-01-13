@@ -323,32 +323,66 @@ export default function Conversation() {
 
     setIsHiring(true);
 
-    const { error } = await supabase
-      .from("job_applications")
-      .update({ status: "hired" })
-      .eq("id", conversation.job_application_id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
 
-    setIsHiring(false);
+      if (!token) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to hire applicants.",
+          variant: "destructive",
+        });
+        setIsHiring(false);
+        return;
+      }
 
-    if (error) {
+      const response = await supabase.functions.invoke('hire-applicant', {
+        body: { application_id: conversation.job_application_id },
+      });
+
+      if (response.error) {
+        console.error("Error hiring applicant:", response.error);
+        toast({
+          title: "Error",
+          description: response.error.message || "Failed to hire applicant.",
+          variant: "destructive",
+        });
+        setIsHiring(false);
+        return;
+      }
+
+      const result = response.data;
+
+      if (!result.success) {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to hire applicant.",
+          variant: "destructive",
+        });
+        setIsHiring(false);
+        return;
+      }
+
+      setConversation(prev => prev ? {
+        ...prev,
+        job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null
+      } : null);
+
+      toast({
+        title: "🎉 Applicant Hired!",
+        description: "Congratulations message sent. The worker's availability has been updated. Other pending applications have been closed.",
+      });
+    } catch (error) {
       console.error("Error hiring applicant:", error);
       toast({
         title: "Error",
-        description: "Failed to update application status.",
+        description: "An unexpected error occurred.",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setIsHiring(false);
     }
-
-    setConversation(prev => prev ? {
-      ...prev,
-      job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null
-    } : null);
-
-    toast({
-      title: "🎉 Applicant Hired!",
-      description: "Congratulations message sent. Other applications have been automatically closed. This chat will be archived in 48 hours.",
-    });
   };
 
   const handleShareContact = async () => {

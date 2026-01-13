@@ -240,6 +240,7 @@ export default function JobDetail() {
   const handleApply = async () => {
     if (!employeeProfileId || !id || !user) return;
 
+    // Client-side pre-check (but backend will do the real validation)
     const eligibility = canApply();
     if (!eligibility.allowed) {
       setApplicationError(eligibility.reason);
@@ -249,75 +250,62 @@ export default function JobDetail() {
     setIsApplying(true);
     setApplicationError(null);
 
-    // Insert job application
-    const { data: appData, error } = await supabase.from("job_applications").insert({
-      job_id: id,
-      employee_id: employeeProfileId,
-      cover_letter: coverLetter || null,
-    }).select("id").single();
+    try {
+      // Use backend edge function for server-side validation and submission
+      const response = await supabase.functions.invoke('submit-application', {
+        body: { 
+          job_id: id,
+          cover_letter: coverLetter || undefined,
+        },
+      });
 
-    if (error) {
+      if (response.error) {
+        console.error("Error applying:", response.error);
+        const errorMessage = response.error.message || "Failed to submit application. Please try again.";
+        setApplicationError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setIsApplying(false);
+        return;
+      }
+
+      const result = response.data;
+
+      if (!result.success) {
+        setApplicationError(result.error || "Failed to submit application.");
+        toast({
+          title: "Error",
+          description: result.error || "Failed to submit application.",
+          variant: "destructive",
+        });
+        setIsApplying(false);
+        return;
+      }
+
+      setIsApplying(false);
+      setHasApplied(true);
+      setCoverLetter("");
+      
+      // Show success message - stay on the page instead of redirecting
+      toast({
+        title: "Application Submitted!",
+        description: result.data?.conversation_id 
+          ? "You're now connected with the employer. Check your dashboard to view the conversation."
+          : "Your application has been sent to the employer.",
+      });
+    } catch (error) {
       console.error("Error applying:", error);
+      setApplicationError("An unexpected error occurred. Please try again.");
       toast({
         title: "Error",
-        description: "Failed to submit application. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
       setIsApplying(false);
-      return;
     }
-
-    // Auto-create conversation for this application
-    let conversationId: string | null = null;
-    if (appData && job?.contractor) {
-      // Get contractor's user_id
-      const { data: contractorData } = await supabase
-        .from("contractor_profiles")
-        .select("user_id")
-        .eq("id", job.contractor.id)
-        .single();
-
-      if (contractorData) {
-        // Create conversation
-        const { data: convData } = await supabase.from("conversations").insert({
-          job_application_id: appData.id,
-          contractor_user_id: contractorData.user_id,
-          employee_user_id: user.id,
-        }).select("id").single();
-
-        conversationId = convData?.id || null;
-
-        // If there's a cover letter, send it as the first message in the chat
-        if (conversationId && coverLetter && coverLetter.trim()) {
-          // Get employee profile info for intro message
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("user_id", user.id)
-            .single();
-
-          const introMessage = `📋 **Application for: ${job.title}**\n\nHi, I'm ${profileData?.full_name || 'a job seeker'} and I'd like to apply for this position.\n\n**Cover Letter:**\n${coverLetter}`;
-
-          await supabase.from("messages").insert({
-            conversation_id: conversationId,
-            sender_user_id: user.id,
-            content: introMessage,
-          });
-        }
-      }
-    }
-
-    setIsApplying(false);
-    setHasApplied(true);
-    setCoverLetter("");
-    
-    // Show success message - stay on the page instead of redirecting
-    toast({
-      title: "Application Submitted!",
-      description: conversationId 
-        ? "You're now connected with the employer. Check your dashboard to view the conversation."
-        : "Your application has been sent to the employer.",
-    });
   };
 
   if (isLoading) {
