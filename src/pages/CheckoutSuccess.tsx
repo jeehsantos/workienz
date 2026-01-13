@@ -22,6 +22,24 @@ export default function CheckoutSuccess() {
   const [finalizingTimeout, setFinalizingTimeout] = useState(false);
   const hasFinalized = useRef(false);
 
+  // Failsafe: Force show content after 3 seconds no matter what
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!showContent) {
+        console.log("[CheckoutSuccess] Failsafe: forcing showContent to true");
+        setShowContent(true);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [showContent]);
+
+  // Ensure content shows after finalization completes
+  useEffect(() => {
+    if (!isFinalizing && !isLoading && (sessionId || isStripeRedirectSuccess)) {
+      setShowContent(true);
+    }
+  }, [isFinalizing, isLoading, sessionId, isStripeRedirectSuccess]);
+
   useEffect(() => {
     const shouldShowSuccess = !!sessionId || isStripeRedirectSuccess;
 
@@ -95,6 +113,7 @@ export default function CheckoutSuccess() {
           });
         }
         setIsFinalizing(false);
+        setShowContent(true);
         return;
       }
 
@@ -113,6 +132,7 @@ export default function CheckoutSuccess() {
           });
         }
         setIsFinalizing(false);
+        setShowContent(true);
         return;
       }
     };
@@ -159,8 +179,9 @@ export default function CheckoutSuccess() {
     );
   }
 
-  const isJobSeeker = isEmployee();
-  const isEmployer = isContractor();
+  // Defensive checks for role functions
+  const isJobSeeker = typeof isEmployee === 'function' ? isEmployee() : false;
+  const isEmployer = typeof isContractor === 'function' ? isContractor() : false;
 
   return (
     <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
