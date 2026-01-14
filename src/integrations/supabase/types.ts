@@ -100,6 +100,60 @@ export type Database = {
         }
         Relationships: []
       }
+      contractor_entitlements: {
+        Row: {
+          activated_at: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_recurring: boolean | null
+          is_stackable: boolean | null
+          job_allowance: number | null
+          jobs_used: number | null
+          plan_type: string
+          purchased_at: string | null
+          status: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          is_stackable?: boolean | null
+          job_allowance?: number | null
+          jobs_used?: number | null
+          plan_type: string
+          purchased_at?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          is_stackable?: boolean | null
+          job_allowance?: number | null
+          jobs_used?: number | null
+          plan_type?: string
+          purchased_at?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       contractor_packages: {
         Row: {
           created_at: string

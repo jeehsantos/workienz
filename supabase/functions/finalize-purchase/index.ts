@@ -273,6 +273,75 @@ serve(async (req) => {
       throw new Error(upsertError.message ?? JSON.stringify(upsertError));
     }
 
+    // Create contractor entitlement for this purchase
+    const isOneTime = !isSubscription || planId?.includes("single") || planId?.includes("14_day") || planId?.includes("sprint");
+    const isRecurring = isSubscription && !isOneTime;
+
+    // Determine job allowance based on plan
+    let jobAllowance: number | null = null; // null = unlimited
+    let isStackable = false;
+
+    if (planId?.includes("single")) {
+      jobAllowance = 1;
+      isStackable = true;
+    } else if (planId?.includes("14_day") || planId?.includes("sprint")) {
+      jobAllowance = 3;
+      isStackable = true;
+    }
+    // monthly/quarterly = unlimited (null)
+
+    // Check if user is a contractor before creating entitlement
+    const { data: roleCheck } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "contractor")
+      .single();
+
+    if (roleCheck) {
+      // Only create entitlement if this is a contractor purchase
+      const isContractorPlan = planId?.includes("contractor") || planId?.includes("single") || planId?.includes("sprint") || planId?.includes("14_day");
+      
+      if (isContractorPlan) {
+        logStep("Creating contractor entitlement", {
+          planId,
+          isRecurring,
+          jobAllowance,
+          isStackable,
+        });
+
+        const { error: entitlementError } = await supabaseClient
+          .from("contractor_entitlements")
+          .insert({
+            user_id: user.id,
+            plan_type: planId?.includes("single") ? "single_post" 
+              : planId?.includes("14_day") || planId?.includes("sprint") ? "14_day_sprint"
+              : planId?.includes("quarterly") ? "quarterly_contractor"
+              : "monthly_contractor",
+            is_recurring: isRecurring,
+            job_allowance: jobAllowance,
+            jobs_used: 0,
+            purchased_at: startsAt,
+            activated_at: isRecurring ? startsAt : null, // Recurring plans activate immediately
+            expires_at: isRecurring ? endsAt : null, // One-time plans expire after activation
+            is_stackable: isStackable,
+            status: "active",
+            stripe_subscription_id: stripeSubscriptionId,
+            stripe_payment_intent_id: paymentIntentId ?? null,
+          });
+
+        if (entitlementError) {
+          logStep("Entitlement creation failed", {
+            message: entitlementError.message,
+            code: entitlementError.code,
+          });
+          // Don't throw - subscription was created, just log the error
+        } else {
+          logStep("Contractor entitlement created successfully");
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
