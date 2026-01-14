@@ -358,22 +358,36 @@ export default function Subscription() {
                     <div className="flex items-center gap-3">
                       <Calendar className="w-5 h-5 text-muted-foreground" />
                       <div>
-                        <p className="text-sm text-muted-foreground">Started</p>
+                        <p className="text-sm text-muted-foreground">
+                          {isOneTimePurchase ? "Purchased" : "Started"}
+                        </p>
                         <p className="font-medium">
                           {format(new Date(subscription.starts_at), "MMMM d, yyyy")}
                         </p>
                       </div>
                     </div>
-                    {subscription.ends_at && (
+                    
+                    {/* For one-time purchases, show activation-based dates from entitlements */}
+                    {isOneTimePurchase && entitlements?.entitlements[0] ? (
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Expires</p>
+                          <p className="font-medium">
+                            {entitlements.entitlements[0].activated_at
+                              ? entitlements.entitlements[0].expires_at
+                                ? format(new Date(entitlements.entitlements[0].expires_at), "MMMM d, yyyy")
+                                : "Active until used"
+                              : "Starts when first job is posted"}
+                          </p>
+                        </div>
+                      </div>
+                    ) : subscription.ends_at && (
                       <div className="flex items-center gap-3">
                         <Calendar className="w-5 h-5 text-muted-foreground" />
                         <div>
                           <p className="text-sm text-muted-foreground">
-                            {isOneTimePurchase 
-                              ? "Expires on" 
-                              : cancelAtPeriodEnd 
-                                ? "Cancels on" 
-                                : "Next billing"}
+                            {cancelAtPeriodEnd ? "Cancels on" : "Next billing"}
                           </p>
                           <p className={`font-medium ${cancelAtPeriodEnd ? "text-amber-600 dark:text-amber-400" : ""}`}>
                             {format(new Date(subscription.ends_at), "MMMM d, yyyy")}
@@ -555,15 +569,27 @@ export default function Subscription() {
                         )}
                       </div>
 
-                      {/* Purchase Another button for stackable plans */}
-                      {ent.is_stackable && ent.remaining_slots !== "unlimited" && (
+                      {/* Purchase Another button for stackable plans - always show for single_post */}
+                      {ent.is_stackable && (
                         <div className="mt-4 pt-4 border-t border-border/50">
-                          <Button asChild size="sm" variant="outline">
-                            <Link to="/pricing">
+                          <Button 
+                            asChild 
+                            size="sm" 
+                            variant={ent.remaining_slots === 0 ? "default" : "outline"}
+                            className={ent.remaining_slots === 0 ? "" : ""}
+                          >
+                            <Link to={`/checkout?plan=${ent.plan_type}`}>
                               <Plus className="w-4 h-4 mr-2" />
-                              Purchase Another
+                              {ent.remaining_slots === 0 
+                                ? "Purchase Another Post" 
+                                : "Add More Posts"}
                             </Link>
                           </Button>
+                          {ent.remaining_slots === 0 && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              You've used all your posts. Purchase another to continue.
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
