@@ -15,7 +15,9 @@ import {
   Sparkles,
   XCircle,
   AlertTriangle,
-  Clock
+  Clock,
+  Plus,
+  Briefcase
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -44,6 +46,30 @@ interface PendingChange {
   effectiveDate: string;
 }
 
+interface Entitlement {
+  id: string;
+  plan_type: string;
+  available_slots: number | "unlimited";
+  remaining_slots: number | "unlimited";
+  jobs_used: number;
+  expires_at: string | null;
+  activated_at: string | null;
+  is_stackable: boolean;
+  is_recurring: boolean;
+  status: string;
+  purchased_at: string;
+}
+
+interface EntitlementsResponse {
+  entitlements: Entitlement[];
+  can_post_job: boolean;
+  can_browse_database: boolean;
+  total_remaining_slots: number | "unlimited";
+  next_billing_date: string | null;
+  active_plan_name: string;
+  has_active_subscription: boolean;
+}
+
 export default function Subscription() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isContractor, isEmployee } = useAuthContext();
@@ -56,17 +82,19 @@ export default function Subscription() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [pendingChange, setPendingChange] = useState<PendingChange | null>(null);
+  
+  // Entitlements state
+  const [entitlements, setEntitlements] = useState<EntitlementsResponse | null>(null);
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
     }
   }, [user, authLoading, navigate]);
 
-  // Fetch subscription data
+  // Fetch subscription and entitlements data
   useEffect(() => {
-    const fetchSubscription = async () => {
+    const fetchData = async () => {
       if (!user) return;
 
       try {
@@ -85,11 +113,10 @@ export default function Subscription() {
         if (subData) {
           setSubscription(subData);
 
-          // Get plan details - try matching by stripe_price_id first, then by plan_name
+          // Get plan details
           let planData = null;
           
           if (subData.stripe_price_id) {
-            // First try to match using stripe_price_id which stores the plan_id
             const { data: planByPriceId } = await supabase
               .from("plan_products")
               .select("*")
@@ -99,7 +126,6 @@ export default function Subscription() {
             if (planByPriceId) {
               planData = planByPriceId;
             } else {
-              // Try matching by actual stripe_price_id
               const { data: planByStripePriceId } = await supabase
                 .from("plan_products")
                 .select("*")
@@ -109,7 +135,6 @@ export default function Subscription() {
             }
           }
           
-          // Fallback: try matching by plan_name
           if (!planData && subData.plan_name) {
             const { data: planByName } = await supabase
               .from("plan_products")
@@ -123,6 +148,15 @@ export default function Subscription() {
             setCurrentPlan(planData as PlanProduct);
           }
         }
+
+        // Fetch contractor entitlements if user is a contractor
+        if (isContractor()) {
+          const { data: entData, error: entError } = await supabase.functions.invoke("get-contractor-entitlements");
+          
+          if (!entError && entData) {
+            setEntitlements(entData);
+          }
+        }
       } catch (error) {
         console.error("Error fetching subscription:", error);
       } finally {
@@ -130,8 +164,8 @@ export default function Subscription() {
       }
     };
 
-    fetchSubscription();
-  }, [user]);
+    fetchData();
+  }, [user, isContractor]);
 
   // Fetch pending changes
   useEffect(() => {
@@ -201,7 +235,7 @@ export default function Subscription() {
 
     setIsCancelling(true);
     try {
-      const { data, error } = await supabase.functions.invoke("cancel-subscription", {
+      const { error } = await supabase.functions.invoke("cancel-subscription", {
         body: { subscriptionId: subscription.stripe_subscription_id }
       });
 
@@ -212,7 +246,6 @@ export default function Subscription() {
         description: "Your subscription will remain active until the end of the current billing period.",
       });
 
-      // Refresh subscription data
       const { data: subData } = await supabase
         .from("subscriptions")
         .select("*")
@@ -249,7 +282,10 @@ export default function Subscription() {
     return ` / ${interval}`;
   };
 
-  // Check if the subscription is a recurring type (not one-time payment)
+  const formatPlanType = (planType: string) => {
+    return planType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
   const isRecurringSubscription = currentPlan?.interval && currentPlan.interval !== "one_time";
   const isOneTimePurchase = currentPlan?.interval === "one_time" || !currentPlan?.interval;
 
@@ -280,7 +316,7 @@ export default function Subscription() {
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Current Plan Card */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="flex items-center gap-2 mb-6">
                 <CreditCard className="w-5 h-5 text-primary" />
@@ -451,6 +487,90 @@ export default function Subscription() {
                 </div>
               )}
             </div>
+
+            {/* Contractor Entitlements Card */}
+            {isContractor() && entitlements && entitlements.entitlements.length > 0 && (
+              <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-semibold font-display">Job Posting Allowance</h2>
+                  </div>
+                  {entitlements.total_remaining_slots !== "unlimited" && (
+                    <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
+                      {entitlements.total_remaining_slots} posts remaining
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {entitlements.entitlements.map((ent) => (
+                    <div 
+                      key={ent.id} 
+                      className="p-4 bg-muted/30 rounded-lg border border-border/50"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold">{formatPlanType(ent.plan_type)}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {ent.is_recurring ? "Recurring subscription" : "One-time purchase"}
+                          </p>
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          ent.status === "active" 
+                            ? "bg-success/10 text-success" 
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          {ent.status.charAt(0).toUpperCase() + ent.status.slice(1)}
+                        </span>
+                      </div>
+
+                      <div className="grid sm:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Posts Used</p>
+                          <p className="font-medium">
+                            {ent.jobs_used} / {ent.available_slots === "unlimited" ? "∞" : ent.available_slots}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Remaining</p>
+                          <p className="font-medium">
+                            {ent.remaining_slots === "unlimited" ? "Unlimited" : ent.remaining_slots}
+                          </p>
+                        </div>
+                        {ent.expires_at && (
+                          <div>
+                            <p className="text-muted-foreground">Expires</p>
+                            <p className="font-medium">
+                              {format(new Date(ent.expires_at), "MMM d, yyyy")}
+                            </p>
+                          </div>
+                        )}
+                        {!ent.activated_at && !ent.is_recurring && (
+                          <div className="sm:col-span-3">
+                            <p className="text-xs text-muted-foreground italic">
+                              Timer starts when you publish your first job
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Purchase Another button for stackable plans */}
+                      {ent.is_stackable && ent.remaining_slots !== "unlimited" && (
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <Button asChild size="sm" variant="outline">
+                            <Link to="/pricing">
+                              <Plus className="w-4 h-4 mr-2" />
+                              Purchase Another
+                            </Link>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -468,26 +588,39 @@ export default function Subscription() {
                     View all plans
                   </Link>
                 </li>
+                {isContractor() && (
+                  <li>
+                    <Link
+                      to="/contractor/jobs"
+                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      My job postings
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link
-                    to="/dashboard"
+                    to="/contact"
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Back to dashboard
+                    Contact support
                   </Link>
                 </li>
               </ul>
             </div>
 
             {/* Help Card */}
-            <div className="bg-primary/5 rounded-xl p-6 border border-primary/10">
-              <h3 className="font-semibold mb-2">Need Help?</h3>
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <h3 className="font-semibold mb-4">Need Help?</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Have questions about your subscription? We're here to help.
+                Have questions about your subscription or billing? Our support team is here to help.
               </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/contact">Contact Support</Link>
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link to="/contact">
+                  Contact Support
+                </Link>
               </Button>
             </div>
           </div>
