@@ -107,6 +107,11 @@ export default function AdminDashboard() {
   const [freeTierCooldownDays, setFreeTierCooldownDays] = useState("3");
   const [paidTierMaxActiveApps, setPaidTierMaxActiveApps] = useState("3");
   const [paidTierCooldownDays, setPaidTierCooldownDays] = useState("3");
+  // Contractor tier settings
+  const [singlePostJobLimit, setSinglePostJobLimit] = useState("1");
+  const [singlePostDurationDays, setSinglePostDurationDays] = useState("14");
+  const [sprintDurationDays, setSprintDurationDays] = useState("14");
+  const [sprintJobLimit, setSprintJobLimit] = useState("3");
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
@@ -155,6 +160,10 @@ export default function AdminDashboard() {
         "free_tier_cooldown_days",
         "paid_tier_max_active_apps",
         "paid_tier_cooldown_days",
+        "single_post_job_limit",
+        "single_post_duration_days",
+        "14_day_sprint_duration_days",
+        "14_day_sprint_job_limit",
       ]);
     
     if (data) {
@@ -172,6 +181,18 @@ export default function AdminDashboard() {
           case "paid_tier_cooldown_days":
             setPaidTierCooldownDays(setting.setting_value);
             break;
+          case "single_post_job_limit":
+            setSinglePostJobLimit(setting.setting_value);
+            break;
+          case "single_post_duration_days":
+            setSinglePostDurationDays(setting.setting_value);
+            break;
+          case "14_day_sprint_duration_days":
+            setSprintDurationDays(setting.setting_value);
+            break;
+          case "14_day_sprint_job_limit":
+            setSprintJobLimit(setting.setting_value);
+            break;
         }
       });
     }
@@ -185,6 +206,10 @@ export default function AdminDashboard() {
       { key: "free_tier_cooldown_days", value: freeTierCooldownDays },
       { key: "paid_tier_max_active_apps", value: paidTierMaxActiveApps },
       { key: "paid_tier_cooldown_days", value: paidTierCooldownDays },
+      { key: "single_post_job_limit", value: singlePostJobLimit },
+      { key: "single_post_duration_days", value: singlePostDurationDays },
+      { key: "14_day_sprint_duration_days", value: sprintDurationDays },
+      { key: "14_day_sprint_job_limit", value: sprintJobLimit },
     ];
 
     let hasError = false;
@@ -968,6 +993,76 @@ export default function AdminDashboard() {
                           />
                           <p className="text-xs text-muted-foreground">
                             Days subscribers must wait between applications.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contractor Tier Settings */}
+                    <div className="space-y-4 pt-4 border-t">
+                      <h3 className="text-lg font-semibold">Contractor Tier Limits</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure job posting limits and durations for one-time contractor plans.
+                      </p>
+                      
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="singlePostJobLimit">Single Post Job Limit</Label>
+                          <Input
+                            id="singlePostJobLimit"
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={singlePostJobLimit}
+                            onChange={(e) => setSinglePostJobLimit(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Max jobs for Single Post tier.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="singlePostDuration">Single Post Duration (Days)</Label>
+                          <Input
+                            id="singlePostDuration"
+                            type="number"
+                            min="1"
+                            max="90"
+                            value={singlePostDurationDays}
+                            onChange={(e) => setSinglePostDurationDays(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Days after first job published.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="sprintJobLimit">14-Day Sprint Job Limit</Label>
+                          <Input
+                            id="sprintJobLimit"
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={sprintJobLimit}
+                            onChange={(e) => setSprintJobLimit(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Max jobs for 14-Day Sprint tier.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="sprintDuration">Sprint Duration (Days)</Label>
+                          <Input
+                            id="sprintDuration"
+                            type="number"
+                            min="1"
+                            max="90"
+                            value={sprintDurationDays}
+                            onChange={(e) => setSprintDurationDays(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Days after first job published.
                           </p>
                         </div>
                       </div>

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, ArrowRight, Save, Send } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 import { StepIndicator } from "@/components/jobs/StepIndicator";
@@ -44,6 +44,11 @@ export default function PostJob() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [maxPositions, setMaxPositions] = useState(10);
+  
+  // Entitlement state from backend
+  const [canPostJob, setCanPostJob] = useState(true);
+  const [remainingPosts, setRemainingPosts] = useState<number | "unlimited">("unlimited");
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -73,7 +78,7 @@ export default function PostJob() {
     }
   }, [user, authLoading, isContractor, navigate]);
 
-  // Fetch contractor profile and platform settings
+  // Fetch contractor profile, platform settings, and entitlements
   useEffect(() => {
     async function fetchData() {
       if (!user) return;
@@ -101,6 +106,19 @@ export default function PostJob() {
 
       if (settings?.setting_value) {
         setMaxPositions(parseInt(settings.setting_value) || 10);
+      }
+
+      // Check posting entitlements from backend
+      const { data: entitlementData, error: entError } = await supabase.functions.invoke("validate-job-posting");
+      
+      if (entError) {
+        console.error("Error checking entitlements:", entError);
+      } else if (entitlementData) {
+        setCanPostJob(entitlementData.can_post);
+        setRemainingPosts(entitlementData.remaining_posts);
+        if (!entitlementData.can_post) {
+          setEntitlementError(entitlementData.message);
+        }
       }
 
       setIsLoadingProfile(false);
@@ -133,9 +151,9 @@ export default function PostJob() {
         }
         return true;
       case 3:
-        return true; // Requirements are optional
+        return true;
       case 4:
-        return true; // Benefits are optional
+        return true;
       case 5:
         if (scheduleType === "shifts") {
           const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
@@ -164,7 +182,6 @@ export default function PostJob() {
   };
 
   const handleStepClick = (step: number) => {
-    // Only allow going back or to the current step
     if (step <= currentStep) {
       setCurrentStep(step);
     }
@@ -184,8 +201,8 @@ export default function PostJob() {
 
     setIsSubmitting(true);
 
-    const { data: jobData, error } = await supabase.from("jobs").insert({
-      contractor_id: contractorProfile.id,
+    // Prepare job data
+    const jobData = {
       title: formData.title,
       description: formData.description,
       requirements: formData.requirements || null,
@@ -198,7 +215,6 @@ export default function PostJob() {
       hourly_rate_max: null,
       skills_required: skills.length > 0 ? skills : null,
       positions_available: Math.min(parseInt(formData.positions_available) || 1, maxPositions),
-      status,
       industry: formData.industry || null,
       schedule_type: scheduleType,
       starts_at: fixedTermStart ? fixedTermStart.toISOString() : null,
@@ -210,34 +226,57 @@ export default function PostJob() {
       requires_car: requiresCar,
       provides_training: selectedBenefits.includes("Provides training"),
       provides_accommodation: selectedBenefits.includes("Provides accommodation"),
-    }).select("id").single();
+    };
 
-    if (error || !jobData) {
-      console.error("Error creating job:", error);
-      toast({ title: "Error", description: "Failed to create job posting. Please try again.", variant: "destructive" });
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (scheduleType === "shifts") {
-      const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-      if (validShifts.length > 0) {
-        const shiftsData = validShifts.map(s => ({
-          job_id: jobData.id,
+    // Prepare shifts data
+    const validShifts = scheduleType === "shifts" 
+      ? shifts.filter(s => s.date && s.start_time && s.end_time).map(s => ({
           shift_date: format(s.date!, "yyyy-MM-dd"),
           start_time: s.start_time,
           end_time: s.end_time,
           break_minutes: parseInt(s.break_minutes) || 0,
           break_paid: s.break_paid,
-        }));
-        await supabase.from("job_shifts").insert(shiftsData);
-      }
-    }
+        }))
+      : [];
+
+    // Call backend edge function for job creation
+    const { data, error } = await supabase.functions.invoke("create-job", {
+      body: {
+        jobData,
+        status,
+        shifts: validShifts,
+      },
+    });
 
     setIsSubmitting(false);
+
+    if (error) {
+      console.error("Error creating job:", error);
+      toast({ title: "Error", description: "Failed to create job posting. Please try again.", variant: "destructive" });
+      return;
+    }
+
+    // Handle backend errors (like entitlement issues)
+    if (data?.error) {
+      if (data.error === "ERR_NO_SUBSCRIPTION" || data.error === "ERR_LIMIT_REACHED") {
+        toast({
+          title: "Subscription Required",
+          description: data.message,
+          variant: "destructive",
+        });
+        // Optionally redirect to pricing
+        setTimeout(() => navigate("/pricing"), 2000);
+      } else {
+        toast({ title: "Error", description: data.message || "Failed to create job.", variant: "destructive" });
+      }
+      return;
+    }
+
     toast({
       title: status === "published" ? "Job Published!" : "Draft Saved",
-      description: status === "published" ? "Your job posting is now live." : "Your job has been saved as a draft.",
+      description: status === "published" 
+        ? `Your job posting is now live. ${typeof data.remaining_posts === "number" ? `${data.remaining_posts} posts remaining.` : ""}`
+        : "Your job has been saved as a draft.",
     });
     navigate("/contractor/jobs");
   };
@@ -348,8 +387,29 @@ export default function PostJob() {
           <Link to="/dashboard"><ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard</Link>
         </Button>
 
-        <h1 className="text-3xl font-bold mb-2 font-display">Post a Job</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold font-display">Post a Job</h1>
+          {remainingPosts !== "unlimited" && (
+            <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+              {remainingPosts} post{remainingPosts !== 1 ? "s" : ""} remaining
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground mb-8">Create a new job posting to find temporary workers.</p>
+
+        {/* Entitlement Warning */}
+        {!canPostJob && entitlementError && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-amber-800 dark:text-amber-200">Posting Limit Reached</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">{entitlementError}</p>
+              <Button asChild size="sm" className="mt-3">
+                <Link to="/pricing">Upgrade Plan</Link>
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Step Indicator */}
         <div className="mb-8">
@@ -393,7 +453,7 @@ export default function PostJob() {
                 <Button
                   type="button"
                   onClick={() => handleSubmit("published")}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !canPostJob}
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
