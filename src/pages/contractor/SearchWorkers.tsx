@@ -9,34 +9,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, ArrowLeft, Search, User, MapPin, Clock, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-type EmployeeProfile = {
+interface WorkerDTO {
   id: string;
   user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
   headline: string | null;
   city: string | null;
-  suburb: string | null;
   country: string | null;
   experience_years: number | null;
   skills: string[] | null;
-  is_available: boolean | null;
   availability: string | null;
-  profile: {
-    full_name: string | null;
-    first_name: string | null;
-    last_name: string | null;
-    email: string;
-  } | null;
-};
+  is_available: boolean | null;
+  avatar_url: string | null;
+  access_level: "full" | "limited";
+  is_applicant: boolean;
+  can_contact: boolean;
+}
 
 export default function SearchWorkers() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isContractor } = useAuthContext();
 
-  const [workers, setWorkers] = useState<EmployeeProfile[]>([]);
+  const [workers, setWorkers] = useState<WorkerDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [applicantUserIds, setApplicantUserIds] = useState<string[]>([]);
-  const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,94 +48,22 @@ export default function SearchWorkers() {
     }
   }, [user, authLoading, isContractor, navigate]);
 
-  // Check contractor subscription and get applicants
-  useEffect(() => {
-    async function checkSubscriptionAndApplicants() {
-      if (!user) return;
-
-      // Get contractor profile
-      const { data: contractorProfile } = await supabase
-        .from("contractor_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (contractorProfile) {
-        // Check for active subscription
-        const { data: subscription } = await supabase
-          .from("contractor_subscriptions")
-          .select("id")
-          .eq("contractor_profile_id", contractorProfile.id)
-          .eq("status", "active")
-          .maybeSingle();
-
-        setHasActiveSubscription(!!subscription);
-
-        // Get all jobs for this contractor
-        const { data: contractorJobs } = await supabase
-          .from("jobs")
-          .select("id")
-          .eq("contractor_id", contractorProfile.id);
-
-        if (contractorJobs && contractorJobs.length > 0) {
-          const jobIds = contractorJobs.map(j => j.id);
-          
-          // Get all applications for those jobs
-          const { data: applications } = await supabase
-            .from("job_applications")
-            .select("employee_id")
-            .in("job_id", jobIds);
-
-          if (applications && applications.length > 0) {
-            const employeeIds = applications.map(a => a.employee_id);
-            
-            // Get user_ids for those employees
-            const { data: employeeProfiles } = await supabase
-              .from("employee_profiles")
-              .select("user_id")
-              .in("id", employeeIds);
-
-            if (employeeProfiles) {
-              setApplicantUserIds(employeeProfiles.map(ep => ep.user_id));
-            }
-          }
-        }
-      }
-
-      setCheckingSubscription(false);
-    }
-
-    if (user && isContractor()) {
-      checkSubscriptionAndApplicants();
-    }
-  }, [user, isContractor]);
-
-  // Always fetch workers (regardless of subscription)
+  // Fetch workers from backend API
   useEffect(() => {
     async function fetchWorkers() {
+      if (!user) return;
       setIsLoading(true);
 
-      let query = supabase
-        .from("employee_profiles")
-        .select(`
-          id,
-          user_id,
-          headline,
-          city,
-          suburb,
-          country,
-          experience_years,
-          skills,
-          is_available,
-          availability
-        `)
-        .eq("is_available", true);
-
-      if (cityFilter) {
-        query = query.ilike("city", `%${cityFilter}%`);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.functions.invoke("search-workers", {
+        body: {
+          filters: {
+            city: cityFilter || undefined,
+            skill: skillFilter || undefined,
+            availability: availabilityFilter !== "all" ? availabilityFilter : undefined,
+            search: searchTerm || undefined,
+          },
+        },
+      });
 
       if (error) {
         console.error("Error fetching workers:", error);
@@ -145,52 +71,17 @@ export default function SearchWorkers() {
         return;
       }
 
-      // Fetch profiles for these workers
-      const userIds = data?.map((w) => w.user_id) || [];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, first_name, last_name, email")
-        .in("user_id", userIds);
-
-      const workersWithProfiles = data?.map((worker) => ({
-        ...worker,
-        profile: profiles?.find((p) => p.user_id === worker.user_id) || null,
-      })) || [];
-
-      // Client-side filtering for skills and search term
-      let filtered = workersWithProfiles;
-
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        filtered = filtered.filter(
-          (w) =>
-            w.headline?.toLowerCase().includes(term) ||
-            w.profile?.full_name?.toLowerCase().includes(term) ||
-            w.skills?.some((s) => s.toLowerCase().includes(term))
-        );
-      }
-
-      if (skillFilter) {
-        const skill = skillFilter.toLowerCase();
-        filtered = filtered.filter((w) =>
-          w.skills?.some((s) => s.toLowerCase().includes(skill))
-        );
-      }
-
-      if (availabilityFilter !== "all") {
-        filtered = filtered.filter((w) => w.availability === availabilityFilter);
-      }
-
-      setWorkers(filtered);
+      setWorkers(data?.workers ?? []);
+      setHasActiveSubscription(data?.has_active_subscription ?? false);
       setIsLoading(false);
     }
 
-    if (user && isContractor() && !checkingSubscription) {
+    if (user && isContractor()) {
       fetchWorkers();
     }
-  }, [user, isContractor, cityFilter, searchTerm, skillFilter, availabilityFilter, checkingSubscription]);
+  }, [user, isContractor, cityFilter, searchTerm, skillFilter, availabilityFilter]);
 
-  if (authLoading || checkingSubscription) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -281,15 +172,8 @@ export default function SearchWorkers() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {workers.map((worker) => {
-              const isApplicant = applicantUserIds.includes(worker.user_id);
-              const canViewFull = hasActiveSubscription || isApplicant;
-              // Destructure with a fallback to an empty object
-              const { first_name, last_name, full_name } = worker.profile || {};
-
-              // Create the display name logic
-              const displayName = (first_name || last_name) 
-                ? `${first_name ?? ''} ${last_name ?? ''}`.trim() 
-                : full_name;
+              const displayName = worker.full_name || `${worker.first_name ?? ''} ${worker.last_name ?? ''}`.trim() || "User";
+              
               return (
                 <div
                   key={worker.id}
@@ -301,10 +185,8 @@ export default function SearchWorkers() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold truncate">
-                          {displayName || "User"}
-                        </h3>
-                        {isApplicant && (
+                        <h3 className="font-semibold truncate">{displayName}</h3>
+                        {worker.is_applicant && (
                           <Badge variant="secondary" className="text-xs">Applicant</Badge>
                         )}
                       </div>
@@ -318,10 +200,7 @@ export default function SearchWorkers() {
                     {worker.city && (
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
-                        <span>
-                          {worker.suburb && `${worker.suburb}, `}
-                          {worker.city}
-                        </span>
+                        <span>{worker.city}</span>
                       </div>
                     )}
                     {worker.experience_years !== null && (
@@ -347,7 +226,7 @@ export default function SearchWorkers() {
                     </div>
                   )}
 
-                  {!canViewFull && (
+                  {worker.access_level === "limited" && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 bg-muted/50 rounded-lg p-2">
                       <Lock className="w-3 h-3" />
                       <span>Subscribe to view full profile & contact</span>

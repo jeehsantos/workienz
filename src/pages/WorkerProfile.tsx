@@ -4,38 +4,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Loader2,
-  ArrowLeft,
-  MapPin,
-  Clock,
-  User,
-  MessageCircle,
-  Lock,
-} from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Clock, User, MessageCircle, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-type WorkerProfile = {
+interface WorkerDTO {
   id: string;
   user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
   headline: string | null;
+  bio: string | null;
   city: string | null;
   suburb: string | null;
   country: string | null;
   experience_years: number | null;
   skills: string[] | null;
-  is_available: boolean | null;
-  availability: string | null;
-  phone: string | null;
-  bio: string | null;
   languages: string[] | null;
-  date_of_birth: string | null;
+  availability: string | null;
+  is_available: boolean | null;
+  phone: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  has_car: boolean | null;
+  comfortable_standing: boolean | null;
+  comfortable_heavy_lifting: boolean | null;
   visa_status: string | null;
-  profile: {
-    full_name: string | null;
-    email: string;
-  } | null;
-};
+}
 
 export default function WorkerProfile() {
   const { id } = useParams();
@@ -43,63 +38,41 @@ export default function WorkerProfile() {
   const { user, isContractor } = useAuthContext();
   const { toast } = useToast();
 
-  const [worker, setWorker] = useState<WorkerProfile | null>(null);
+  const [worker, setWorker] = useState<WorkerDTO | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStartingChat, setIsStartingChat] = useState(false);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [isApplicantOfContractor, setIsApplicantOfContractor] = useState(false);
-  const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [accessLevel, setAccessLevel] = useState<"full" | "limited">("limited");
+  const [canContact, setCanContact] = useState(false);
+  const [isApplicant, setIsApplicant] = useState(false);
   const [existingConversationId, setExistingConversationId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchWorker() {
+    async function fetchWorkerProfile() {
       if (!id) return;
 
-      const { data, error } = await supabase
-        .from("employee_profiles")
-        .select(`
-          id,
-          user_id,
-          headline,
-          city,
-          suburb,
-          country,
-          experience_years,
-          skills,
-          is_available,
-          availability,
-          phone,
-          bio,
-          languages,
-          date_of_birth,
-          visa_status
-        `)
-        .eq("id", id)
-        .single();
+      const { data, error } = await supabase.functions.invoke("get-worker-profile", {
+        body: { worker_id: id },
+      });
 
-      if (error) {
+      if (error || !data?.worker) {
         console.error("Error fetching worker:", error);
         setIsLoading(false);
         return;
       }
 
-      // Fetch profile info
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email")
-        .eq("user_id", data.user_id)
-        .single();
-
-      setWorker({ ...data, profile });
+      setWorker(data.worker);
+      setAccessLevel(data.access_level);
+      setCanContact(data.can_contact);
+      setIsApplicant(data.is_applicant);
       setIsLoading(false);
 
-      // Check for existing conversation with this worker (for contractors)
-      if (user && isContractor()) {
+      // Check for existing conversation
+      if (user && isContractor() && data.worker) {
         const { data: existingConv } = await supabase
           .from("conversations")
           .select("id")
           .eq("contractor_user_id", user.id)
-          .eq("employee_user_id", data.user_id)
+          .eq("employee_user_id", data.worker.user_id)
           .maybeSingle();
 
         if (existingConv) {
@@ -108,80 +81,12 @@ export default function WorkerProfile() {
       }
     }
 
-    fetchWorker();
+    fetchWorkerProfile();
   }, [id, user, isContractor]);
-
-  // Check contractor subscription and if this worker is an applicant
-  useEffect(() => {
-    async function checkSubscriptionAndApplicant() {
-      if (!user || !isContractor() || !id) {
-        setCheckingSubscription(false);
-        return;
-      }
-
-      // Get contractor profile
-      const { data: contractorProfile } = await supabase
-        .from("contractor_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (contractorProfile) {
-        // Check for active subscription
-        const { data: subscription } = await supabase
-          .from("contractor_subscriptions")
-          .select("id")
-          .eq("contractor_profile_id", contractorProfile.id)
-          .eq("status", "active")
-          .maybeSingle();
-
-        setHasActiveSubscription(!!subscription);
-
-        // Check if this worker has applied to any of contractor's jobs
-        const { data: contractorJobs } = await supabase
-          .from("jobs")
-          .select("id")
-          .eq("contractor_id", contractorProfile.id);
-
-        if (contractorJobs && contractorJobs.length > 0) {
-          const jobIds = contractorJobs.map(j => j.id);
-          
-          // Check if this employee (by id) has applied to any of those jobs
-          const { data: applications } = await supabase
-            .from("job_applications")
-            .select("id")
-            .eq("employee_id", id)
-            .in("job_id", jobIds)
-            .limit(1);
-
-          setIsApplicantOfContractor(!!applications && applications.length > 0);
-        }
-
-        // Check if there's an existing conversation with this worker
-        const { data: existingConv } = await supabase
-          .from("conversations")
-          .select("id")
-          .eq("contractor_user_id", user.id)
-          .maybeSingle();
-
-        // We need to filter by the worker's user_id, but we don't have it yet
-        // So let's fetch it from the employee_profiles table
-        if (existingConv) {
-          // Actually we need to check for conversations with this specific worker
-          // Let's fetch after we know the worker's user_id
-        }
-      }
-
-      setCheckingSubscription(false);
-    }
-
-    checkSubscriptionAndApplicant();
-  }, [user, isContractor, id]);
 
   const handleStartConversation = async () => {
     if (!user || !worker) return;
 
-    // If there's an existing conversation (from application), navigate to it
     if (existingConversationId) {
       navigate(`/messages/${existingConversationId}`);
       return;
@@ -189,7 +94,6 @@ export default function WorkerProfile() {
 
     setIsStartingChat(true);
 
-    // Check if worker is available
     if (!worker.is_available) {
       toast({
         title: "Not Available",
@@ -199,13 +103,12 @@ export default function WorkerProfile() {
       return;
     }
 
-    // Create a direct conversation (without job application)
     const { data: newConv, error } = await supabase
       .from("conversations")
       .insert({
         contractor_user_id: user.id,
         employee_user_id: worker.user_id,
-        job_application_id: null, // Direct contact - no application
+        job_application_id: null,
       })
       .select()
       .single();
@@ -257,8 +160,7 @@ export default function WorkerProfile() {
     return labels[availability || ""] || "Not specified";
   };
 
-  const canViewFullProfile = user && isContractor() && (hasActiveSubscription || isApplicantOfContractor);
-  const canContact = canViewFullProfile;
+  const displayName = worker.full_name || `${worker.first_name ?? ''} ${worker.last_name ?? ''}`.trim() || "The Workie";
 
   return (
     <div className="min-h-screen bg-background">
@@ -279,9 +181,10 @@ export default function WorkerProfile() {
                   <User className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold font-display">
-                    {worker.profile?.full_name || "The Workie"}
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold font-display">{displayName}</h1>
+                    {isApplicant && <Badge variant="secondary">Applicant</Badge>}
+                  </div>
                   <p className="text-muted-foreground">
                     {worker.headline || "Looking for opportunities"}
                   </p>
@@ -297,7 +200,7 @@ export default function WorkerProfile() {
                 {worker.city && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {worker.suburb && `${worker.suburb}, `}
+                    {accessLevel === "full" && worker.suburb && `${worker.suburb}, `}
                     {worker.city}
                     {worker.country && `, ${worker.country}`}
                   </span>
@@ -310,8 +213,8 @@ export default function WorkerProfile() {
                 )}
               </div>
 
-              {/* Bio - only show if can view full profile */}
-              {worker.bio && canViewFullProfile && (
+              {/* Bio - only show if full access */}
+              {worker.bio && accessLevel === "full" && (
                 <div className="prose prose-sm max-w-none dark:prose-invert mb-6">
                   <h3>About</h3>
                   <p>{worker.bio}</p>
@@ -319,11 +222,11 @@ export default function WorkerProfile() {
               )}
               
               {/* Show restricted message for bio */}
-              {worker.bio && !canViewFullProfile && user && isContractor() && (
+              {accessLevel === "limited" && user && isContractor() && (
                 <div className="bg-muted/50 rounded-lg p-4 mb-6 border border-border/50">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Lock className="w-4 h-4" />
-                    <span className="text-sm">Subscribe or receive an application from this worker to view their full bio.</span>
+                    <span className="text-sm">Subscribe or receive an application from this worker to view their full profile.</span>
                   </div>
                 </div>
               )}
@@ -333,9 +236,7 @@ export default function WorkerProfile() {
                   <h3 className="text-sm font-semibold mb-2">Languages</h3>
                   <div className="flex flex-wrap gap-2">
                     {worker.languages.map((lang) => (
-                      <Badge key={lang} variant="outline">
-                        {lang}
-                      </Badge>
+                      <Badge key={lang} variant="outline">{lang}</Badge>
                     ))}
                   </div>
                 </div>
@@ -346,9 +247,7 @@ export default function WorkerProfile() {
                   <h3 className="text-sm font-semibold mb-2">Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {worker.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary">
-                        {skill}
-                      </Badge>
+                      <Badge key={skill} variant="secondary">{skill}</Badge>
                     ))}
                   </div>
                 </div>
@@ -371,7 +270,7 @@ export default function WorkerProfile() {
                     <span>{worker.experience_years} years</span>
                   </div>
                 )}
-                {worker.visa_status && (
+                {accessLevel === "full" && worker.visa_status && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Visa Status</span>
                     <span className="capitalize">{worker.visa_status.replace(/_/g, ' ')}</span>
@@ -380,15 +279,11 @@ export default function WorkerProfile() {
               </div>
             </div>
 
-            {/* Contact section - only show to authenticated contractors with subscription */}
+            {/* Contact section */}
             {user && isContractor() && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4">Contact</h3>
-                {checkingSubscription ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : canContact ? (
+                {canContact ? (
                   worker.is_available ? (
                     <>
                       <p className="text-sm text-muted-foreground mb-4">

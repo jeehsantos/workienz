@@ -44,3 +44,21 @@ verify_jwt = false
 
 [functions.submit-application]
 verify_jwt = false
+
+[functions.finalize-purchase]
+verify_jwt = false
+
+[functions.get-contractor-entitlements]
+verify_jwt = false
+
+[functions.validate-job-posting]
+verify_jwt = false
+
+[functions.create-job]
+verify_jwt = false
+
+[functions.get-worker-profile]
+verify_jwt = false
+
+[functions.search-workers]
+verify_jwt = false
