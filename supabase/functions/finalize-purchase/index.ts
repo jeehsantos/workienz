@@ -217,10 +217,12 @@ serve(async (req) => {
         throw new Error("Unable to determine planId for one-time payment");
       }
 
-      endsAt = computeOneTimeEndDate(planId);
+      // For one-time purchases, ends_at should be null in subscriptions table
+      // The actual expiry is tracked in contractor_entitlements based on activation
+      endsAt = null;
       statusToStore = "active";
 
-      logStep("Resolved one-time purchase", { planId, endsAt });
+      logStep("Resolved one-time purchase", { planId, endsAt: "null (tracked in entitlements)" });
     }
 
     if (!planId) throw new Error("Unable to resolve planId");

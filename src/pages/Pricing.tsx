@@ -38,6 +38,25 @@ import {
 } from "@/components/ui/accordion";
 import { PlanChangeModal } from "@/components/subscription/PlanChangeModal";
 
+interface ContractorEntitlement {
+  id: string;
+  plan_type: string;
+  available_slots: number | "unlimited";
+  remaining_slots: number | "unlimited";
+  jobs_used: number;
+  expires_at: string | null;
+  activated_at: string | null;
+  is_stackable: boolean;
+  is_recurring: boolean;
+  status: string;
+}
+
+interface EntitlementsResponse {
+  entitlements: ContractorEntitlement[];
+  can_post_job: boolean;
+  total_remaining_slots: number | "unlimited";
+}
+
 // Feature matrix for contractor plans
 const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
   single_post: {
@@ -327,6 +346,9 @@ export default function Pricing() {
     nextBillingDate: string | null;
   }>({ planId: null, planName: null, price: null, nextBillingDate: null });
   
+  // Contractor entitlements for checking slot consumption
+  const [contractorEntitlements, setContractorEntitlements] = useState<EntitlementsResponse | null>(null);
+  
   // Modal state for plan changes
   const [planChangeModal, setPlanChangeModal] = useState<{
     isOpen: boolean;
@@ -369,10 +391,18 @@ export default function Pricing() {
             nextBillingDate: data.ends_at,
           });
         }
+        
+        // Fetch contractor entitlements for slot consumption check
+        if (isContractor()) {
+          const { data: entData } = await supabase.functions.invoke("get-contractor-entitlements");
+          if (entData) {
+            setContractorEntitlements(entData);
+          }
+        }
       }
     };
     fetchSubscription();
-  }, [user]);
+  }, [user, isContractor]);
 
   // Check if toggle should be locked
   const isToggleLocked = user && (isContractor() || isEmployee());
@@ -399,9 +429,27 @@ export default function Pricing() {
     }
     if (!currentSubscription.planId) return "purchase";
     
-    // For one-time purchases (single_post, 14_day_sprint), always allow re-purchase
+    // For one-time purchases (single_post, 14_day_sprint), check slot consumption
     const oneTimePlans = ["single_post", "14_day_sprint"];
     if (oneTimePlans.includes(planId) && currentSubscription.planId === planId) {
+      // Check if slots are consumed using entitlements data
+      if (contractorEntitlements) {
+        const planType = planId === "single_post" ? "single_post" : "14_day_sprint";
+        const matchingEntitlement = contractorEntitlements.entitlements.find(
+          e => e.plan_type === planType && e.status === "active"
+        );
+        
+        // If no remaining slots OR no matching active entitlement, allow repurchase
+        if (!matchingEntitlement) {
+          return "purchase";
+        }
+        
+        if (matchingEntitlement.remaining_slots !== "unlimited" && 
+            matchingEntitlement.remaining_slots === 0) {
+          return "purchase"; // Slots consumed, allow re-purchase
+        }
+      }
+      
       // Check if the one-time purchase has expired
       if (currentSubscription.nextBillingDate) {
         const expiryDate = new Date(currentSubscription.nextBillingDate);
@@ -409,7 +457,7 @@ export default function Pricing() {
           return "purchase"; // Expired, allow re-purchase
         }
       }
-      return "current"; // Still active
+      return "current"; // Still active with remaining slots
     }
     
     if (currentSubscription.planId === planId) return "current";
