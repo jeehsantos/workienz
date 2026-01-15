@@ -421,6 +421,12 @@ export default function Pricing() {
     return 0;
   };
 
+  // Check if current plan is a one-time purchase (no Stripe subscription)
+  const isCurrentPlanOneTime = (): boolean => {
+    const oneTimePlans = ["single_post", "14_day_sprint"];
+    return currentSubscription.planId ? oneTimePlans.includes(currentSubscription.planId) : false;
+  };
+
   // Determine if a plan is an upgrade, downgrade, or current
   const getPlanAction = (planId: string, planPrice: number): "current" | "upgrade" | "downgrade" | "purchase" => {
     // If employee with no subscription, free tier is their current plan
@@ -458,6 +464,12 @@ export default function Pricing() {
         }
       }
       return "current"; // Still active with remaining slots
+    }
+    
+    // If current plan is one-time and new plan is a subscription, treat as purchase (not upgrade)
+    // because there's no Stripe subscription to update
+    if (isCurrentPlanOneTime() && !oneTimePlans.includes(planId)) {
+      return "purchase"; // Go through normal checkout flow
     }
     
     if (currentSubscription.planId === planId) return "current";
@@ -991,6 +1003,7 @@ export default function Pricing() {
           newPlanName={planChangeModal.newPlanName}
           newPrice={planChangeModal.newPrice}
           nextBillingDate={currentSubscription.nextBillingDate}
+          isCurrentPlanOneTime={isCurrentPlanOneTime()}
           onSuccess={handlePlanChangeSuccess}
         />
       )}
