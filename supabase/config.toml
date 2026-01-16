@@ -63,9 +63,6 @@ verify_jwt = false
 [functions.search-workers]
 verify_jwt = false
 
-[functions.check-upgrade-credit]
-verify_jwt = false
-
 [functions.update-subscription]
 verify_jwt = false
 
@@ -79,4 +76,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.seed-test-users]
+verify_jwt = false
+
+[functions.activate-entitlement]
+verify_jwt = false
+
+[functions.request-reimbursement]
 verify_jwt = false

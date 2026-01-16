@@ -12,19 +12,6 @@ const logStep = (step: string, details?: unknown) => {
   console.log(`[FINALIZE-PURCHASE] ${step}${detailsStr}`);
 };
 
-const computeOneTimeEndDate = (planId: string) => {
-  const endDate = new Date();
-
-  // Keep consistent with existing webhook behavior
-  if (planId.includes("14_day") || planId.includes("single")) {
-    endDate.setDate(endDate.getDate() + 14);
-  } else {
-    endDate.setMonth(endDate.getMonth() + 1);
-  }
-
-  return endDate.toISOString();
-};
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -68,6 +55,7 @@ serve(async (req) => {
     let subscription: Stripe.Subscription | null = null;
     let resolvedPlanId: string | null = fallbackPlanId ?? null;
     let resolvedPlanName: string | null = null;
+    let stripePaymentIntentId: string | null = paymentIntentId ?? null;
 
     // Handle Stripe Checkout Session flow
     if (sessionId) {
@@ -92,6 +80,13 @@ serve(async (req) => {
       resolvedPlanId = session.metadata?.plan_id ?? fallbackPlanId ?? null;
       resolvedPlanName = session.metadata?.plan_name ?? null;
 
+      // Get payment intent ID from session
+      if (session.payment_intent) {
+        stripePaymentIntentId = typeof session.payment_intent === "string" 
+          ? session.payment_intent 
+          : session.payment_intent.id;
+      }
+
       if (session.subscription) {
         stripeSubscriptionId = typeof session.subscription === "string" 
           ? session.subscription 
@@ -100,7 +95,6 @@ serve(async (req) => {
         logStep("Session has subscription", { stripeSubscriptionId });
         
         // Always retrieve subscription separately to ensure proper structure
-        // The inline expanded object may have timestamps nested differently
         subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
         
         logStep("Subscription retrieved", {
@@ -218,7 +212,6 @@ serve(async (req) => {
       }
 
       // For one-time purchases, ends_at should be null in subscriptions table
-      // The actual expiry is tracked in contractor_entitlements based on activation
       endsAt = null;
       statusToStore = "active";
 
@@ -300,21 +293,25 @@ serve(async (req) => {
       .eq("role", "contractor")
       .single();
 
-    let newEntitlementId: string | null = null;
-
     if (roleCheck) {
       // Only create entitlement if this is a contractor purchase
       const isContractorPlan = planId?.includes("contractor") || planId?.includes("single") || planId?.includes("sprint") || planId?.includes("14_day");
       
       if (isContractorPlan) {
+        // Determine initial status: one-time purchases start as "standby", subscriptions start as "active"
+        const entitlementStatus = isRecurring ? "active" : "standby";
+        const activatedAt = isRecurring ? startsAt : null; // One-time purchases not activated yet
+        const expiresAt = isRecurring ? endsAt : null; // One-time expires after manual activation
+
         logStep("Creating contractor entitlement", {
           planId,
           isRecurring,
           jobAllowance,
           isStackable,
+          status: entitlementStatus,
         });
 
-        const { data: entitlementData, error: entitlementError } = await supabaseClient
+        const { error: entitlementError } = await supabaseClient
           .from("contractor_entitlements")
           .insert({
             user_id: user.id,
@@ -326,15 +323,13 @@ serve(async (req) => {
             job_allowance: jobAllowance,
             jobs_used: 0,
             purchased_at: startsAt,
-            activated_at: isRecurring ? startsAt : null, // Recurring plans activate immediately
-            expires_at: isRecurring ? endsAt : null, // One-time plans expire after activation
+            activated_at: activatedAt,
+            expires_at: expiresAt,
             is_stackable: isStackable,
-            status: "active",
+            status: entitlementStatus,
             stripe_subscription_id: stripeSubscriptionId,
-            stripe_payment_intent_id: paymentIntentId ?? null,
-          })
-          .select("id")
-          .single();
+            stripe_payment_intent_id: stripePaymentIntentId,
+          });
 
         if (entitlementError) {
           logStep("Entitlement creation failed", {
@@ -343,42 +338,7 @@ serve(async (req) => {
           });
           // Don't throw - subscription was created, just log the error
         } else {
-          newEntitlementId = entitlementData?.id ?? null;
-          logStep("Contractor entitlement created successfully", { entitlementId: newEntitlementId });
-        }
-
-        // Deactivate old entitlements if credit was applied
-        if (paymentIntentId) {
-          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-          const entitlementsToDeactivate = paymentIntent.metadata?.entitlements_to_deactivate;
-          const creditApplied = paymentIntent.metadata?.credit_applied;
-
-          if (entitlementsToDeactivate && creditApplied && parseInt(creditApplied) > 0) {
-            const entitlementIds = entitlementsToDeactivate.split(",").filter(Boolean);
-            
-            if (entitlementIds.length > 0) {
-              logStep("Deactivating old entitlements", { entitlementIds, creditApplied });
-
-              for (const entId of entitlementIds) {
-                const { error: deactivateError } = await supabaseClient
-                  .from("contractor_entitlements")
-                  .update({
-                    status: "deactivated",
-                    deactivated_at: new Date().toISOString(),
-                    deactivated_reason: "credited_to_upgrade",
-                    credit_applied_to_entitlement_id: newEntitlementId,
-                  })
-                  .eq("id", entId)
-                  .eq("user_id", user.id);
-
-                if (deactivateError) {
-                  logStep("Failed to deactivate entitlement", { entId, error: deactivateError.message });
-                } else {
-                  logStep("Entitlement deactivated", { entId });
-                }
-              }
-            }
-          }
+          logStep("Contractor entitlement created successfully", { status: entitlementStatus });
         }
       }
     }
