@@ -27,7 +27,8 @@ import {
   Lock,
   HelpCircle,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Loader2
 } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
 import {
@@ -37,6 +38,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { PlanChangeModal } from "@/components/subscription/PlanChangeModal";
+import { UpgradeConfirmationModal } from "@/components/subscription/UpgradeConfirmationModal";
+import { useToast } from "@/hooks/use-toast";
 
 interface ContractorEntitlement {
   id: string;
@@ -356,6 +359,23 @@ export default function Pricing() {
     newPlanName: string;
     newPrice: number;
   } | null>(null);
+
+  // Modal state for upgrade with credit
+  const [upgradeConfirmModal, setUpgradeConfirmModal] = useState<{
+    isOpen: boolean;
+    targetPlanId: string;
+    targetPlanName: string;
+    targetPlanPriceCents: number;
+    creditAmountCents: number;
+    originalCreditCents: number;
+    creditSourcePlan: string;
+    entitlementsToDeactivate: string[];
+    warningMessage: string;
+    isSubscription: boolean;
+  } | null>(null);
+
+  const [isCheckingCredit, setIsCheckingCredit] = useState(false);
+  const { toast } = useToast();
   
   // Update tab when user role changes
   useEffect(() => {
@@ -478,7 +498,7 @@ export default function Pricing() {
     return "downgrade";
   };
 
-  const handleSelectPlan = (planId: string, planName: string) => {
+  const handleSelectPlan = async (planId: string, planName: string) => {
     // Free plan - just go to signup
     if (planId === "free_seeker") {
       navigate("/auth?mode=signup");
@@ -497,7 +517,50 @@ export default function Pricing() {
         newPrice: planPrice,
       });
     } else if (user) {
-      navigate(`/checkout?plan=${planId}`);
+      // Check if user has unused one-time entitlements for credit
+      if (isContractor()) {
+        setIsCheckingCredit(true);
+        try {
+          const { data, error } = await supabase.functions.invoke("check-upgrade-credit", {
+            body: { targetPlanId: planId },
+          });
+
+          if (error) {
+            console.error("[Pricing] Error checking credit:", error);
+            // Continue without credit if check fails
+            navigate(`/checkout?plan=${planId}`);
+            return;
+          }
+
+          if (data?.has_credit) {
+            // Check if target plan is a subscription
+            const subscriptionPlans = ["monthly_contractor", "quarterly_contractor"];
+            const isSubscription = subscriptionPlans.includes(planId);
+
+            setUpgradeConfirmModal({
+              isOpen: true,
+              targetPlanId: planId,
+              targetPlanName: planName,
+              targetPlanPriceCents: planPrice,
+              creditAmountCents: data.credit_amount_cents,
+              originalCreditCents: data.original_credit_cents,
+              creditSourcePlan: data.credit_source_plan,
+              entitlementsToDeactivate: data.entitlements_to_deactivate,
+              warningMessage: data.warning_message,
+              isSubscription,
+            });
+          } else {
+            navigate(`/checkout?plan=${planId}`);
+          }
+        } catch (err) {
+          console.error("[Pricing] Credit check failed:", err);
+          navigate(`/checkout?plan=${planId}`);
+        } finally {
+          setIsCheckingCredit(false);
+        }
+      } else {
+        navigate(`/checkout?plan=${planId}`);
+      }
     } else {
       navigate(`/auth?mode=signup&plan=${planId}`);
     }
@@ -1006,6 +1069,34 @@ export default function Pricing() {
           isCurrentPlanOneTime={isCurrentPlanOneTime()}
           onSuccess={handlePlanChangeSuccess}
         />
+      )}
+
+      {/* Upgrade Confirmation Modal with Credit */}
+      {upgradeConfirmModal && currentSubscription.planName && (
+        <UpgradeConfirmationModal
+          isOpen={upgradeConfirmModal.isOpen}
+          onClose={() => setUpgradeConfirmModal(null)}
+          currentPlanName={currentSubscription.planName}
+          targetPlanId={upgradeConfirmModal.targetPlanId}
+          targetPlanName={upgradeConfirmModal.targetPlanName}
+          targetPlanPriceCents={upgradeConfirmModal.targetPlanPriceCents}
+          creditAmountCents={upgradeConfirmModal.creditAmountCents}
+          originalCreditCents={upgradeConfirmModal.originalCreditCents}
+          creditSourcePlan={upgradeConfirmModal.creditSourcePlan}
+          entitlementsToDeactivate={upgradeConfirmModal.entitlementsToDeactivate}
+          warningMessage={upgradeConfirmModal.warningMessage}
+          isSubscription={upgradeConfirmModal.isSubscription}
+        />
+      )}
+
+      {/* Credit Check Loading Overlay */}
+      {isCheckingCredit && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-card rounded-lg p-6 shadow-lg flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span>Checking available credits...</span>
+          </div>
+        </div>
       )}
     </main>
   );

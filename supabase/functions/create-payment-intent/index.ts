@@ -49,9 +49,9 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { planId } = await req.json();
+    const { planId, applyCredit, creditAmount, entitlementsToDeactivate } = await req.json();
     if (!planId) throw new Error("Plan ID is required");
-    logStep("Plan ID received", { planId });
+    logStep("Plan ID received", { planId, applyCredit, creditAmount });
 
     // Get plan details from database
     const { data: planData, error: planError } = await supabaseClient
@@ -203,8 +203,22 @@ serve(async (req) => {
       );
     } else {
       // For one-time payments, create a PaymentIntent
+      // Apply credit if available
+      let finalAmount = planData.price_cents;
+      let appliedCreditCents = 0;
+
+      if (applyCredit && creditAmount && creditAmount > 0) {
+        appliedCreditCents = Math.min(creditAmount, planData.price_cents);
+        finalAmount = Math.max(0, planData.price_cents - appliedCreditCents);
+        logStep("Applying credit to payment", { 
+          originalAmount: planData.price_cents, 
+          creditApplied: appliedCreditCents, 
+          finalAmount 
+        });
+      }
+
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: planData.price_cents,
+        amount: finalAmount,
         currency: "nzd",
         customer: customerId,
         metadata: {
@@ -212,6 +226,8 @@ serve(async (req) => {
           plan_id: planId,
           plan_name: planData.plan_name,
           plan_type: planData.plan_type,
+          credit_applied: appliedCreditCents.toString(),
+          entitlements_to_deactivate: entitlementsToDeactivate?.join(",") || "",
         },
         automatic_payment_methods: { enabled: true },
       });
@@ -223,6 +239,7 @@ serve(async (req) => {
       logStep("Created PaymentIntent", {
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret.substring(0, 20) + "...",
+        creditApplied: appliedCreditCents,
       });
 
       return new Response(
@@ -230,6 +247,8 @@ serve(async (req) => {
           clientSecret: paymentIntent.client_secret,
           paymentIntentId: paymentIntent.id,
           type: "payment",
+          creditApplied: appliedCreditCents,
+          finalAmount,
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -300,6 +300,8 @@ serve(async (req) => {
       .eq("role", "contractor")
       .single();
 
+    let newEntitlementId: string | null = null;
+
     if (roleCheck) {
       // Only create entitlement if this is a contractor purchase
       const isContractorPlan = planId?.includes("contractor") || planId?.includes("single") || planId?.includes("sprint") || planId?.includes("14_day");
@@ -312,7 +314,7 @@ serve(async (req) => {
           isStackable,
         });
 
-        const { error: entitlementError } = await supabaseClient
+        const { data: entitlementData, error: entitlementError } = await supabaseClient
           .from("contractor_entitlements")
           .insert({
             user_id: user.id,
@@ -330,7 +332,9 @@ serve(async (req) => {
             status: "active",
             stripe_subscription_id: stripeSubscriptionId,
             stripe_payment_intent_id: paymentIntentId ?? null,
-          });
+          })
+          .select("id")
+          .single();
 
         if (entitlementError) {
           logStep("Entitlement creation failed", {
@@ -339,7 +343,42 @@ serve(async (req) => {
           });
           // Don't throw - subscription was created, just log the error
         } else {
-          logStep("Contractor entitlement created successfully");
+          newEntitlementId = entitlementData?.id ?? null;
+          logStep("Contractor entitlement created successfully", { entitlementId: newEntitlementId });
+        }
+
+        // Deactivate old entitlements if credit was applied
+        if (paymentIntentId) {
+          const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+          const entitlementsToDeactivate = paymentIntent.metadata?.entitlements_to_deactivate;
+          const creditApplied = paymentIntent.metadata?.credit_applied;
+
+          if (entitlementsToDeactivate && creditApplied && parseInt(creditApplied) > 0) {
+            const entitlementIds = entitlementsToDeactivate.split(",").filter(Boolean);
+            
+            if (entitlementIds.length > 0) {
+              logStep("Deactivating old entitlements", { entitlementIds, creditApplied });
+
+              for (const entId of entitlementIds) {
+                const { error: deactivateError } = await supabaseClient
+                  .from("contractor_entitlements")
+                  .update({
+                    status: "deactivated",
+                    deactivated_at: new Date().toISOString(),
+                    deactivated_reason: "credited_to_upgrade",
+                    credit_applied_to_entitlement_id: newEntitlementId,
+                  })
+                  .eq("id", entId)
+                  .eq("user_id", user.id);
+
+                if (deactivateError) {
+                  logStep("Failed to deactivate entitlement", { entId, error: deactivateError.message });
+                } else {
+                  logStep("Entitlement deactivated", { entId });
+                }
+              }
+            }
+          }
         }
       }
     }

@@ -26,6 +26,13 @@ interface PlanProduct {
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const planId = searchParams.get("plan");
+  const applyCredit = searchParams.get("applyCredit") === "true";
+  const creditAmountParam = searchParams.get("creditAmount");
+  const entitlementsParam = searchParams.get("entitlements");
+  
+  const creditAmountCents = creditAmountParam ? parseInt(creditAmountParam) : 0;
+  const entitlementsToDeactivate = entitlementsParam ? entitlementsParam.split(",").filter(Boolean) : [];
+
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuthContext();
   const { toast } = useToast();
@@ -39,6 +46,7 @@ export default function Checkout() {
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [stripeInstance, setStripeInstance] = useState<Stripe | null>(null);
   const [paymentType, setPaymentType] = useState<"payment" | "embedded_checkout" | null>(null);
+  const [actualPaymentAmount, setActualPaymentAmount] = useState<number | null>(null);
   const stripeLoadAttempted = useRef(false);
 
   // Redirect if not logged in
@@ -114,9 +122,14 @@ export default function Checkout() {
     setStripeError(null);
 
     try {
-      console.log("[Checkout] Creating payment intent for plan:", plan.plan_id);
+      console.log("[Checkout] Creating payment intent for plan:", plan.plan_id, { applyCredit, creditAmountCents });
       const { data, error } = await supabase.functions.invoke("create-payment-intent", {
-        body: { planId: plan.plan_id },
+        body: { 
+          planId: plan.plan_id,
+          applyCredit,
+          creditAmount: creditAmountCents,
+          entitlementsToDeactivate,
+        },
       });
 
       if (error) throw error;
@@ -142,6 +155,10 @@ export default function Checkout() {
         console.log("[Checkout] Client secret received for payment intent");
         setPaymentType("payment");
         setClientSecret(data.clientSecret);
+        // Store the actual payment amount (after credit applied)
+        if (data.finalAmount !== undefined) {
+          setActualPaymentAmount(data.finalAmount);
+        }
       } else {
         throw new Error("Invalid response from payment service");
       }
@@ -305,10 +322,35 @@ export default function Checkout() {
                   <h2 className="text-lg font-bold font-display">{plan.plan_name}</h2>
                 </div>
                 <div className="text-right">
-                  <span className="text-xl font-bold font-display">{formatPrice(plan.price_cents)}</span>
+                  {applyCredit && creditAmountCents > 0 ? (
+                    <>
+                      <span className="text-lg text-muted-foreground line-through">{formatPrice(plan.price_cents)}</span>
+                      <span className="text-xl font-bold font-display ml-2">{formatPrice(Math.max(0, plan.price_cents - creditAmountCents))}</span>
+                    </>
+                  ) : (
+                    <span className="text-xl font-bold font-display">{formatPrice(plan.price_cents)}</span>
+                  )}
                   <span className="text-muted-foreground text-sm">{formatInterval(plan.interval)}</span>
                 </div>
               </div>
+
+              {/* Credit Applied Notice */}
+              {applyCredit && creditAmountCents > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/30">
+                  <div className="flex justify-between items-center text-green-600">
+                    <span className="text-sm flex items-center gap-1">
+                      <Check className="w-4 h-4" />
+                      Credit applied
+                    </span>
+                    <span className="font-medium">-{formatPrice(creditAmountCents)}</span>
+                  </div>
+                  {plan.interval && plan.interval !== "one_time" && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      This credit applies to your first payment only. Future billing: {formatPrice(plan.price_cents)}/{plan.interval}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Features */}
               {features.length > 0 && (
@@ -360,7 +402,9 @@ export default function Checkout() {
                   size="lg"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Pay {formatPrice(plan.price_cents)}
+                  Pay {applyCredit && creditAmountCents > 0 
+                    ? formatPrice(Math.max(0, plan.price_cents - creditAmountCents))
+                    : formatPrice(plan.price_cents)}
                 </Button>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
                   <Shield className="w-3.5 h-3.5" />

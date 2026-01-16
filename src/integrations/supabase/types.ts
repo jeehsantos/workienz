@@ -104,6 +104,9 @@ export type Database = {
         Row: {
           activated_at: string | null
           created_at: string | null
+          credit_applied_to_entitlement_id: string | null
+          deactivated_at: string | null
+          deactivated_reason: string | null
           expires_at: string | null
           id: string
           is_recurring: boolean | null
@@ -121,6 +124,9 @@ export type Database = {
         Insert: {
           activated_at?: string | null
           created_at?: string | null
+          credit_applied_to_entitlement_id?: string | null
+          deactivated_at?: string | null
+          deactivated_reason?: string | null
           expires_at?: string | null
           id?: string
           is_recurring?: boolean | null
@@ -138,6 +144,9 @@ export type Database = {
         Update: {
           activated_at?: string | null
           created_at?: string | null
+          credit_applied_to_entitlement_id?: string | null
+          deactivated_at?: string | null
+          deactivated_reason?: string | null
           expires_at?: string | null
           id?: string
           is_recurring?: boolean | null
@@ -152,7 +161,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_credit_applied_to_entitlement"
+            columns: ["credit_applied_to_entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_entitlements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contractor_packages: {
         Row: {

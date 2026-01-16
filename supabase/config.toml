@@ -62,3 +62,21 @@ verify_jwt = false
 
 [functions.search-workers]
 verify_jwt = false
+
+[functions.check-upgrade-credit]
+verify_jwt = false
+
+[functions.update-subscription]
+verify_jwt = false
+
+[functions.cancel-subscription]
+verify_jwt = false
+
+[functions.cleanup-hired-conversations]
+verify_jwt = false
+
+[functions.get-pending-changes]
+verify_jwt = false
+
+[functions.seed-test-users]
+verify_jwt = false

@@ -52,9 +52,9 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { planId } = await req.json();
+    const { planId, applyCredit, creditAmount, entitlementsToDeactivate } = await req.json();
     if (!planId) throw new Error("Plan ID is required");
-    logStep("Plan ID received", { planId });
+    logStep("Plan ID received", { planId, applyCredit, creditAmount });
 
     // Get plan details from database
     const { data: planData, error: planError } = await supabaseClient
@@ -152,8 +152,25 @@ serve(async (req) => {
         plan_id: planId,
         plan_name: planData.plan_name,
         plan_type: planData.plan_type,
+        entitlements_to_deactivate: entitlementsToDeactivate?.join(",") || "",
       },
     };
+
+    // Apply coupon for subscriptions if credit is available
+    if (applyCredit && creditAmount && creditAmount > 0 && config.mode === "subscription") {
+      logStep("Creating one-time coupon for subscription credit", { creditAmount });
+      
+      const coupon = await stripe.coupons.create({
+        amount_off: creditAmount,
+        currency: "nzd",
+        duration: "once",
+        name: "Unused Plan Credit",
+        max_redemptions: 1,
+      });
+
+      sessionConfig.discounts = [{ coupon: coupon.id }];
+      logStep("Coupon created and applied", { couponId: coupon.id });
+    }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
