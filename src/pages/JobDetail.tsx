@@ -230,7 +230,7 @@ export default function JobDetail() {
     // Check application limits
     if (!hasActiveSubscription) {
       if (activeApplicationsCount >= 1) {
-        return { allowed: false, reason: "Free users can only have 1 active application. Upgrade to Premium for unlimited applications." };
+        return { allowed: false, reason: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!" };
       }
     }
 

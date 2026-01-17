@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     } else {
       if (activeApplications >= 1) {
         return new Response(
-          JSON.stringify({ error: 'Free users can only have 1 active application. Upgrade to Premium for more.' }),
+          JSON.stringify({ error: 'You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
