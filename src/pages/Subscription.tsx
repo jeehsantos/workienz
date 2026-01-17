@@ -17,8 +17,20 @@ import {
   AlertTriangle,
   Clock,
   Plus,
-  Briefcase
+  Briefcase,
+  PlayCircle,
+  RefreshCcw
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 
 interface Subscription {
@@ -85,6 +97,12 @@ export default function Subscription() {
   
   // Entitlements state
   const [entitlements, setEntitlements] = useState<EntitlementsResponse | null>(null);
+  
+  // Activation/Reimbursement state
+  const [activatingId, setActivatingId] = useState<string | null>(null);
+  const [reimbursingId, setReimbursingId] = useState<string | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: "activate" | "reimburse"; entitlementId: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -288,6 +306,95 @@ export default function Subscription() {
 
   const isRecurringSubscription = currentPlan?.interval && currentPlan.interval !== "one_time";
   const isOneTimePurchase = currentPlan?.interval === "one_time" || !currentPlan?.interval;
+
+  const handleActivateEntitlement = async (entitlementId: string) => {
+    setActivatingId(entitlementId);
+    try {
+      const { data, error } = await supabase.functions.invoke("activate-entitlement", {
+        body: { entitlementId }
+      });
+
+      if (error) throw error;
+
+      if (data?.success === false) {
+        toast({
+          title: "Cannot Activate",
+          description: data.message || "This entitlement cannot be activated at this time.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Entitlement Activated",
+        description: "Your plan is now active and ready to use!",
+      });
+
+      // Refresh entitlements
+      const { data: entData } = await supabase.functions.invoke("get-contractor-entitlements");
+      if (entData) {
+        setEntitlements(entData);
+      }
+    } catch (error: any) {
+      console.error("Activation error:", error);
+      toast({
+        title: "Activation Failed",
+        description: error.message || "Failed to activate entitlement. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setActivatingId(null);
+      setConfirmDialogOpen(false);
+      setConfirmAction(null);
+    }
+  };
+
+  const handleRequestReimbursement = async (entitlementId: string) => {
+    setReimbursingId(entitlementId);
+    try {
+      const { data, error } = await supabase.functions.invoke("request-reimbursement", {
+        body: { entitlementId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Reimbursement Processed",
+        description: `Your refund of $${((data.amount_refunded || 0) / 100).toFixed(2)} has been initiated.`,
+      });
+
+      // Refresh entitlements
+      const { data: entData } = await supabase.functions.invoke("get-contractor-entitlements");
+      if (entData) {
+        setEntitlements(entData);
+      }
+    } catch (error: any) {
+      console.error("Reimbursement error:", error);
+      toast({
+        title: "Reimbursement Failed",
+        description: error.message || "Failed to process reimbursement. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setReimbursingId(null);
+      setConfirmDialogOpen(false);
+      setConfirmAction(null);
+    }
+  };
+
+  const openConfirmDialog = (type: "activate" | "reimburse", entitlementId: string) => {
+    setConfirmAction({ type, entitlementId });
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmAction = () => {
+    if (!confirmAction) return;
+    if (confirmAction.type === "activate") {
+      handleActivateEntitlement(confirmAction.entitlementId);
+    } else {
+      handleRequestReimbursement(confirmAction.entitlementId);
+    }
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -552,7 +659,7 @@ export default function Subscription() {
                             {ent.remaining_slots === "unlimited" ? "Unlimited" : ent.remaining_slots}
                           </p>
                         </div>
-                        {ent.expires_at && (
+                        {ent.expires_at && ent.status === "active" && (
                           <div>
                             <p className="text-muted-foreground">Expires</p>
                             <p className="font-medium">
@@ -560,23 +667,76 @@ export default function Subscription() {
                             </p>
                           </div>
                         )}
-                        {!ent.activated_at && !ent.is_recurring && (
-                          <div className="sm:col-span-3">
-                            <p className="text-xs text-muted-foreground italic">
-                              Timer starts when you publish your first job
+                        {ent.status === "standby" && (
+                          <div>
+                            <p className="text-muted-foreground">Purchased</p>
+                            <p className="font-medium">
+                              {format(new Date(ent.purchased_at), "MMM d, yyyy")}
                             </p>
                           </div>
                         )}
                       </div>
 
-                      {/* Purchase Another button for stackable plans - always show for single_post */}
-                      {ent.is_stackable && (
+                      {/* Standby Entitlement Actions */}
+                      {ent.status === "standby" && !ent.is_recurring && (
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 mb-4">
+                            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                                Awaiting Activation
+                              </p>
+                              <p className="text-xs text-amber-700 dark:text-amber-300">
+                                This entitlement is on standby. Activate it when you're ready to start using it, or request a reimbursement.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => openConfirmDialog("activate", ent.id)}
+                              disabled={activatingId === ent.id}
+                            >
+                              {activatingId === ent.id ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <PlayCircle className="w-4 h-4 mr-2" />
+                              )}
+                              Activate Now
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openConfirmDialog("reimburse", ent.id)}
+                              disabled={reimbursingId === ent.id}
+                            >
+                              {reimbursingId === ent.id ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <RefreshCcw className="w-4 h-4 mr-2" />
+                              )}
+                              Request Reimbursement
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Timer message for active non-recurring entitlements */}
+                      {ent.status === "active" && !ent.activated_at && !ent.is_recurring && (
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground italic">
+                            Timer starts when you publish your first job
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Purchase Another button for stackable plans - only show for active entitlements */}
+                      {ent.is_stackable && ent.status === "active" && (
                         <div className="mt-4 pt-4 border-t border-border/50">
                           <Button 
                             asChild 
                             size="sm" 
                             variant={ent.remaining_slots === 0 ? "default" : "outline"}
-                            className={ent.remaining_slots === 0 ? "" : ""}
                           >
                             <Link to={`/checkout?plan=${ent.plan_type}`}>
                               <Plus className="w-4 h-4 mr-2" />
@@ -652,6 +812,39 @@ export default function Subscription() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === "activate" 
+                ? "Activate Entitlement" 
+                : "Request Reimbursement"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === "activate" 
+                ? "Once activated, your plan timer will start. For time-limited plans (like 14-Day Sprint), the countdown begins immediately. Are you sure you want to activate now?"
+                : "This will process a full refund to your original payment method. The entitlement will be removed and cannot be recovered. Are you sure you want to proceed?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={activatingId !== null || reimbursingId !== null}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmAction}
+              disabled={activatingId !== null || reimbursingId !== null}
+              className={confirmAction?.type === "reimburse" ? "bg-destructive hover:bg-destructive/90" : ""}
+            >
+              {(activatingId !== null || reimbursingId !== null) && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              {confirmAction?.type === "activate" ? "Activate" : "Confirm Reimbursement"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
