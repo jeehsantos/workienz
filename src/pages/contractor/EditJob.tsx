@@ -3,18 +3,18 @@ import { useNavigate, Link, useParams } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X, CalendarIcon } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Save, Send } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+
+import { StepIndicator } from "@/components/jobs/StepIndicator";
+import { JobDetailsStep } from "@/components/jobs/steps/JobDetailsStep";
+import { LocationPayStep } from "@/components/jobs/steps/LocationPayStep";
+import { RequirementsStep } from "@/components/jobs/steps/RequirementsStep";
+import { BenefitsStep } from "@/components/jobs/steps/BenefitsStep";
+import { ScheduleStep } from "@/components/jobs/steps/ScheduleStep";
+import { ReviewStep } from "@/components/jobs/steps/ReviewStep";
 
 type Shift = {
   id: string;
@@ -25,19 +25,13 @@ type Shift = {
   break_paid: boolean;
 };
 
-const INDUSTRIES = [
-  "Agriculture",
-  "Construction",
-  "Education",
-  "Events & Hospitality",
-  "Food & Beverage",
-  "Healthcare",
-  "Logistics & Warehousing",
-  "Manufacturing",
-  "Office & Admin",
-  "Retail",
-  "Transportation",
-  "Other",
+const STEPS = [
+  { id: 1, title: "Job Details" },
+  { id: 2, title: "Location" },
+  { id: 3, title: "Requirements" },
+  { id: 4, title: "Benefits" },
+  { id: 5, title: "Schedule" },
+  { id: 6, title: "Review" },
 ];
 
 export default function EditJob() {
@@ -46,44 +40,47 @@ export default function EditJob() {
   const { user, isLoading: authLoading, isContractor } = useAuthContext();
   const { toast } = useToast();
 
+  const [currentStep, setCurrentStep] = useState(1);
   const [isLoadingJob, setIsLoadingJob] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [maxPositions, setMaxPositions] = useState(10);
+  const [jobStatus, setJobStatus] = useState<string>("draft");
 
+  // Form data
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    requirements: "",
-    location_city: "",
-    location_suburb: "",
-    location_country: "New Zealand",
-    job_type: "temporary",
-    hourly_rate_min: "",
-    hourly_rate_max: "",
-    positions_available: "1",
-    industry: "",
+    title: "", description: "", requirements: "",
+    location_region: "", location_city: "", location_suburb: "",
+    location_country: "New Zealand", job_type: "temporary",
+    duration: "", hourly_rate: "", positions_available: "1", industry: "",
   });
 
+  const [physicalRequirements, setPhysicalRequirements] = useState<string[]>([]);
+  const [requiresCar, setRequiresCar] = useState(false);
+  const [selectedBenefits, setSelectedBenefits] = useState<string[]>([]);
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [isSSE, setIsSSE] = useState(false);
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
-  const [shifts, setShifts] = useState<Shift[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([
+    { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
+  ]);
   const [fixedTermStart, setFixedTermStart] = useState<Date | undefined>();
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
+  const [weeklyHours, setWeeklyHours] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-  const [skillInput, setSkillInput] = useState("");
-  const [jobStatus, setJobStatus] = useState<string>("draft");
 
+  // Auth check
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
       navigate("/auth");
     }
   }, [user, authLoading, isContractor, navigate]);
 
+  // Fetch job data
   useEffect(() => {
     async function fetchJob() {
       if (!jobId || !user) return;
 
-      // First verify this job belongs to the contractor
+      // Verify contractor profile
       const { data: contractorProfile } = await supabase
         .from("contractor_profiles")
         .select("id")
@@ -91,15 +88,12 @@ export default function EditJob() {
         .single();
 
       if (!contractorProfile) {
-        toast({
-          title: "Profile not found",
-          description: "Please complete your contractor profile first.",
-          variant: "destructive",
-        });
+        toast({ title: "Profile not found", description: "Please complete your contractor profile first.", variant: "destructive" });
         navigate("/contractor/profile");
         return;
       }
 
+      // Fetch job data
       const { data: job, error } = await supabase
         .from("jobs")
         .select("*")
@@ -108,11 +102,7 @@ export default function EditJob() {
         .single();
 
       if (error || !job) {
-        toast({
-          title: "Job not found",
-          description: "This job could not be found or you don't have access to edit it.",
-          variant: "destructive",
-        });
+        toast({ title: "Job not found", description: "This job could not be found or you don't have access to edit it.", variant: "destructive" });
         navigate("/contractor/jobs");
         return;
       }
@@ -122,30 +112,47 @@ export default function EditJob() {
         title: job.title || "",
         description: job.description || "",
         requirements: job.requirements || "",
+        location_region: "",
         location_city: job.location_city || "",
         location_suburb: job.location_suburb || "",
         location_country: job.location_country || "New Zealand",
         job_type: job.job_type || "temporary",
-        hourly_rate_min: job.hourly_rate_min?.toString() || "",
-        hourly_rate_max: job.hourly_rate_max?.toString() || "",
+        duration: job.duration || "",
+        hourly_rate: job.hourly_rate_min?.toString() || "",
         positions_available: job.positions_available?.toString() || "1",
         industry: job.industry || "",
       });
+
+      // Set physical requirements based on job data
+      const physReqs: string[] = [];
+      if (job.requires_heavy_lifting) physReqs.push("Requires lifting > 10kg");
+      if (job.requires_standing) physReqs.push("Requires standing for long periods");
+      setPhysicalRequirements(physReqs);
+      
+      setRequiresCar(job.requires_car || false);
+      
+      // Set benefits
+      const benefits: string[] = [];
+      if (job.provides_training) benefits.push("Provides training");
+      if (job.provides_accommodation) benefits.push("Provides accommodation");
+      setSelectedBenefits(benefits);
 
       setExperienceRequired(job.experience_required || false);
       setIsSSE((job as any).is_sse || false);
       setScheduleType(job.schedule_type === "fixed_term" ? "fixed_term" : "shifts");
       setSkills(job.skills_required || []);
       setJobStatus(job.status);
+      setWeeklyHours((job as any).weekly_hours?.toString() || "");
 
-      if (job.starts_at) {
-        setFixedTermStart(new Date(job.starts_at));
-      }
-      if (job.ends_at) {
-        setFixedTermEnd(new Date(job.ends_at));
+      // Set wizard step
+      if (job.wizard_step) {
+        setCurrentStep(job.wizard_step);
       }
 
-      // Fetch shifts if applicable
+      if (job.starts_at) setFixedTermStart(new Date(job.starts_at));
+      if (job.ends_at) setFixedTermEnd(new Date(job.ends_at));
+
+      // Fetch shifts
       if (job.schedule_type === "shifts") {
         const { data: shiftsData } = await supabase
           .from("job_shifts")
@@ -162,52 +169,107 @@ export default function EditJob() {
             break_minutes: s.break_minutes?.toString() || "0",
             break_paid: s.break_paid || false,
           })));
-        } else {
-          setShifts([{ id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }]);
         }
+      }
+
+      // Fetch max positions setting
+      const { data: settings } = await supabase
+        .from("platform_settings")
+        .select("setting_value")
+        .eq("setting_key", "max_positions_per_job")
+        .maybeSingle();
+
+      if (settings?.setting_value) {
+        setMaxPositions(parseInt(settings.setting_value) || 10);
       }
 
       setIsLoadingJob(false);
     }
 
-    if (user && isContractor()) {
-      fetchJob();
-    }
+    if (user && isContractor()) fetchJob();
   }, [jobId, user, isContractor, toast, navigate]);
 
-  const addShift = () => {
-    setShifts([...shifts, { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }]);
+  const updateFormData = (updates: Partial<typeof formData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const removeShift = (id: string) => {
-    if (shifts.length > 1) {
-      setShifts(shifts.filter(s => s.id !== id));
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        if (!formData.title || !formData.description || !formData.industry) {
+          toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+          return false;
+        }
+        const positions = parseInt(formData.positions_available);
+        if (positions > maxPositions) {
+          toast({ title: "Too many positions", description: `Maximum ${maxPositions} positions allowed.`, variant: "destructive" });
+          return false;
+        }
+        return true;
+      case 2:
+        if (!formData.location_city) {
+          toast({ title: "Location required", description: "Please enter a city.", variant: "destructive" });
+          return false;
+        }
+        return true;
+      case 3:
+      case 4:
+        return true;
+      case 5:
+        if (scheduleType === "shifts") {
+          const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
+          if (validShifts.length === 0) {
+            toast({ title: "Schedule required", description: "Please add at least one shift.", variant: "destructive" });
+            return false;
+          }
+        } else {
+          if (!fixedTermStart) {
+            toast({ title: "Start date required", description: "Please select a start date.", variant: "destructive" });
+            return false;
+          }
+          if (!weeklyHours || parseInt(weeklyHours) <= 0) {
+            toast({ title: "Weekly hours required", description: "Please enter the weekly working hours.", variant: "destructive" });
+            return false;
+          }
+        }
+        return true;
+      default:
+        return true;
     }
   };
 
-  const updateShift = (id: string, field: keyof Shift, value: any) => {
-    setShifts(shifts.map(s => s.id === id ? { ...s, [field]: value } : s));
-  };
-
-  const addSkill = () => {
-    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
-      setSkills([...skills, skillInput.trim()]);
-      setSkillInput("");
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
   };
 
-  const removeSkill = (skill: string) => {
-    setSkills(skills.filter((s) => s !== skill));
+  const handlePrevious = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStepClick = (step: number) => {
+    if (step <= currentStep) {
+      setCurrentStep(step);
+    }
+  };
+
+  const handleSubmit = async (status: "draft" | "published") => {
     if (!jobId) return;
+
+    // Validate for publishing
+    if (status === "published") {
+      if (!formData.hourly_rate) {
+        toast({ title: "Hourly rate required", description: "Please enter an hourly rate.", variant: "destructive" });
+        setCurrentStep(2);
+        return;
+      }
+    }
 
     setIsSubmitting(true);
 
-    // Update job
-    const { error } = await supabase.from("jobs").update({
+    // Prepare job data
+    const jobData = {
       title: formData.title,
       description: formData.description,
       requirements: formData.requirements || null,
@@ -215,55 +277,65 @@ export default function EditJob() {
       location_suburb: formData.location_suburb || null,
       location_country: formData.location_country || null,
       job_type: formData.job_type,
-      hourly_rate_min: formData.hourly_rate_min ? parseFloat(formData.hourly_rate_min) : null,
-      hourly_rate_max: formData.hourly_rate_max ? parseFloat(formData.hourly_rate_max) : null,
+      duration: formData.duration || null,
+      hourly_rate_min: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
+      hourly_rate_max: null,
       skills_required: skills.length > 0 ? skills : null,
-      positions_available: parseInt(formData.positions_available) || 1,
+      positions_available: Math.min(parseInt(formData.positions_available) || 1, maxPositions),
       industry: formData.industry || null,
       schedule_type: scheduleType,
       starts_at: fixedTermStart ? fixedTermStart.toISOString() : null,
       ends_at: fixedTermEnd ? fixedTermEnd.toISOString() : null,
+      weekly_hours: scheduleType === "fixed_term" && weeklyHours ? parseInt(weeklyHours) : null,
       experience_required: experienceRequired,
       is_sse: isSSE && formData.industry === "Agriculture",
-    }).eq("id", jobId);
+      requires_heavy_lifting: physicalRequirements.includes("Requires lifting > 10kg"),
+      requires_standing: physicalRequirements.includes("Requires standing for long periods"),
+      requires_car: requiresCar,
+      provides_training: selectedBenefits.includes("Provides training"),
+      provides_accommodation: selectedBenefits.includes("Provides accommodation"),
+    };
 
-    if (error) {
-      console.error("Error updating job:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update job posting. Please try again.",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Handle shifts - delete old and insert new if schedule type is shifts
-    if (scheduleType === "shifts") {
-      await supabase.from("job_shifts").delete().eq("job_id", jobId);
-      
-      const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-      if (validShifts.length > 0) {
-        const shiftsData = validShifts.map(s => ({
-          job_id: jobId,
+    // Prepare shifts data
+    const validShifts = scheduleType === "shifts" 
+      ? shifts.filter(s => s.date && s.start_time && s.end_time).map(s => ({
           shift_date: format(s.date!, "yyyy-MM-dd"),
           start_time: s.start_time,
           end_time: s.end_time,
           break_minutes: parseInt(s.break_minutes) || 0,
           break_paid: s.break_paid,
-        }));
-        
-        await supabase.from("job_shifts").insert(shiftsData);
-      }
-    }
+        }))
+      : [];
+
+    // Call backend edge function for job update
+    const { data, error } = await supabase.functions.invoke("create-job", {
+      body: {
+        jobData,
+        status,
+        shifts: validShifts,
+        jobId, // Pass job ID for update
+      },
+    });
 
     setIsSubmitting(false);
 
-    toast({
-      title: "Job Updated!",
-      description: "Your job posting has been updated.",
-    });
+    if (error) {
+      console.error("Error updating job:", error);
+      toast({ title: "Error", description: "Failed to update job posting. Please try again.", variant: "destructive" });
+      return;
+    }
 
+    if (data?.error) {
+      toast({ title: "Error", description: data.message || "Failed to update job.", variant: "destructive" });
+      return;
+    }
+
+    toast({
+      title: status === "published" ? "Job Published!" : "Draft Saved",
+      description: status === "published" 
+        ? "Your job posting is now live."
+        : "Your job has been saved as a draft.",
+    });
     navigate("/contractor/jobs");
   };
 
@@ -275,411 +347,180 @@ export default function EditJob() {
     );
   }
 
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <JobDetailsStep
+            formData={formData}
+            maxPositions={maxPositions}
+            onChange={updateFormData}
+          />
+        );
+      case 2:
+        return (
+          <LocationPayStep
+            formData={formData}
+            onChange={updateFormData}
+          />
+        );
+      case 3:
+        return (
+          <RequirementsStep
+            formData={formData}
+            physicalRequirements={physicalRequirements}
+            requiresCar={requiresCar}
+            skills={skills}
+            onFormChange={updateFormData}
+            onPhysicalReqsChange={setPhysicalRequirements}
+            onRequiresCarChange={setRequiresCar}
+            onSkillsChange={setSkills}
+          />
+        );
+      case 4:
+        return (
+          <BenefitsStep
+            selectedBenefits={selectedBenefits}
+            experienceRequired={experienceRequired}
+            isSSE={isSSE}
+            showSSE={formData.industry === "Agriculture"}
+            onBenefitsChange={setSelectedBenefits}
+            onExperienceChange={setExperienceRequired}
+            onSSEChange={setIsSSE}
+          />
+        );
+      case 5:
+        return (
+          <ScheduleStep
+            scheduleType={scheduleType}
+            shifts={shifts}
+            fixedTermStart={fixedTermStart}
+            fixedTermEnd={fixedTermEnd}
+            weeklyHours={weeklyHours}
+            onScheduleTypeChange={setScheduleType}
+            onShiftsChange={setShifts}
+            onFixedTermStartChange={setFixedTermStart}
+            onFixedTermEndChange={setFixedTermEnd}
+            onWeeklyHoursChange={setWeeklyHours}
+          />
+        );
+      case 6:
+        return (
+          <ReviewStep
+            formData={formData}
+            physicalRequirements={physicalRequirements}
+            requiresCar={requiresCar}
+            selectedBenefits={selectedBenefits}
+            experienceRequired={experienceRequired}
+            isSSE={isSSE}
+            skills={skills}
+            scheduleType={scheduleType}
+            shifts={shifts}
+            fixedTermStart={fixedTermStart}
+            fixedTermEnd={fixedTermEnd}
+            onEditStep={setCurrentStep}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const isDraft = jobStatus === "draft";
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
-          <Link to="/contractor/jobs">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to My Jobs
-          </Link>
+          <Link to="/contractor/jobs"><ArrowLeft className="w-4 h-4 mr-2" />Back to My Jobs</Link>
         </Button>
 
-        <h1 className="text-3xl font-bold mb-2 font-display">Edit Job</h1>
+        <h1 className="text-3xl font-bold mb-2 font-display">
+          {isDraft ? "Complete Your Job Draft" : "Edit Job"}
+        </h1>
         <p className="text-muted-foreground mb-8">
-          Update your job posting details.
+          {isDraft 
+            ? "Complete the remaining steps to publish your job posting."
+            : "Update your job posting details."
+          }
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-          <div className="space-y-2">
-            <Label htmlFor="title">Job Title *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g., Warehouse Assistant"
-              required
-            />
-          </div>
+        {/* Step Indicator */}
+        <div className="mb-8">
+          <StepIndicator
+            steps={STEPS}
+            currentStep={currentStep}
+            onStepClick={handleStepClick}
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Job Description *</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Describe the role, responsibilities, and what you're looking for..."
-              rows={5}
-              required
-            />
-          </div>
+        {/* Step Content */}
+        <Card className="mb-8">
+          <CardContent className="pt-6">
+            {renderStepContent()}
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="requirements">Requirements</Label>
-            <Textarea
-              id="requirements"
-              value={formData.requirements}
-              onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-              placeholder="List any specific requirements or qualifications..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border/50">
-            <div>
-              <Label htmlFor="experience_required">Experience Required</Label>
-              <p className="text-sm text-muted-foreground">
-                Only job seekers with experience in this industry can apply
-              </p>
-            </div>
-            <Switch
-              id="experience_required"
-              checked={experienceRequired}
-              onCheckedChange={setExperienceRequired}
-            />
-          </div>
-
-          {/* SSE Employee Toggle - Only shown for Agriculture industry */}
-          {formData.industry === "Agriculture" && (
-            <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-amber-500/30 bg-amber-500/5">
-              <div>
-                <Label htmlFor="is_sse" className="text-amber-700 dark:text-amber-400">Specified Seasonal Employer (SSE)</Label>
-                <p className="text-sm text-muted-foreground">
-                  Mark this position for RSE/SSE workers in viticulture or horticulture
-                </p>
-              </div>
-              <Switch
-                id="is_sse"
-                checked={isSSE}
-                onCheckedChange={setIsSSE}
-              />
-            </div>
-          )}
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="industry">Industry *</Label>
-              <Select
-                value={formData.industry}
-                onValueChange={(value) => setFormData({ ...formData, industry: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INDUSTRIES.map((ind) => (
-                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="job_type">Job Type</Label>
-              <Select
-                value={formData.job_type}
-                onValueChange={(value) => setFormData({ ...formData, job_type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="temporary">Temporary</SelectItem>
-                  <SelectItem value="short-term">Short-term</SelectItem>
-                  <SelectItem value="contract">Contract</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="positions_available">Positions Available *</Label>
-            <Input
-              id="positions_available"
-              type="number"
-              min="1"
-              value={formData.positions_available}
-              onChange={(e) => setFormData({ ...formData, positions_available: e.target.value })}
-              required
-            />
-          </div>
-
-          {/* Schedule Type Section */}
-          <div className="space-y-4 p-4 bg-card rounded-lg border border-border/50">
-            <Label className="text-base font-semibold">Schedule Type *</Label>
-            <RadioGroup
-              value={scheduleType}
-              onValueChange={(value: "shifts" | "fixed_term") => setScheduleType(value)}
-              className="flex gap-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="shifts" id="shifts" />
-                <Label htmlFor="shifts" className="font-normal cursor-pointer">Shifts</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="fixed_term" id="fixed_term" />
-                <Label htmlFor="fixed_term" className="font-normal cursor-pointer">Fixed Term</Label>
-              </div>
-            </RadioGroup>
-
-            {scheduleType === "shifts" ? (
-              <div className="space-y-4">
-                {shifts.map((shift, index) => (
-                  <div key={shift.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Shift {index + 1}</span>
-                      {shifts.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeShift(shift.id)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                    
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Date *</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !shift.date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {shift.date ? format(shift.date, "PPP") : "Select date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={shift.date}
-                              onSelect={(date) => updateShift(shift.id, "date", date)}
-                              disabled={(date) => date < new Date()}
-                              initialFocus
-                              className="pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Start Time *</Label>
-                          <Input
-                            type="time"
-                            value={shift.start_time}
-                            onChange={(e) => updateShift(shift.id, "start_time", e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">End Time *</Label>
-                          <Input
-                            type="time"
-                            value={shift.end_time}
-                            onChange={(e) => updateShift(shift.id, "end_time", e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Break (minutes)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={shift.break_minutes}
-                          onChange={(e) => updateShift(shift.id, "break_minutes", e.target.value)}
-                        />
-                      </div>
-                      <div className="flex items-end pb-1">
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={shift.break_paid}
-                            onChange={(e) => updateShift(shift.id, "break_paid", e.target.checked)}
-                            className="rounded"
-                          />
-                          Paid break
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                <Button type="button" variant="outline" onClick={addShift} className="w-full">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Shift
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Start Date *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !fixedTermStart && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {fixedTermStart ? format(fixedTermStart, "PPP") : "Select start date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={fixedTermStart}
-                          onSelect={setFixedTermStart}
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>End Date (Optional)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !fixedTermEnd && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {fixedTermEnd ? format(fixedTermEnd, "PPP") : "Select end date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={fixedTermEnd}
-                          onSelect={setFixedTermEnd}
-                          disabled={(date) => date < (fixedTermStart || new Date())}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="location_country">Country</Label>
-              <Input
-                id="location_country"
-                value={formData.location_country}
-                onChange={(e) => setFormData({ ...formData, location_country: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="location_city">City</Label>
-              <Input
-                id="location_city"
-                value={formData.location_city}
-                onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
-                placeholder="e.g., Auckland"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="location_suburb">Suburb</Label>
-              <Input
-                id="location_suburb"
-                value={formData.location_suburb}
-                onChange={(e) => setFormData({ ...formData, location_suburb: e.target.value })}
-                placeholder="e.g., CBD"
-              />
-            </div>
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="hourly_rate_min">Minimum Hourly Rate ($)</Label>
-              <Input
-                id="hourly_rate_min"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.hourly_rate_min}
-                onChange={(e) => setFormData({ ...formData, hourly_rate_min: e.target.value })}
-                placeholder="e.g., 25.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="hourly_rate_max">Maximum Hourly Rate ($)</Label>
-              <Input
-                id="hourly_rate_max"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.hourly_rate_max}
-                onChange={(e) => setFormData({ ...formData, hourly_rate_max: e.target.value })}
-                placeholder="e.g., 30.00"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Required Skills</Label>
-            <div className="flex gap-2">
-              <Input
-                value={skillInput}
-                onChange={(e) => setSkillInput(e.target.value)}
-                placeholder="Add a skill..."
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addSkill();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={addSkill}>
-                <Plus className="w-4 h-4" />
+        {/* Navigation Buttons */}
+        <div className="flex justify-between gap-4 pb-16">
+          <div>
+            {currentStep > 1 && (
+              <Button type="button" variant="outline" onClick={handlePrevious}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Previous
               </Button>
-            </div>
-            {skills.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1"
-                  >
-                    {skill}
-                    <button type="button" onClick={() => removeSkill(skill)}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
             )}
           </div>
 
-          <div className="pt-4">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Changes
-            </Button>
+          <div className="flex gap-3">
+            {currentStep === STEPS.length ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleSubmit("draft")}
+                  disabled={isSubmitting}
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save as Draft
+                </Button>
+                {isDraft && (
+                  <Button
+                    type="button"
+                    onClick={() => handleSubmit("published")}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-2" />
+                    )}
+                    Publish Job
+                  </Button>
+                )}
+                {!isDraft && (
+                  <Button
+                    type="button"
+                    onClick={() => handleSubmit("published")}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Changes
+                  </Button>
+                )}
+              </>
+            ) : (
+              <Button type="button" onClick={handleNext}>
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

@@ -256,7 +256,7 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({
             allowed: false,
-            reason: 'You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!',
+            reason: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!",
             active_applications: activeApplications,
             max_applications: 1,
             cooldown_remaining_days: null,
