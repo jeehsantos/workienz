@@ -69,6 +69,7 @@ export default function PostJob() {
   ]);
   const [fixedTermStart, setFixedTermStart] = useState<Date | undefined>();
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
+  const [weeklyHours, setWeeklyHours] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
 
   // Auth check
@@ -161,9 +162,15 @@ export default function PostJob() {
             toast({ title: "Schedule required", description: "Please add at least one shift.", variant: "destructive" });
             return false;
           }
-        } else if (!fixedTermStart) {
-          toast({ title: "Start date required", description: "Please select a start date.", variant: "destructive" });
-          return false;
+        } else {
+          if (!fixedTermStart) {
+            toast({ title: "Start date required", description: "Please select a start date.", variant: "destructive" });
+            return false;
+          }
+          if (!weeklyHours || parseInt(weeklyHours) <= 0) {
+            toast({ title: "Weekly hours required", description: "Please enter the weekly working hours.", variant: "destructive" });
+            return false;
+          }
         }
         return true;
       default:
@@ -219,6 +226,7 @@ export default function PostJob() {
       schedule_type: scheduleType,
       starts_at: fixedTermStart ? fixedTermStart.toISOString() : null,
       ends_at: fixedTermEnd ? fixedTermEnd.toISOString() : null,
+      weekly_hours: scheduleType === "fixed_term" && weeklyHours ? parseInt(weeklyHours) : null,
       experience_required: experienceRequired,
       is_sse: isSSE && formData.industry === "Agriculture",
       requires_heavy_lifting: physicalRequirements.includes("Requires lifting > 10kg"),
@@ -352,10 +360,12 @@ export default function PostJob() {
             shifts={shifts}
             fixedTermStart={fixedTermStart}
             fixedTermEnd={fixedTermEnd}
+            weeklyHours={weeklyHours}
             onScheduleTypeChange={setScheduleType}
             onShiftsChange={setShifts}
             onFixedTermStartChange={setFixedTermStart}
             onFixedTermEndChange={setFixedTermEnd}
+            onWeeklyHoursChange={setWeeklyHours}
           />
         );
       case 6:

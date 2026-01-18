@@ -21,10 +21,12 @@ interface ScheduleStepProps {
   shifts: Shift[];
   fixedTermStart: Date | undefined;
   fixedTermEnd: Date | undefined;
+  weeklyHours?: string;
   onScheduleTypeChange: (type: "shifts" | "fixed_term") => void;
   onShiftsChange: (shifts: Shift[]) => void;
   onFixedTermStartChange: (date: Date | undefined) => void;
   onFixedTermEndChange: (date: Date | undefined) => void;
+  onWeeklyHoursChange?: (hours: string) => void;
 }
 
 export function ScheduleStep({
@@ -32,10 +34,12 @@ export function ScheduleStep({
   shifts,
   fixedTermStart,
   fixedTermEnd,
+  weeklyHours,
   onScheduleTypeChange,
   onShiftsChange,
   onFixedTermStartChange,
   onFixedTermEndChange,
+  onWeeklyHoursChange,
 }: ScheduleStepProps) {
   const addShift = () => {
     onShiftsChange([
@@ -181,9 +185,27 @@ export function ScheduleStep({
               />
             </div>
           </div>
+          
+          {/* Weekly Hours Input */}
+          <div className="space-y-2">
+            <Label>Weekly Working Hours *</Label>
+            <Input
+              type="number"
+              min="1"
+              max="60"
+              placeholder="e.g., 40"
+              value={weeklyHours || ""}
+              onChange={(e) => onWeeklyHoursChange?.(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Expected hours per week for this fixed term position
+            </p>
+          </div>
+          
           {durationDays && (
             <p className="text-sm text-muted-foreground">
               Duration: {durationDays} day{durationDays !== 1 ? 's' : ''}
+              {weeklyHours && ` • ${weeklyHours} hours/week`}
             </p>
           )}
         </div>

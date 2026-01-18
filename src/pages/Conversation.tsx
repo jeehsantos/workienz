@@ -568,16 +568,18 @@ export default function Conversation() {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-1 flex-shrink-0">
-              {/* View Profile Button - Always visible */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleViewProfile}
-                className="h-9 px-3 hidden sm:flex"
-              >
-                <UserCircle className="w-4 h-4 mr-2" />
-                View Profile
-              </Button>
+              {/* View Profile Button - Only visible for Contractors */}
+              {isUserContractor && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleViewProfile}
+                  className="h-9 px-3 hidden sm:flex"
+                >
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  View Profile
+                </Button>
+              )}
 
               {/* Desktop Actions */}
               {!isClosed && (
@@ -639,10 +641,13 @@ export default function Conversation() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={handleViewProfile} className="h-11">
-                    <UserCircle className="w-4 h-4 mr-3" />
-                    View Profile
-                  </DropdownMenuItem>
+                  {/* View Profile - Only for Contractors */}
+                  {isUserContractor && (
+                    <DropdownMenuItem onClick={handleViewProfile} className="h-11">
+                      <UserCircle className="w-4 h-4 mr-3" />
+                      View Profile
+                    </DropdownMenuItem>
+                  )}
                   
                   {conversation.job_application?.job.id && (
                     <DropdownMenuItem asChild className="h-11">

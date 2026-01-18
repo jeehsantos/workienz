@@ -352,6 +352,7 @@ export type Database = {
           last_activity_at: string | null
           reminder_count: number | null
           reminder_sent_at: string | null
+          scheduled_deletion_at: string | null
           status: string
           updated_at: string
         }
@@ -365,6 +366,7 @@ export type Database = {
           last_activity_at?: string | null
           reminder_count?: number | null
           reminder_sent_at?: string | null
+          scheduled_deletion_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -378,6 +380,7 @@ export type Database = {
           last_activity_at?: string | null
           reminder_count?: number | null
           reminder_sent_at?: string | null
+          scheduled_deletion_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -622,6 +625,7 @@ export type Database = {
           status: Database["public"]["Enums"]["job_status"]
           title: string
           updated_at: string
+          weekly_hours: number | null
           wizard_step: number | null
         }
         Insert: {
@@ -655,6 +659,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"]
           title: string
           updated_at?: string
+          weekly_hours?: number | null
           wizard_step?: number | null
         }
         Update: {
@@ -688,6 +693,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"]
           title?: string
           updated_at?: string
+          weekly_hours?: number | null
           wizard_step?: number | null
         }
         Relationships: [
@@ -765,6 +771,42 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      partners: {
+        Row: {
+          contractor_user_id: string
+          created_at: string
+          discount_percent: number | null
+          display_name: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          stripe_coupon_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          contractor_user_id: string
+          created_at?: string
+          discount_percent?: number | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          stripe_coupon_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contractor_user_id?: string
+          created_at?: string
+          discount_percent?: number | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          stripe_coupon_id?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

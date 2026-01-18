@@ -208,14 +208,6 @@ Deno.serve(async (req) => {
 
     // 7. Send congratulations system message in chat
     if (conversationId) {
-      const hireMessage = {
-        type: 'hire_notification',
-        title: '🎉 Congratulations!',
-        message: `You've been selected for the position: ${job.title}`,
-        details: 'The employer will contact you with next steps. Your availability status has been updated.',
-        timestamp: new Date().toISOString(),
-      };
-
       const { error: msgError } = await supabase
         .from('messages')
         .insert({
@@ -237,7 +229,7 @@ Deno.serve(async (req) => {
       .insert({
         user_id: employeeProfile.user_id,
         type: 'hired',
-        title: '🎉 You\'ve been hired!',
+        title: "🎉 You've been hired!",
         message: `Congratulations! You have been selected for the position: ${job.title}`,
         action_url: conversationId ? `/conversation/${conversationId}` : '/dashboard',
         metadata: {
@@ -253,18 +245,94 @@ Deno.serve(async (req) => {
       console.log('[hire-applicant] Notification created for worker');
     }
 
-    // 9. Close other pending applications for this job (optional - auto-reject)
-    const { error: rejectError } = await supabase
+    // 9. ENHANCED: Reject ALL other applications by this employee (not just same job)
+    // First, get all other pending/reviewing applications for this employee
+    const { data: otherApplications, error: fetchOtherAppsError } = await supabase
       .from('job_applications')
-      .update({ status: 'rejected' })
-      .eq('job_id', application.job_id)
+      .select(`
+        id,
+        job_id,
+        status
+      `)
+      .eq('employee_id', application.employee_id)
       .neq('id', application_id)
-      .eq('status', 'pending');
+      .in('status', ['pending', 'reviewing']);
 
-    if (rejectError) {
-      console.error('[hire-applicant] Failed to reject other applications:', rejectError);
-    } else {
-      console.log('[hire-applicant] Other pending applications rejected');
+    if (fetchOtherAppsError) {
+      console.error('[hire-applicant] Failed to fetch other applications:', fetchOtherAppsError);
+    } else if (otherApplications && otherApplications.length > 0) {
+      console.log(`[hire-applicant] Found ${otherApplications.length} other applications to reject`);
+
+      for (const otherApp of otherApplications) {
+        // Update application status to rejected
+        await supabase
+          .from('job_applications')
+          .update({ status: 'rejected' })
+          .eq('id', otherApp.id);
+
+        // Find conversation for this application
+        const { data: otherConv } = await supabase
+          .from('conversations')
+          .select('id, contractor_user_id')
+          .eq('job_application_id', otherApp.id)
+          .single();
+
+        if (otherConv) {
+          // Get job title for the message
+          const { data: otherJob } = await supabase
+            .from('jobs')
+            .select('title')
+            .eq('id', otherApp.job_id)
+            .single();
+
+          // Send notification message to the contractor
+          await supabase
+            .from('messages')
+            .insert({
+              conversation_id: otherConv.id,
+              sender_user_id: otherConv.contractor_user_id, // System message appears as from contractor
+              content: `📋 **Application Closed**\n\nThis candidate (${employeeName}) has been hired by another employer for a different position.\n\nThe application for "${otherJob?.title || 'this job'}" has been automatically closed.\n\n⏰ This conversation will be archived in 48 hours.`,
+            });
+
+          // Schedule this conversation for deletion in 48 hours
+          const deletionTime = new Date();
+          deletionTime.setHours(deletionTime.getHours() + 48);
+
+          await supabase
+            .from('conversations')
+            .update({ 
+              status: 'closed',
+              scheduled_deletion_at: deletionTime.toISOString() 
+            })
+            .eq('id', otherConv.id);
+
+          // Create notification for the contractor
+          const { data: contractorInfo } = await supabase
+            .from('contractor_profiles')
+            .select('user_id')
+            .eq('id', (await supabase.from('jobs').select('contractor_id').eq('id', otherApp.job_id).single()).data?.contractor_id)
+            .single();
+
+          if (contractorInfo) {
+            await supabase
+              .from('notifications')
+              .insert({
+                user_id: contractorInfo.user_id,
+                type: 'application_closed',
+                title: 'Application Closed',
+                message: `${employeeName} has been hired by another employer. Their application has been closed.`,
+                action_url: `/conversation/${otherConv.id}`,
+                metadata: {
+                  job_id: otherApp.job_id,
+                  application_id: otherApp.id,
+                  reason: 'hired_elsewhere',
+                },
+              });
+          }
+
+          console.log(`[hire-applicant] Rejected application ${otherApp.id} and scheduled conversation ${otherConv.id} for deletion`);
+        }
+      }
     }
 
     console.log('[hire-applicant] Hire process completed successfully');
@@ -278,6 +346,7 @@ Deno.serve(async (req) => {
           job_title: job.title,
           employee_name: employeeName,
           conversation_id: conversationId,
+          other_applications_rejected: otherApplications?.length || 0,
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -83,3 +83,9 @@ verify_jwt = false
 
 [functions.request-reimbursement]
 verify_jwt = false
+
+[functions.manage-partner]
+verify_jwt = false
+
+[functions.get-active-partners]
+verify_jwt = false
