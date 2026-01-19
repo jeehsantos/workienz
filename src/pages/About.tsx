@@ -1,8 +1,11 @@
 import { Footer } from "@/components/landing/Footer";
-import { Users, Target, Eye, Handshake, UserCheck, Globe, Clock, Briefcase, Building2 } from "lucide-react";
+import { Users, Target, Eye, Handshake, UserCheck, Globe, Clock, Briefcase, Building2, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import ourStoryImg from "@/assets/about/our-story.png";
 import missionImg from "@/assets/about/mission.png";
 import connectingPeopleImg from "@/assets/about/connecting-people.png";
+
 const targetGroups = [{
   icon: UserCheck,
   title: "First-Time Job Seekers",
@@ -21,18 +24,35 @@ const targetGroups = [{
   description: "We welcome individuals with practical experience in fields like logistics, retail, hospitality, and essential services, offering a fast track to new roles without the complexity of specialised recruitment."
 }];
 
-// Partner companies - placeholder logos using company initials
-const partners = [
-  { name: "AgriWorks NZ", initials: "AW" },
-  { name: "Kiwi Hospitality Group", initials: "KH" },
-  { name: "BuildRight Construction", initials: "BR" },
-  { name: "CleanPro Services", initials: "CP" },
-  { name: "FreshPick Orchards", initials: "FP" },
-  { name: "Metro Logistics", initials: "ML" },
-  { name: "Coastal Resorts", initials: "CR" },
-  { name: "Urban Retail Co", initials: "UR" },
-];
+interface Partner {
+  id: string;
+  display_name: string;
+  logo_url: string | null;
+}
+
 export default function About() {
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(true);
+
+  useEffect(() => {
+    const fetchPartners = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-active-partners');
+        if (error) {
+          console.error('Error fetching partners:', error);
+          return;
+        }
+        if (data?.partners) {
+          setPartners(data.partners);
+        }
+      } catch (err) {
+        console.error('Error fetching partners:', err);
+      } finally {
+        setLoadingPartners(false);
+      }
+    };
+    fetchPartners();
+  }, []);
   return <main className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
@@ -190,19 +210,39 @@ export default function About() {
           </div>
           
           {/* Partners Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 lg:gap-6">
-            {partners.map((partner) => (
-              <div 
-                key={partner.name}
-                className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-medium hover:border-primary/20 transition-all flex flex-col items-center justify-center aspect-[3/2]"
-              >
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mb-3">
-                  <span className="text-lg font-bold font-display text-primary">{partner.initials}</span>
+          {loadingPartners ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : partners.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Partner announcements coming soon!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 lg:gap-6">
+              {partners.map((partner) => (
+                <div 
+                  key={partner.id}
+                  className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-medium hover:border-primary/20 transition-all flex flex-col items-center justify-center aspect-[3/2]"
+                >
+                  {partner.logo_url ? (
+                    <img 
+                      src={partner.logo_url} 
+                      alt={partner.display_name} 
+                      className="w-16 h-16 object-contain mb-3"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center mb-3">
+                      <span className="text-lg font-bold font-display text-primary">
+                        {partner.display_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-foreground text-center">{partner.display_name}</span>
                 </div>
-                <span className="text-sm font-medium text-foreground text-center">{partner.name}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
           
           <p className="text-center text-sm text-muted-foreground mt-8">
             Want to partner with us? <a href="/contact" className="text-primary hover:underline">Get in touch</a>

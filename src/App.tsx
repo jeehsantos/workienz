@@ -33,6 +33,7 @@ import WorkerProfile from "./pages/WorkerProfile";
 import Conversation from "./pages/Conversation";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminPartners from "./pages/admin/AdminPartners";
 import Contact from "./pages/Contact";
 import About from "./pages/About";
 import Checkout from "./pages/Checkout";
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/writer/articles/:id/edit" element={<EditArticle />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/partners" element={<AdminPartners />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/about" element={<About />} />
               <Route path="/checkout" element={<Checkout />} />
