@@ -199,6 +199,22 @@ export default function Dashboard() {
             </Link>
           )}
 
+          {/* Admin Partners */}
+          {isAdmin() && (
+            <Link 
+              to="/admin/partners"
+              className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
+            >
+              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
+                <Users className="w-6 h-6 text-accent-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">Partner Management</h3>
+              <p className="text-muted-foreground text-sm mb-4">
+                Manage platform partners and their discounts.
+              </p>
+            </Link>
+          )}
+
           {/* Admin Analytics */}
           {isAdmin() && (
             <Link 
