@@ -35,6 +35,7 @@ interface JobData {
   is_sse?: boolean;
   starts_at?: string;
   ends_at?: string;
+  weekly_hours?: number;
   wizard_step?: number;
   form_data?: Record<string, unknown>;
 }
@@ -104,71 +105,90 @@ serve(async (req) => {
 
     // If publishing, validate entitlements
     if (status === "published") {
-      // Fetch active entitlements
-      const { data: entitlements, error: entError } = await supabaseClient
-        .from("contractor_entitlements")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("is_recurring", { ascending: false })
-        .order("created_at", { ascending: true });
-
-      if (entError) throw new Error(entError.message);
-
-      logStep("Fetched entitlements", { count: entitlements?.length ?? 0 });
-
-      if (!entitlements || entitlements.length === 0) {
-        return new Response(
-          JSON.stringify({
-            error: "ERR_NO_SUBSCRIPTION",
-            message: "You need an active subscription to publish jobs. Choose a plan to get started.",
-            upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
-        );
+      // Check if this is an update to an already published job
+      let isAlreadyPublished = false;
+      if (jobId) {
+        const { data: existingJob } = await supabaseClient
+          .from("jobs")
+          .select("status")
+          .eq("id", jobId)
+          .eq("contractor_id", contractorProfile.id)
+          .single();
+        
+        isAlreadyPublished = existingJob?.status === "published";
+        logStep("Existing job status check", { jobId, isAlreadyPublished, currentStatus: existingJob?.status });
       }
 
-      // Find entitlement with available slots
+      // Only check entitlements if this is a new publish (not updating an already published job)
       let selectedEntitlement = null;
+      
+      if (!isAlreadyPublished) {
+        // Fetch active entitlements
+        const { data: entitlements, error: entError } = await supabaseClient
+          .from("contractor_entitlements")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .order("is_recurring", { ascending: false })
+          .order("created_at", { ascending: true });
 
-      for (const ent of entitlements) {
-        // Check expiration
-        if (ent.expires_at && new Date(ent.expires_at) < new Date()) {
-          await supabaseClient
-            .from("contractor_entitlements")
-            .update({ status: "expired" })
-            .eq("id", ent.id);
-          continue;
+        if (entError) throw new Error(entError.message);
+
+        logStep("Fetched entitlements", { count: entitlements?.length ?? 0 });
+
+        if (!entitlements || entitlements.length === 0) {
+          return new Response(
+            JSON.stringify({
+              error: "ERR_NO_SUBSCRIPTION",
+              message: "You need an active subscription to publish jobs. Choose a plan to get started.",
+              upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+          );
         }
 
-        // Unlimited plans
-        if (ent.job_allowance === null) {
-          selectedEntitlement = ent;
-          break;
+        // Find entitlement with available slots
+        for (const ent of entitlements) {
+          // Check expiration
+          if (ent.expires_at && new Date(ent.expires_at) < new Date()) {
+            await supabaseClient
+              .from("contractor_entitlements")
+              .update({ status: "expired" })
+              .eq("id", ent.id);
+            continue;
+          }
+
+          // Unlimited plans
+          if (ent.job_allowance === null) {
+            selectedEntitlement = ent;
+            break;
+          }
+
+          // Check slots
+          const remaining = (ent.job_allowance ?? 0) - (ent.jobs_used ?? 0);
+          if (remaining > 0) {
+            selectedEntitlement = ent;
+            break;
+          }
         }
 
-        // Check slots
-        const remaining = (ent.job_allowance ?? 0) - (ent.jobs_used ?? 0);
-        if (remaining > 0) {
-          selectedEntitlement = ent;
-          break;
+        if (!selectedEntitlement) {
+          const currentTier = entitlements[0]?.plan_type ?? "your current";
+          return new Response(
+            JSON.stringify({
+              error: "ERR_LIMIT_REACHED",
+              message: `You have used all your job posts for your ${currentTier.replace(/_/g, " ")} plan. Upgrade to post more jobs.`,
+              current_tier: currentTier,
+              upgrade_options: ["14_day_sprint", "monthly_contractor", "quarterly_contractor"],
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+          );
         }
+
+        logStep("Selected entitlement for publishing", { entitlementId: selectedEntitlement.id });
+      } else {
+        logStep("Skipping entitlement check - updating already published job");
       }
-
-      if (!selectedEntitlement) {
-        const currentTier = entitlements[0]?.plan_type ?? "your current";
-        return new Response(
-          JSON.stringify({
-            error: "ERR_LIMIT_REACHED",
-            message: `You have used all your job posts for your ${currentTier.replace(/_/g, " ")} plan. Upgrade to post more jobs.`,
-            current_tier: currentTier,
-            upgrade_options: ["14_day_sprint", "monthly_contractor", "quarterly_contractor"],
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
-        );
-      }
-
-      logStep("Selected entitlement for publishing", { entitlementId: selectedEntitlement.id });
 
       // Create or update the job
       let createdJobId = jobId;
@@ -204,49 +224,51 @@ serve(async (req) => {
         logStep("New job created and published", { jobId: createdJobId });
       }
 
-      // Update entitlement usage
-      const newJobsUsed = (selectedEntitlement.jobs_used ?? 0) + 1;
-      const updateData: Record<string, unknown> = { jobs_used: newJobsUsed };
+      // Update entitlement usage only for new publishes
+      if (selectedEntitlement) {
+        const newJobsUsed = (selectedEntitlement.jobs_used ?? 0) + 1;
+        const updateData: Record<string, unknown> = { jobs_used: newJobsUsed };
 
-      // If this is the first job on a one-time plan, set activated_at and expires_at
-      if (!selectedEntitlement.activated_at && !selectedEntitlement.is_recurring) {
-        const activatedAt = new Date();
-        updateData.activated_at = activatedAt.toISOString();
+        // If this is the first job on a one-time plan, set activated_at and expires_at
+        if (!selectedEntitlement.activated_at && !selectedEntitlement.is_recurring) {
+          const activatedAt = new Date();
+          updateData.activated_at = activatedAt.toISOString();
 
-        // Fetch duration from settings
-        const { data: settings } = await supabaseClient
-          .from("platform_settings")
-          .select("setting_key, setting_value")
-          .in("setting_key", ["single_post_duration_days", "14_day_sprint_duration_days"]);
+          // Fetch duration from settings
+          const { data: settings } = await supabaseClient
+            .from("platform_settings")
+            .select("setting_key, setting_value")
+            .in("setting_key", ["single_post_duration_days", "14_day_sprint_duration_days"]);
 
-        const settingsMap = Object.fromEntries(
-          (settings ?? []).map((s) => [s.setting_key, parseInt(s.setting_value, 10)])
-        );
+          const settingsMap = Object.fromEntries(
+            (settings ?? []).map((s) => [s.setting_key, parseInt(s.setting_value, 10)])
+          );
 
-        let durationDays = 14; // Default
-        if (selectedEntitlement.plan_type === "single_post") {
-          durationDays = settingsMap["single_post_duration_days"] ?? 14;
-        } else if (selectedEntitlement.plan_type === "14_day_sprint") {
-          durationDays = settingsMap["14_day_sprint_duration_days"] ?? 14;
+          let durationDays = 14; // Default
+          if (selectedEntitlement.plan_type === "single_post") {
+            durationDays = settingsMap["single_post_duration_days"] ?? 14;
+          } else if (selectedEntitlement.plan_type === "14_day_sprint") {
+            durationDays = settingsMap["14_day_sprint_duration_days"] ?? 14;
+          }
+
+          const expiresAt = new Date(activatedAt);
+          expiresAt.setDate(expiresAt.getDate() + durationDays);
+          updateData.expires_at = expiresAt.toISOString();
+
+          logStep("First job on one-time plan, setting activation", { activatedAt, expiresAt: updateData.expires_at });
         }
 
-        const expiresAt = new Date(activatedAt);
-        expiresAt.setDate(expiresAt.getDate() + durationDays);
-        updateData.expires_at = expiresAt.toISOString();
+        // Check if entitlement is now consumed (for limited plans)
+        if (selectedEntitlement.job_allowance !== null && newJobsUsed >= selectedEntitlement.job_allowance) {
+          updateData.status = "consumed";
+          logStep("Entitlement fully consumed", { entitlementId: selectedEntitlement.id });
+        }
 
-        logStep("First job on one-time plan, setting activation", { activatedAt, expiresAt: updateData.expires_at });
+        await supabaseClient
+          .from("contractor_entitlements")
+          .update(updateData)
+          .eq("id", selectedEntitlement.id);
       }
-
-      // Check if entitlement is now consumed (for limited plans)
-      if (selectedEntitlement.job_allowance !== null && newJobsUsed >= selectedEntitlement.job_allowance) {
-        updateData.status = "consumed";
-        logStep("Entitlement fully consumed", { entitlementId: selectedEntitlement.id });
-      }
-
-      await supabaseClient
-        .from("contractor_entitlements")
-        .update(updateData)
-        .eq("id", selectedEntitlement.id);
 
       // Handle shifts if provided
       if (shifts.length > 0 && createdJobId) {
@@ -272,10 +294,12 @@ serve(async (req) => {
           success: true,
           job_id: createdJobId,
           status: "published",
-          entitlement_id: selectedEntitlement.id,
-          remaining_posts: selectedEntitlement.job_allowance === null
-            ? "unlimited"
-            : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - newJobsUsed),
+          entitlement_id: selectedEntitlement?.id ?? null,
+          remaining_posts: selectedEntitlement 
+            ? (selectedEntitlement.job_allowance === null
+              ? "unlimited"
+              : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1))
+            : "N/A",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );

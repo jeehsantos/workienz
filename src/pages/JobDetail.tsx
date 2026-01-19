@@ -57,6 +57,7 @@ type Job = {
   schedule_type: string | null;
   experience_required: boolean;
   is_sse: boolean;
+  weekly_hours: number | null;
   contractor: {
     id: string;
     company_name: string;
@@ -113,7 +114,8 @@ export default function JobDetail() {
           industry,
           schedule_type,
           experience_required,
-          is_sse
+          is_sse,
+          weekly_hours
         `)
         .eq("id", id)
         .single();
@@ -465,6 +467,14 @@ export default function JobDetail() {
                         <span className="text-sm text-muted-foreground">End Date:</span>
                         <span className="font-medium">
                           {format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}
+                        </span>
+                      </div>
+                    )}
+                    {job.weekly_hours && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Weekly Hours:</span>
+                        <span className="font-medium">
+                          {job.weekly_hours} hours/week
                         </span>
                       </div>
                     )}

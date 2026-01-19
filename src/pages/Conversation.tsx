@@ -453,8 +453,8 @@ export default function Conversation() {
     
     const isUserContractor = conversation.contractor_user_id === user?.id;
     if (isUserContractor) {
-      // Contractor viewing employee profile
-      navigate(`/employee/${conversation.other_party_user_id}`);
+      // Contractor viewing employee profile - use /workers/:id route
+      navigate(`/workers/${conversation.other_party_user_id}`);
     } else {
       // Employee viewing contractor profile
       navigate(`/contractor/${conversation.other_party_user_id}`);
