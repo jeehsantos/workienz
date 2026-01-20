@@ -134,8 +134,11 @@ serve(async (req) => {
 
     logStep("Access check", { isContractor, hasFullAccess, isApplicant });
 
-    // Fetch worker profile with user profile data
-    const { data: workerData, error: workerError } = await supabaseClient
+    // Fetch worker profile with user profile data - try by id first, then by user_id
+    let workerData = null;
+    
+    // First try to find by employee_profiles.id
+    const { data: workerById } = await supabaseClient
       .from("employee_profiles")
       .select(`
         id,
@@ -159,7 +162,42 @@ serve(async (req) => {
       .eq("id", workerId)
       .single();
 
-    if (workerError || !workerData) {
+    if (workerById) {
+      workerData = workerById;
+      logStep("Found worker by profile id");
+    } else {
+      // If not found, try by user_id
+      const { data: workerByUserId } = await supabaseClient
+        .from("employee_profiles")
+        .select(`
+          id,
+          user_id,
+          headline,
+          bio,
+          city,
+          suburb,
+          country,
+          experience_years,
+          skills,
+          languages,
+          availability,
+          is_available,
+          phone,
+          has_car,
+          comfortable_standing,
+          comfortable_heavy_lifting,
+          visa_status
+        `)
+        .eq("user_id", workerId)
+        .single();
+
+      if (workerByUserId) {
+        workerData = workerByUserId;
+        logStep("Found worker by user_id");
+      }
+    }
+
+    if (!workerData) {
       return new Response(
         JSON.stringify({ error: "Worker not found" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 }
