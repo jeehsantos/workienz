@@ -69,16 +69,10 @@ Deno.serve(async (req) => {
 
     switch (request.action) {
       case 'list': {
-        // List all partners with contractor info
+        // List all partners
         const { data: partners, error } = await supabase
           .from('partners')
-          .select(`
-            *,
-            contractor_profile:contractor_user_id (
-              id,
-              company_name
-            )
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
         if (error) {
