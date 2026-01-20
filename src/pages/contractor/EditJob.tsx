@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, ArrowRight, Save, Send } from "lucide-react";
 import { format } from "date-fns";
+import { getRegionByCity } from "@/data/nzRegions";
 
 import { StepIndicator } from "@/components/jobs/StepIndicator";
 import { JobDetailsStep } from "@/components/jobs/steps/JobDetailsStep";
@@ -107,12 +108,15 @@ export default function EditJob() {
         return;
       }
 
+      // Derive region from city if city exists
+      const derivedRegion = job.location_city ? getRegionByCity(job.location_city) : null;
+      
       // Populate form with existing data
       setFormData({
         title: job.title || "",
         description: job.description || "",
         requirements: job.requirements || "",
-        location_region: "",
+        location_region: derivedRegion || "",
         location_city: job.location_city || "",
         location_suburb: job.location_suburb || "",
         location_country: job.location_country || "New Zealand",

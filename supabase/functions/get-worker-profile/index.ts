@@ -106,20 +106,41 @@ serve(async (req) => {
             .single();
 
           if (contractorProfile) {
-            // Get the worker's user_id from employee_profiles
-            const { data: workerProfile } = await supabaseClient
+            // First, try to get the worker's user_id from employee_profiles
+            // Try by id first, then by user_id
+            let workerUserId: string | null = null;
+            let workerProfileId: string | null = null;
+            
+            const { data: workerByProfileId } = await supabaseClient
               .from("employee_profiles")
-              .select("user_id")
+              .select("id, user_id")
               .eq("id", workerId)
               .single();
 
-            if (workerProfile) {
+            if (workerByProfileId) {
+              workerUserId = workerByProfileId.user_id;
+              workerProfileId = workerByProfileId.id;
+            } else {
+              // Try by user_id
+              const { data: workerByUserId } = await supabaseClient
+                .from("employee_profiles")
+                .select("id, user_id")
+                .eq("user_id", workerId)
+                .single();
+              
+              if (workerByUserId) {
+                workerUserId = workerByUserId.user_id;
+                workerProfileId = workerByUserId.id;
+              }
+            }
+
+            if (workerProfileId) {
               // Check if this worker has applied to any of contractor's jobs
               const { data: applications } = await supabaseClient
                 .from("job_applications")
                 .select("id, jobs!inner(contractor_id)")
                 .eq("jobs.contractor_id", contractorProfile.id)
-                .eq("employee_id", workerId);
+                .eq("employee_id", workerProfileId);
 
               isApplicant = (applications?.length ?? 0) > 0;
               if (isApplicant) {

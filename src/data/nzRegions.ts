@@ -171,3 +171,14 @@ export const getAreasByRegion = (region: string): string[] => {
 export const getAllRegions = (): string[] => {
   return NZ_REGIONS.map(r => r.region);
 };
+
+// Find the region for a given city
+export const getRegionByCity = (city: string): string | null => {
+  for (const region of NZ_REGIONS) {
+    const found = region.areas.find(a => a.city === city);
+    if (found) {
+      return region.region;
+    }
+  }
+  return null;
+};
