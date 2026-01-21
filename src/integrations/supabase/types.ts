@@ -812,6 +812,7 @@ export type Database = {
       }
       plan_products: {
         Row: {
+          coming_soon: boolean
           created_at: string | null
           description: string | null
           features: Json | null
@@ -825,6 +826,7 @@ export type Database = {
           stripe_product_id: string | null
         }
         Insert: {
+          coming_soon?: boolean
           created_at?: string | null
           description?: string | null
           features?: Json | null
@@ -838,6 +840,7 @@ export type Database = {
           stripe_product_id?: string | null
         }
         Update: {
+          coming_soon?: boolean
           created_at?: string | null
           description?: string | null
           features?: Json | null
