@@ -57,6 +57,17 @@ interface EntitlementsResponse {
   total_remaining_slots: number | "unlimited";
 }
 
+interface PlanProductFromDB {
+  id: string;
+  plan_id: string;
+  plan_name: string;
+  plan_type: string;
+  price_cents: number;
+  coming_soon: boolean;
+  interval: string | null;
+  description: string | null;
+}
+
 // Feature matrix for contractor plans
 const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
   single_post: {
@@ -149,92 +160,20 @@ const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
   },
 };
 
-const contractorPlans = [
-  {
-    planId: "single_post",
-    name: "Single Post",
-    price: "$24",
-    gst: "+GST",
-    description: "Post one job listing",
-    cta: "Post a Job",
-    badge: null,
-    highlighted: false,
-  },
-  {
-    planId: "14_day_sprint",
-    name: "14-Day Sprint",
-    price: "$50",
-    gst: "+GST",
-    description: "Unlimited posts for 14 days",
-    cta: "Start Sprint",
-    badge: "Best for Seasonal",
-    highlighted: false,
-  },
-  {
-    planId: "monthly_contractor",
-    name: "Monthly",
-    price: "$40",
-    gst: "+GST",
-    period: "/month",
-    description: "Unlimited posts + Database Access",
-    cta: "Subscribe Monthly",
-    badge: "Most Popular",
-    highlighted: true,
-  },
-  {
-    planId: "quarterly_contractor",
-    name: "Quarterly Pro",
-    price: "$105",
-    gst: "+GST",
-    period: "/quarter",
-    description: "All features included",
-    cta: "Go Quarterly",
-    badge: "Best Value",
-    highlighted: false,
-  },
-];
+// Static plan metadata (badges, CTAs, etc.) - prices come from DB
+const contractorPlanMeta: Record<string, { gst: string; cta: string; badge: string | null; highlighted: boolean; period?: string }> = {
+  single_post: { gst: "+GST", cta: "Post a Job", badge: null, highlighted: false },
+  "14_day_sprint": { gst: "+GST", cta: "Start Sprint", badge: "Best for Seasonal", highlighted: false },
+  monthly_contractor: { gst: "+GST", cta: "Subscribe Monthly", badge: "Most Popular", highlighted: true, period: "/month" },
+  quarterly_contractor: { gst: "+GST", cta: "Go Quarterly", badge: "Best Value", highlighted: false, period: "/quarter" },
+};
 
-const seekerPlans = [
-  {
-    planId: "free_seeker",
-    name: "Free Tier",
-    price: "$0",
-    description: "Get started for free",
-    cta: "Get Started Free",
-    badge: null,
-    highlighted: false,
-  },
-  {
-    planId: "weekly_seeker",
-    name: "Premium Weekly",
-    price: "$5",
-    period: "/week",
-    description: "Flexible weekly access",
-    cta: "Start Weekly",
-    badge: null,
-    highlighted: false,
-  },
-  {
-    planId: "monthly_seeker",
-    name: "Premium Monthly",
-    price: "$20",
-    period: "/month",
-    description: "Best for active job seekers",
-    cta: "Go Monthly",
-    badge: null,
-    highlighted: false,
-  },
-  {
-    planId: "quarterly_seeker",
-    name: "Premium Quarterly",
-    price: "$45",
-    period: "/quarter",
-    description: "Maximum value",
-    cta: "Best Value",
-    badge: "Most Popular",
-    highlighted: true,
-  },
-];
+const seekerPlanMeta: Record<string, { cta: string; badge: string | null; highlighted: boolean; period?: string }> = {
+  free_seeker: { cta: "Get Started Free", badge: null, highlighted: false },
+  weekly_seeker: { cta: "Start Weekly", badge: null, highlighted: false, period: "/week" },
+  monthly_seeker: { cta: "Go Monthly", badge: null, highlighted: false, period: "/month" },
+  quarterly_seeker: { cta: "Best Value", badge: "Most Popular", highlighted: true, period: "/quarter" },
+};
 
 const industries = [
   { icon: Tractor, label: "Farm" },
@@ -346,6 +285,10 @@ export default function Pricing() {
     nextBillingDate: string | null;
   }>({ planId: null, planName: null, price: null, nextBillingDate: null });
   
+  // Database-driven plans
+  const [dbPlans, setDbPlans] = useState<PlanProductFromDB[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  
   // Contractor entitlements for checking slot consumption
   const [contractorEntitlements, setContractorEntitlements] = useState<EntitlementsResponse | null>(null);
   
@@ -357,7 +300,46 @@ export default function Pricing() {
     newPrice: number;
   } | null>(null);
 
-  
+  // Fetch plans from database
+  useEffect(() => {
+    const fetchPlans = async () => {
+      const { data, error } = await supabase
+        .from("plan_products")
+        .select("id, plan_id, plan_name, plan_type, price_cents, interval, description, coming_soon")
+        .order("price_cents", { ascending: true });
+      
+      if (!error && data) {
+        setDbPlans(data as PlanProductFromDB[]);
+      }
+      setIsLoadingPlans(false);
+    };
+    fetchPlans();
+  }, []);
+
+  // Derived plan arrays from DB data
+  const contractorPlans = dbPlans
+    .filter(p => p.plan_type === "contractor")
+    .map(p => ({
+      planId: p.plan_id,
+      name: p.plan_name,
+      price: `$${(p.price_cents / 100).toFixed(0)}`,
+      priceCents: p.price_cents,
+      description: p.description || "",
+      comingSoon: p.coming_soon,
+      ...contractorPlanMeta[p.plan_id],
+    }));
+
+  const seekerPlans = dbPlans
+    .filter(p => p.plan_type === "seeker")
+    .map(p => ({
+      planId: p.plan_id,
+      name: p.plan_name,
+      price: `$${(p.price_cents / 100).toFixed(0)}`,
+      priceCents: p.price_cents,
+      description: p.description || "",
+      comingSoon: p.coming_soon,
+      ...seekerPlanMeta[p.plan_id],
+    }));
   
   // Update tab when user role changes
   useEffect(() => {
@@ -409,18 +391,16 @@ export default function Pricing() {
   // Check if toggle should be locked
   const isToggleLocked = user && (isContractor() || isEmployee());
 
-  // Get plan price from static data
+  // Get plan price from database data
   const getPlanPrice = (planId: string): number => {
-    const contractor = contractorPlans.find(p => p.planId === planId);
-    if (contractor) {
-      // Parse price from string like "$24" or "$40"
-      return parseInt(contractor.price.replace("$", "")) * 100;
-    }
-    const seeker = seekerPlans.find(p => p.planId === planId);
-    if (seeker) {
-      return parseInt(seeker.price.replace("$", "")) * 100;
-    }
-    return 0;
+    const plan = dbPlans.find(p => p.plan_id === planId);
+    return plan?.price_cents ?? 0;
+  };
+
+  // Check if plan is coming soon
+  const isPlanComingSoon = (planId: string): boolean => {
+    const plan = dbPlans.find(p => p.plan_id === planId);
+    return plan?.coming_soon ?? false;
   };
 
   // Check if current plan is a one-time purchase (no Stripe subscription)
@@ -665,10 +645,16 @@ export default function Pricing() {
                       </div>
 
                       <div className="mb-5">
-                        <span className="text-3xl font-bold font-display">{plan.price}</span>
-                        <span className="text-sm text-muted-foreground ml-1">{plan.gst}</span>
-                        {plan.period && (
-                          <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        {plan.comingSoon ? (
+                          <span className="text-xl font-bold font-display text-primary">COMING SOON</span>
+                        ) : (
+                          <>
+                            <span className="text-3xl font-bold font-display">{plan.price}</span>
+                            <span className="text-sm text-muted-foreground ml-1">{plan.gst}</span>
+                            {plan.period && (
+                              <span className="text-muted-foreground text-sm">{plan.period}</span>
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -683,13 +669,19 @@ export default function Pricing() {
                       </ul>
 
                       <Button
-                        variant={buttonConfig.variant}
-                        className={`w-full ${action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`}
-                        onClick={() => handleSelectPlan(plan.planId, plan.name)}
-                        disabled={buttonConfig.disabled}
+                        variant={plan.comingSoon ? "secondary" : buttonConfig.variant}
+                        className={`w-full ${plan.comingSoon ? "opacity-70 cursor-not-allowed" : action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`}
+                        onClick={() => !plan.comingSoon && handleSelectPlan(plan.planId, plan.name)}
+                        disabled={plan.comingSoon || buttonConfig.disabled}
                       >
-                        {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
-                        {buttonConfig.label}
+                        {plan.comingSoon ? (
+                          "Coming Soon"
+                        ) : (
+                          <>
+                            {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
+                            {buttonConfig.label}
+                          </>
+                        )}
                       </Button>
                     </div>
                   );
@@ -800,9 +792,15 @@ export default function Pricing() {
                       </div>
 
                       <div className="mb-5">
-                        <span className="text-3xl font-bold font-display">{plan.price}</span>
-                        {plan.period && (
-                          <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        {plan.comingSoon ? (
+                          <span className="text-xl font-bold font-display text-primary">COMING SOON</span>
+                        ) : (
+                          <>
+                            <span className="text-3xl font-bold font-display">{plan.price}</span>
+                            {plan.period && (
+                              <span className="text-muted-foreground text-sm">{plan.period}</span>
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -817,13 +815,19 @@ export default function Pricing() {
                       </ul>
 
                       <Button
-                        variant={buttonConfig.variant}
-                        className={`w-full ${action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`}
-                        onClick={() => handleSelectPlan(plan.planId, plan.name)}
-                        disabled={buttonConfig.disabled}
+                        variant={plan.comingSoon ? "secondary" : buttonConfig.variant}
+                        className={`w-full ${plan.comingSoon ? "opacity-70 cursor-not-allowed" : action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`}
+                        onClick={() => !plan.comingSoon && handleSelectPlan(plan.planId, plan.name)}
+                        disabled={plan.comingSoon || buttonConfig.disabled}
                       >
-                        {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
-                        {buttonConfig.label}
+                        {plan.comingSoon ? (
+                          "Coming Soon"
+                        ) : (
+                          <>
+                            {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
+                            {buttonConfig.label}
+                          </>
+                        )}
                       </Button>
                     </div>
                   );

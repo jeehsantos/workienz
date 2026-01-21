@@ -21,11 +21,13 @@ import {
   AlertTriangle,
   Settings,
   Save,
+  DollarSign,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProductPriceManager } from "@/components/admin/ProductPriceManager";
 import {
   Select,
   SelectContent,
@@ -590,7 +592,7 @@ export default function AdminDashboard() {
 
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Users
@@ -611,14 +613,18 @@ export default function AdminDashboard() {
               <AlertTriangle className="w-4 h-4" />
               Reports
             </TabsTrigger>
+            <TabsTrigger value="pricing" className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Pricing
+            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               Settings
             </TabsTrigger>
           </TabsList>
 
-          {/* Search - hide on settings tab */}
-          {activeTab !== "settings" && (
+          {/* Search - hide on settings and pricing tabs */}
+          {activeTab !== "settings" && activeTab !== "pricing" && (
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -914,6 +920,11 @@ export default function AdminDashboard() {
                     </TableBody>
                   </Table>
                 </div>
+              </TabsContent>
+
+              {/* Pricing Tab */}
+              <TabsContent value="pricing" className="space-y-6">
+                <ProductPriceManager />
               </TabsContent>
 
               {/* Settings Tab */}
