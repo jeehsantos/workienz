@@ -51,6 +51,7 @@ type Job = {
   experience_required: boolean;
   is_sse: boolean;
   status: string;
+  weekly_hours: number | null;
   shifts: JobShift[];
 };
 
@@ -106,7 +107,8 @@ export default function ContractorJobDetail() {
         schedule_type,
         experience_required,
         is_sse,
-        status
+        status,
+        weekly_hours
       `)
       .eq("id", jobId)
       .eq("contractor_id", contractorProfile.id)
@@ -326,6 +328,14 @@ export default function ContractorJobDetail() {
                         <span className="text-sm text-muted-foreground">End Date:</span>
                         <span className="font-medium">
                           {format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}
+                        </span>
+                      </div>
+                    )}
+                    {job.weekly_hours && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Weekly Hours:</span>
+                        <span className="font-medium">
+                          {job.weekly_hours} hours/week
                         </span>
                       </div>
                     )}

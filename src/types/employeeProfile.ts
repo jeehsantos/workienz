@@ -29,7 +29,6 @@ export interface EmployeeProfileData {
   
   // Compliance
   visaStatus: string;
-  irdNumber: string;
   
   // Work Preferences
   comfortableHeavyLifting: boolean;
@@ -40,9 +39,26 @@ export interface EmployeeProfileData {
   // Social Links (optional)
   linkedinUrl?: string;
   websiteUrl?: string;
+
+  // Formal CV fields
+  enableFormalCv: boolean;
+  workExperience: WorkExperience[];
+  education: Education[];
+  cvReferences: CVReference[];
+}
+
+export interface WorkExperience {
+  id: string;
+  company: string;
+  position: string;
+  description: string;
+  startDate: string;
+  endDate?: string;
+  current?: boolean;
 }
 
 export interface Education {
+  id: string;
   institution: string;
   degree: string;
   field: string;
@@ -51,13 +67,13 @@ export interface Education {
   current?: boolean;
 }
 
-export interface Experience {
-  company: string;
+export interface CVReference {
+  id: string;
+  name: string;
   position: string;
-  description: string;
-  startDate: string;
-  endDate?: string;
-  current?: boolean;
+  company: string;
+  email?: string;
+  phone?: string;
 }
 
 export type ProfileViewMode = 'social' | 'formal';

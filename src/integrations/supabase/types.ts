@@ -403,7 +403,10 @@ export type Database = {
           comfortable_standing: boolean | null
           country: string | null
           created_at: string
+          cv_references: Json | null
           date_of_birth: string | null
+          education: Json | null
+          enable_formal_cv: boolean | null
           experience_years: number | null
           has_car: boolean | null
           has_ird_number: boolean | null
@@ -421,6 +424,7 @@ export type Database = {
           updated_at: string
           user_id: string
           visa_status: string | null
+          work_experience: Json | null
         }
         Insert: {
           availability?: string | null
@@ -430,7 +434,10 @@ export type Database = {
           comfortable_standing?: boolean | null
           country?: string | null
           created_at?: string
+          cv_references?: Json | null
           date_of_birth?: string | null
+          education?: Json | null
+          enable_formal_cv?: boolean | null
           experience_years?: number | null
           has_car?: boolean | null
           has_ird_number?: boolean | null
@@ -448,6 +455,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           visa_status?: string | null
+          work_experience?: Json | null
         }
         Update: {
           availability?: string | null
@@ -457,7 +465,10 @@ export type Database = {
           comfortable_standing?: boolean | null
           country?: string | null
           created_at?: string
+          cv_references?: Json | null
           date_of_birth?: string | null
+          education?: Json | null
+          enable_formal_cv?: boolean | null
           experience_years?: number | null
           has_car?: boolean | null
           has_ird_number?: boolean | null
@@ -475,6 +486,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           visa_status?: string | null
+          work_experience?: Json | null
         }
         Relationships: []
       }
