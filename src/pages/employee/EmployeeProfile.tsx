@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, FileText } from "lucide-react";
+import { FormalCVSections } from "@/components/profile/FormalCVSections";
+import type { WorkExperience, Education, CVReference } from "@/types/employeeProfile";
 import { format } from "date-fns";
 import { dispatchProfileUpdated } from "@/hooks/useProfileRefresh";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -70,7 +72,6 @@ export default function EmployeeProfile() {
     phone: "",
     industry: "",
     visa_status: "",
-    ird_number: "",
   });
 
   // New preference states
@@ -84,6 +85,12 @@ export default function EmployeeProfile() {
   const [languageInput, setLanguageInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
+
+  // Formal CV states
+  const [enableFormalCv, setEnableFormalCv] = useState(false);
+  const [workExperience, setWorkExperience] = useState<WorkExperience[]>([]);
+  const [education, setEducation] = useState<Education[]>([]);
+  const [cvReferences, setCvReferences] = useState<CVReference[]>([]);
 
   // Available cities and suburbs based on selection
   const availableCities = formData.location_region ? getCitiesByRegion(formData.location_region) : [];
@@ -134,7 +141,6 @@ export default function EmployeeProfile() {
           phone: (data as any).phone || "",
           industry: (data as any).industry || "",
           visa_status: (data as any).visa_status || "",
-          ird_number: (data as any).ird_number || "",
         });
         setSkills(data.skills || []);
         setLanguages((data as any).languages || []);
@@ -142,6 +148,11 @@ export default function EmployeeProfile() {
         setComfortableStanding((data as any).comfortable_standing || false);
         setHasCar((data as any).has_car || false);
         setHasIrdNumber((data as any).has_ird_number || false);
+        // Load formal CV data
+        setEnableFormalCv((data as any).enable_formal_cv || false);
+        setWorkExperience((data as any).work_experience || []);
+        setEducation((data as any).education || []);
+        setCvReferences((data as any).cv_references || []);
         if ((data as any).date_of_birth) {
           setDateOfBirth(new Date((data as any).date_of_birth));
         }
@@ -245,14 +256,6 @@ export default function EmployeeProfile() {
       return;
     }
 
-    if (!formData.ird_number) {
-      toast({
-        title: "Required Field Missing",
-        description: "Please provide your IRD number.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (!formData.phone) {
       toast({
@@ -281,12 +284,16 @@ export default function EmployeeProfile() {
       languages: languages.length > 0 ? languages : null,
       date_of_birth: format(dateOfBirth, "yyyy-MM-dd"),
       visa_status: formData.visa_status,
-      ird_number: formData.ird_number,
       location_region: formData.location_region || null,
       comfortable_heavy_lifting: comfortableHeavyLifting,
       comfortable_standing: comfortableStanding,
       has_car: hasCar,
       has_ird_number: hasIrdNumber,
+      // Formal CV fields
+      enable_formal_cv: enableFormalCv,
+      work_experience: workExperience,
+      education: education,
+      cv_references: cvReferences,
     };
 
     let error;
@@ -499,35 +506,21 @@ export default function EmployeeProfile() {
           {/* Compliance Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Compliance & Legal</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="visa_status">Visa Status *</Label>
-                <Select
-                  value={formData.visa_status}
-                  onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select visa status" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
-                    {VISA_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ird_number">IRD Number *</Label>
-                <Input
-                  id="ird_number"
-                  value={formData.ird_number}
-                  onChange={(e) => setFormData({ ...formData, ird_number: e.target.value })}
-                  placeholder="e.g., 123-456-789"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">Your New Zealand tax number</p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="visa_status">Visa Status *</Label>
+              <Select
+                value={formData.visa_status}
+                onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select visa status" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                  {VISA_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -745,6 +738,39 @@ export default function EmployeeProfile() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Formal CV Section */}
+          <div className="space-y-4 p-6 bg-card rounded-lg border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-primary" />
+                <div>
+                  <h3 className="text-lg font-semibold">Enhanced CV Details</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Enable to add detailed work experience, education, and references for a professional CV
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="enable_formal_cv"
+                checked={enableFormalCv}
+                onCheckedChange={setEnableFormalCv}
+              />
+            </div>
+
+            {enableFormalCv && (
+              <div className="mt-6 pt-4 border-t border-border/50">
+                <FormalCVSections
+                  workExperience={workExperience}
+                  education={education}
+                  cvReferences={cvReferences}
+                  onWorkExperienceChange={setWorkExperience}
+                  onEducationChange={setEducation}
+                  onReferencesChange={setCvReferences}
+                />
+              </div>
+            )}
           </div>
 
           <div className="pt-4">

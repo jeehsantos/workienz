@@ -68,11 +68,14 @@ export default function ViewProfile() {
         skills: empProfile.skills || [],
         languages: (empProfile as any).languages || [],
         visaStatus: (empProfile as any).visa_status || '',
-        irdNumber: (empProfile as any).ird_number || '',
         comfortableHeavyLifting: (empProfile as any).comfortable_heavy_lifting || false,
         comfortableStanding: (empProfile as any).comfortable_standing || false,
         hasCar: (empProfile as any).has_car || false,
         hasIrdNumber: (empProfile as any).has_ird_number || false,
+        enableFormalCv: (empProfile as any).enable_formal_cv || false,
+        workExperience: (empProfile as any).work_experience || [],
+        education: (empProfile as any).education || [],
+        cvReferences: (empProfile as any).cv_references || [],
       };
       setProfileData(transformedProfile);
     } else {

@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, Globe, Calendar, Briefcase } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, Calendar, Briefcase, GraduationCap, Users } from "lucide-react";
 import { format } from "date-fns";
 import type { EmployeeProfileData } from "@/types/employeeProfile";
 import workieLogo from "@/assets/workie-logo.png";
@@ -11,6 +11,14 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
   const locationParts = [profile.suburb, profile.city, profile.region, profile.country]
     .filter(Boolean);
   const locationString = locationParts.join(", ");
+
+  // Format date for work experience
+  const formatWorkDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const [year, month] = dateStr.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return format(date, "MMM yyyy");
+  };
 
   return (
     <div className="cv-container bg-white text-gray-900 max-w-[210mm] mx-auto print:max-w-none print:mx-0 print:shadow-none shadow-lg rounded-lg overflow-hidden">
@@ -64,7 +72,60 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               </section>
             )}
 
-            {/* Experience Summary */}
+            {/* Work Experience */}
+            {profile.workExperience?.length > 0 && (
+              <section>
+                <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                  Work Experience
+                </h2>
+                <div className="space-y-3 print:space-y-2">
+                  {profile.workExperience.map((exp) => (
+                    <div key={exp.id} className="text-xs sm:text-sm print:text-xs">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-0.5">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{exp.position}</h3>
+                          <p className="text-gray-600">{exp.company}</p>
+                        </div>
+                        <span className="text-gray-500 text-xs">
+                          {formatWorkDate(exp.startDate)} - {exp.current ? "Present" : formatWorkDate(exp.endDate || "")}
+                        </span>
+                      </div>
+                      {exp.description && (
+                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{exp.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Education */}
+            {profile.education?.length > 0 && (
+              <section>
+                <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                  Education & Qualifications
+                </h2>
+                <div className="space-y-2 print:space-y-1.5">
+                  {profile.education.map((edu) => (
+                    <div key={edu.id} className="text-xs sm:text-sm print:text-xs">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-0.5">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {edu.degree}{edu.field ? ` in ${edu.field}` : ""}
+                          </h3>
+                          <p className="text-gray-600">{edu.institution}</p>
+                        </div>
+                        <span className="text-gray-500 text-xs">
+                          {edu.startYear} - {edu.current ? "Present" : edu.endYear || ""}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Professional Details */}
             <section>
               <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
                 Professional Details
@@ -134,6 +195,34 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               </div>
             </section>
 
+            {/* References */}
+            <section>
+              <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                References
+              </h2>
+              {profile.cvReferences?.length > 0 ? (
+                <div className="space-y-2 print:space-y-1.5 text-xs sm:text-sm print:text-xs">
+                  {profile.cvReferences.map((ref) => (
+                    <div key={ref.id}>
+                      <p className="font-semibold text-gray-900">{ref.name}</p>
+                      <p className="text-gray-600">{ref.position}, {ref.company}</p>
+                      {(ref.email || ref.phone) && (
+                        <p className="text-gray-500">
+                          {ref.email && <span>{ref.email}</span>}
+                          {ref.email && ref.phone && <span> • </span>}
+                          {ref.phone && <span>{ref.phone}</span>}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs sm:text-sm print:text-xs text-gray-600 italic">
+                  References available upon request
+                </p>
+              )}
+            </section>
+
             {/* Skills - Show in main column on mobile */}
             <section className="md:hidden">
               {profile.skills?.length > 0 && (
@@ -168,19 +257,6 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
                   </div>
                 </>
               )}
-            </section>
-
-            {/* Additional Info - Show in main column on mobile */}
-            <section className="md:hidden">
-              <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
-                Additional Info
-              </h2>
-              <div className="space-y-1 text-xs text-gray-700">
-                {profile.dateOfBirth && (
-                  <p>DOB: {format(new Date(profile.dateOfBirth), "MMM d, yyyy")}</p>
-                )}
-                <p>Country: {profile.country}</p>
-              </div>
             </section>
           </div>
 
