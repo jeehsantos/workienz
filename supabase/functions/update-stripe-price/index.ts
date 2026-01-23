@@ -54,9 +54,9 @@ serve(async (req) => {
     logStep("Admin verified", { userId: userData.user.id });
 
     const requestBody = await req.json();
-    const { action, planId, newPriceCents, comingSoon } = requestBody;
+    const { action, planId, newPriceCents, comingSoon, hidden } = requestBody;
 
-    logStep("Request received", { action, planId, newPriceCents, comingSoon });
+    logStep("Request received", { action, planId, newPriceCents, comingSoon, hidden });
 
     // Handle coming soon toggle
     if (action === "toggle_coming_soon") {
@@ -73,6 +73,25 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, message: "Coming soon status updated" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
+    // Handle hidden toggle
+    if (action === "toggle_hidden") {
+      const { error: updateError } = await supabaseClient
+        .from("plan_products")
+        .update({ hidden: hidden })
+        .eq("plan_id", planId);
+
+      if (updateError) {
+        throw new Error(`Failed to update hidden status: ${updateError.message}`);
+      }
+
+      logStep("Hidden status updated", { planId, hidden });
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Hidden status updated" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }

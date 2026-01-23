@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
+import { ApplicationRequirementsDialog } from "@/components/jobs/ApplicationRequirementsDialog";
 
 
 type JobShift = {
@@ -85,6 +86,7 @@ export default function JobDetail() {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [activeApplicationsCount, setActiveApplicationsCount] = useState(0);
   const [applicationError, setApplicationError] = useState<string | null>(null);
+  const [showRequirementsDialog, setShowRequirementsDialog] = useState(false);
 
   useEffect(() => {
     async function fetchJob() {
@@ -249,6 +251,13 @@ export default function JobDetail() {
       return;
     }
 
+    // Show requirements dialog first
+    setShowRequirementsDialog(true);
+  };
+
+  const proceedWithApplication = async () => {
+    if (!employeeProfileId || !id || !user) return;
+
     setIsApplying(true);
     setApplicationError(null);
 
@@ -334,6 +343,17 @@ export default function JobDetail() {
   }
 
   const eligibility = canApply();
+
+  // Render requirements dialog
+  const renderRequirementsDialog = () => (
+    <ApplicationRequirementsDialog
+      open={showRequirementsDialog}
+      onOpenChange={setShowRequirementsDialog}
+      jobId={id || ""}
+      jobTitle={job?.title || ""}
+      onProceed={proceedWithApplication}
+    />
+  );
   const hourlyRate = formatHourlyRate(job.hourly_rate_min, job.hourly_rate_max);
 
   return (
@@ -652,6 +672,9 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
+      
+      {/* Requirements Dialog */}
+      {renderRequirementsDialog()}
     </div>
   );
 }

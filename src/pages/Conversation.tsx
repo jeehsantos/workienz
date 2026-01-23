@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
 
 type Message = {
   id: string;
@@ -92,6 +93,8 @@ export default function Conversation() {
   const [isClosing, setIsClosing] = useState(false);
   const [isHiring, setIsHiring] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [showSubscriberDialog, setShowSubscriberDialog] = useState(false);
+  const [isFreeTier, setIsFreeTier] = useState(false);
 
   useEffect(() => {
     if (!user) {

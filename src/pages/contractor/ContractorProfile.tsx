@@ -137,6 +137,15 @@ export default function ContractorProfile() {
       description: "Your contractor profile has been updated.",
     });
 
+    // Enroll in free tier if this is a new profile
+    if (!existingProfile) {
+      try {
+        await supabase.functions.invoke('enroll-free-tier');
+      } catch (err) {
+        console.error("Error enrolling in free tier:", err);
+      }
+    }
+
     navigate("/dashboard");
   };
 

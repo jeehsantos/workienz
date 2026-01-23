@@ -32,6 +32,7 @@ interface PlanProduct {
   stripe_price_id: string | null;
   stripe_product_id: string | null;
   coming_soon: boolean;
+  hidden: boolean;
   interval: string | null;
 }
 
@@ -166,6 +167,44 @@ export function ProductPriceManager() {
     }
   };
 
+  const [togglingHiddenId, setTogglingHiddenId] = useState<string | null>(null);
+
+  const handleToggleHidden = async (planId: string, currentValue: boolean) => {
+    setTogglingHiddenId(planId);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("update-stripe-price", {
+        body: {
+          action: "toggle_hidden",
+          planId,
+          hidden: !currentValue,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Success",
+        description: `Plan visibility updated successfully`,
+      });
+
+      // Update local state
+      setPlans(plans.map(p => 
+        p.plan_id === planId ? { ...p, hidden: !currentValue } : p
+      ));
+    } catch (error) {
+      console.error("Error toggling hidden:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update visibility",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingHiddenId(null);
+    }
+  };
+
   const selectedPlan = plans.find(p => p.plan_id === selectedPlanId);
 
   if (isLoading) {
@@ -251,6 +290,7 @@ export function ProductPriceManager() {
                 <TableHead>Current Price</TableHead>
                 <TableHead>Interval</TableHead>
                 <TableHead className="text-center">Coming Soon</TableHead>
+                <TableHead className="text-center">Hidden</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -282,6 +322,23 @@ export function ProductPriceManager() {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Checkbox
+                        checked={plan.hidden}
+                        onCheckedChange={() => handleToggleHidden(plan.plan_id, plan.hidden)}
+                        disabled={togglingHiddenId === plan.plan_id}
+                      />
+                      {togglingHiddenId === plan.plan_id && (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      )}
+                      {plan.hidden ? (
+                        <EyeOff className="w-4 h-4 text-destructive" />
+                      ) : (
+                        <Eye className="w-4 h-4 text-primary" />
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -289,7 +346,7 @@ export function ProductPriceManager() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          <strong>Note:</strong> Enabling "Coming Soon" will hide prices and disable the subscribe/upgrade button for that tier on the pricing page.
+          <strong>Note:</strong> "Coming Soon" shows the tier with disabled pricing. "Hidden" completely removes the tier from the pricing page.
         </p>
       </CardContent>
     </Card>

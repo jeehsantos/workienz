@@ -64,12 +64,24 @@ interface PlanProductFromDB {
   plan_type: string;
   price_cents: number;
   coming_soon: boolean;
+  hidden: boolean;
   interval: string | null;
   description: string | null;
 }
 
 // Feature matrix for contractor plans
 const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
+  free_contractor: {
+    "1 job listing": true,
+    "Unlimited job posts": false,
+    "30-day access": true,
+    "View applicant profiles": true,
+    "Direct messaging": true,
+    "Browse job seeker database": false,
+    "Priority support": false,
+    "Advanced analytics": false,
+    "Featured employer badge": false,
+  },
   single_post: {
     "1 job listing": true,
     "Unlimited job posts": false,
@@ -162,6 +174,7 @@ const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
 
 // Static plan metadata (badges, CTAs, etc.) - prices come from DB
 const contractorPlanMeta: Record<string, { gst: string; cta: string; badge: string | null; highlighted: boolean; period?: string }> = {
+  free_contractor: { gst: "", cta: "Start Free", badge: "Free", highlighted: false },
   single_post: { gst: "+GST", cta: "Post a Job", badge: null, highlighted: false },
   "14_day_sprint": { gst: "+GST", cta: "Start Sprint", badge: "Best for Seasonal", highlighted: false },
   monthly_contractor: { gst: "+GST", cta: "Subscribe Monthly", badge: "Most Popular", highlighted: true, period: "/month" },
@@ -305,7 +318,7 @@ export default function Pricing() {
     const fetchPlans = async () => {
       const { data, error } = await supabase
         .from("plan_products")
-        .select("id, plan_id, plan_name, plan_type, price_cents, interval, description, coming_soon")
+        .select("id, plan_id, plan_name, plan_type, price_cents, interval, description, coming_soon, hidden")
         .order("price_cents", { ascending: true });
       
       if (!error && data) {
@@ -316,9 +329,9 @@ export default function Pricing() {
     fetchPlans();
   }, []);
 
-  // Derived plan arrays from DB data
+  // Derived plan arrays from DB data - filter out hidden plans
   const contractorPlans = dbPlans
-    .filter(p => p.plan_type === "contractor")
+    .filter(p => p.plan_type === "contractor" && !p.hidden)
     .map(p => ({
       planId: p.plan_id,
       name: p.plan_name,
@@ -329,8 +342,9 @@ export default function Pricing() {
       ...contractorPlanMeta[p.plan_id],
     }));
 
+  // Filter out hidden seeker plans
   const seekerPlans = dbPlans
-    .filter(p => p.plan_type === "seeker")
+    .filter(p => p.plan_type === "seeker" && !p.hidden)
     .map(p => ({
       planId: p.plan_id,
       name: p.plan_name,
