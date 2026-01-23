@@ -828,6 +828,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           features: Json | null
+          hidden: boolean | null
           id: string
           interval: string | null
           plan_id: string
@@ -842,6 +843,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           features?: Json | null
+          hidden?: boolean | null
           id?: string
           interval?: string | null
           plan_id: string
@@ -856,6 +858,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           features?: Json | null
+          hidden?: boolean | null
           id?: string
           interval?: string | null
           plan_id?: string

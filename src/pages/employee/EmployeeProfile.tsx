@@ -291,9 +291,9 @@ export default function EmployeeProfile() {
       has_ird_number: hasIrdNumber,
       // Formal CV fields
       enable_formal_cv: enableFormalCv,
-      work_experience: workExperience,
-      education: education,
-      cv_references: cvReferences,
+      work_experience: JSON.parse(JSON.stringify(workExperience)),
+      education: JSON.parse(JSON.stringify(education)),
+      cv_references: JSON.parse(JSON.stringify(cvReferences)),
     };
 
     let error;
@@ -301,11 +301,11 @@ export default function EmployeeProfile() {
     if (existingProfile) {
       const result = await supabase
         .from("employee_profiles")
-        .update(profileData)
+        .update(profileData as any)
         .eq("id", existingProfile);
       error = result.error;
     } else {
-      const result = await supabase.from("employee_profiles").insert(profileData);
+      const result = await supabase.from("employee_profiles").insert(profileData as any);
       error = result.error;
     }
 
