@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, FileText, Lock, Search, BookOpen, GraduationCap, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { HighlightsSection } from "@/components/articles/HighlightsSection";
 
 type Article = {
   id: string;
@@ -166,29 +167,38 @@ export default function Articles() {
       </div>
 
       <div className="container-tight py-8">
-        {/* Search and Filter Bar */}
-        <div className="bg-card rounded-xl border border-border/50 p-4 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search articles..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filterType} onValueChange={(value: "all" | "free" | "premium") => setFilterType(value)}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Articles</SelectItem>
-                <SelectItem value="free">Free Only</SelectItem>
-                <SelectItem value="premium">Premium Only</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Highlights Section */}
+        <HighlightsSection articles={articles} hasSubscription={hasSubscription} />
+
+        {/* Latest Posts Section Header with Search */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <h2 className="text-2xl font-bold">Latest posts</h2>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search articles..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
+        </div>
+
+        {/* Filter Controls */}
+        <div className="flex items-center gap-4 mb-8">
+          <Select value={filterType} onValueChange={(value: "all" | "free" | "premium") => setFilterType(value)}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Articles</SelectItem>
+              <SelectItem value="free">Free Only</SelectItem>
+              <SelectItem value="premium">Premium Only</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">
+            {filteredArticles.length} {filteredArticles.length === 1 ? 'article' : 'articles'}
+          </span>
         </div>
 
         {!hasSubscription && user && (isEmployee() || isWriter()) && (
@@ -255,7 +265,7 @@ export default function Articles() {
                       />
                       {isLocked && (
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-background/80 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
                             <Lock className="w-5 h-5 text-muted-foreground" />
                           </div>
                         </div>
@@ -266,7 +276,7 @@ export default function Articles() {
                       <FileText className="w-12 h-12 text-muted-foreground" />
                       {isLocked && (
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-background/80 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
                             <Lock className="w-5 h-5 text-muted-foreground" />
                           </div>
                         </div>

@@ -247,12 +247,10 @@ export default function ArticleDetail() {
         {/* Article content container */}
         <article className="max-w-3xl mx-auto pb-16 md:pb-24">
           {/* Meta info bar */}
-          <div className="flex flex-wrap items-center gap-3 mb-6 text-sm text-muted-foreground">
-            {article.is_premium && (
-              <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
-                Premium
-              </Badge>
-            )}
+          <div className="flex flex-wrap items-center gap-4 mb-4 text-sm text-muted-foreground">
+            <Badge className={article.is_premium ? "bg-primary/10 text-primary hover:bg-primary/20 border-0" : "bg-secondary text-secondary-foreground border-0"}>
+              {article.is_premium ? 'Premium' : 'Free'}
+            </Badge>
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
               {new Date(article.created_at).toLocaleDateString('en-US', {
@@ -268,15 +266,15 @@ export default function ArticleDetail() {
           </div>
 
           {/* Title */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight mb-6">
+          <h1 className="text-4xl md:text-5xl font-bold font-display leading-tight mb-6">
             {article.title}
           </h1>
 
           {/* Author info */}
           {authorName && (
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="font-medium text-foreground">{authorName}</p>
@@ -287,7 +285,7 @@ export default function ArticleDetail() {
 
           {/* Excerpt/Lead paragraph */}
           {article.excerpt && (
-            <p className="text-xl md:text-2xl text-muted-foreground leading-relaxed mb-8 font-light">
+            <p className="text-xl text-muted-foreground leading-relaxed mb-8">
               {article.excerpt}
             </p>
           )}
