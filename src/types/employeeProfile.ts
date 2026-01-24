@@ -29,7 +29,6 @@ export interface EmployeeProfileData {
   
   // Compliance
   visaStatus: string;
-  irdNumber: string;
   
   // Work Preferences
   comfortableHeavyLifting: boolean;
@@ -42,9 +41,10 @@ export interface EmployeeProfileData {
   websiteUrl?: string;
 
   // Formal CV fields
-  workExperience?: WorkExperience[];
-  education?: Education[];
-  cvReferences?: CVReference[];
+  enableFormalCv: boolean;
+  workExperience: WorkExperience[];
+  education: Education[];
+  cvReferences: CVReference[];
 }
 
 export interface WorkExperience {

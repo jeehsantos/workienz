@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -197,16 +198,13 @@ export function FormalCVSections({
 
               <div className="flex items-center gap-2">
                 <Switch
-                  id={`work-current-${exp.id}`}
                   checked={exp.current || false}
                   onCheckedChange={(checked) => {
                     updateWorkExperience(exp.id, "current", checked);
                     if (checked) updateWorkExperience(exp.id, "endDate", undefined);
                   }}
                 />
-                <Label htmlFor={`work-current-${exp.id}`} className="font-normal cursor-pointer">
-                  I currently work here
-                </Label>
+                <Label className="font-normal">I currently work here</Label>
               </div>
             </Card>
           ))
@@ -302,16 +300,13 @@ export function FormalCVSections({
 
               <div className="flex items-center gap-2">
                 <Switch
-                  id={`edu-current-${edu.id}`}
                   checked={edu.current || false}
                   onCheckedChange={(checked) => {
                     updateEducation(edu.id, "current", checked);
                     if (checked) updateEducation(edu.id, "endYear", undefined);
                   }}
                 />
-                <Label htmlFor={`edu-current-${edu.id}`} className="font-normal cursor-pointer">
-                  Currently studying here
-                </Label>
+                <Label className="font-normal">Currently studying here</Label>
               </div>
             </Card>
           ))
