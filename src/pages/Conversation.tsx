@@ -95,6 +95,36 @@ export default function Conversation() {
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showSubscriberDialog, setShowSubscriberDialog] = useState(false);
   const [isFreeTier, setIsFreeTier] = useState(false);
+  const [checkingFreeTier, setCheckingFreeTier] = useState(false);
+
+  // Check if contractor is on free tier
+  useEffect(() => {
+    async function checkFreeTierStatus() {
+      if (!user || !isContractor) return;
+      
+      setCheckingFreeTier(true);
+      try {
+        const { data: entitlements } = await supabase
+          .from("contractor_entitlements")
+          .select("plan_type, status")
+          .eq("user_id", user.id)
+          .eq("status", "active");
+
+        if (entitlements && entitlements.length > 0) {
+          // Check if user only has free tier (no paid plans)
+          const hasPaidPlan = entitlements.some(e => e.plan_type !== "free_contractor");
+          const hasFreeTier = entitlements.some(e => e.plan_type === "free_contractor");
+          setIsFreeTier(hasFreeTier && !hasPaidPlan);
+        }
+      } catch (error) {
+        console.error("Error checking free tier status:", error);
+      } finally {
+        setCheckingFreeTier(false);
+      }
+    }
+
+    checkFreeTierStatus();
+  }, [user, isContractor]);
 
   useEffect(() => {
     if (!user) {
@@ -390,6 +420,13 @@ export default function Conversation() {
 
   const handleShareContact = async () => {
     if (!user || !id || conversation?.status !== "active") return;
+
+    // Check if contractor is on free tier - show upgrade dialog
+    const isUserContractor = conversation?.contractor_user_id === user.id;
+    if (isUserContractor && isFreeTier) {
+      setShowSubscriberDialog(true);
+      return;
+    }
 
     setIsSending(true);
 
@@ -811,6 +848,15 @@ export default function Conversation() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Subscriber Feature Dialog for Free Tier */}
+      <SubscriberFeatureDialog
+        open={showSubscriberDialog}
+        onOpenChange={setShowSubscriberDialog}
+        featureName="Share Contact Information"
+        featureDescription="Sharing your contact details is a premium feature. Upgrade your plan to directly share your phone number and email with workers."
+      />
     </div>
   );
 }
+

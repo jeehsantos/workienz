@@ -596,25 +596,95 @@ export default function Subscription() {
                   </div>
                 </div>
               ) : (
-                /* No Active Subscription */
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                    <Sparkles className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">No Active Subscription</h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    {planType === "seeker"
-                      ? "You're on the free tier. Upgrade to unlock more applications and premium features."
-                      : planType === "contractor"
-                      ? "Subscribe to start posting jobs and finding workers."
-                      : "Choose a plan that fits your needs."}
-                  </p>
-                  <Button asChild>
-                    <Link to="/pricing">
-                      View Plans
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Link>
-                  </Button>
+                /* No Active Subscription or Free Tier */
+                <div className="space-y-6">
+                  {/* Check if contractor has free tier */}
+                  {isContractor() && entitlements?.entitlements.some(e => e.plan_type === "free_contractor") ? (
+                    <>
+                      {/* Free Tier Display */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-muted/50 flex items-center justify-center">
+                            <Sparkles className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-xl font-bold font-display">Free Tier</h3>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                Active
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Basic job posting features</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-2xl font-bold font-display">$0</span>
+                          <span className="text-muted-foreground text-sm"> / free</span>
+                        </div>
+                      </div>
+
+                      {/* Free Tier Limitations */}
+                      <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-amber-800 dark:text-amber-200">Free Tier Limitations</p>
+                            <ul className="mt-2 text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                              <li>• Job posts expire after 30 days if no active applications</li>
+                              <li>• Limited to 1 hire per job post</li>
+                              <li>• Cannot share contact details in chat</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Free Tier Features */}
+                      <div>
+                        <p className="text-sm font-medium mb-3">Your plan includes:</p>
+                        <ul className="grid sm:grid-cols-2 gap-2">
+                          {["1 active job post", "Basic applicant management", "In-app messaging", "Email notifications"].map((feature, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Check className="w-2.5 h-2.5 text-primary" />
+                              </div>
+                              <span className="text-sm text-foreground/80">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Upgrade CTA */}
+                      <div className="pt-4 border-t border-border/50">
+                        <Button asChild className="w-full sm:w-auto">
+                          <Link to="/pricing">
+                            <Crown className="w-4 h-4 mr-2" />
+                            Upgrade Your Plan
+                          </Link>
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    /* No subscription at all */
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                        <Sparkles className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">No Active Subscription</h3>
+                      <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                        {planType === "seeker"
+                          ? "You're on the free tier. Upgrade to unlock more applications and premium features."
+                          : planType === "contractor"
+                          ? "Subscribe to start posting jobs and finding workers."
+                          : "Choose a plan that fits your needs."}
+                      </p>
+                      <Button asChild>
+                        <Link to="/pricing">
+                          View Plans
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
