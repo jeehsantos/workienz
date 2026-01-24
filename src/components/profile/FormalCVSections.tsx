@@ -198,7 +198,7 @@ export function FormalCVSections({
 
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={exp.current || false}
+                  checked={exp.current}
                   onCheckedChange={(checked) => {
                     updateWorkExperience(exp.id, "current", checked);
                     if (checked) updateWorkExperience(exp.id, "endDate", "");
@@ -309,7 +309,7 @@ export function FormalCVSections({
 
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={edu.current || false}
+                  checked={edu.current}
                   onCheckedChange={(checked) => {
                     updateEducation(edu.id, "current", checked);
                     if (checked) updateEducation(edu.id, "endYear", undefined);
