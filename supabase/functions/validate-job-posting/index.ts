@@ -17,6 +17,7 @@ interface ValidationResult {
   error_code: string | null;
   message: string | null;
   current_tier: string | null;
+  plan_type: string | null; // Added for frontend tier detection
   upgrade_options: string[];
   entitlement_id: string | null;
 }
@@ -62,6 +63,7 @@ serve(async (req) => {
         error_code: "ERR_NOT_CONTRACTOR",
         message: "You must be a contractor to post jobs.",
         current_tier: null,
+        plan_type: null,
         upgrade_options: [],
         entitlement_id: null,
       };
@@ -95,6 +97,7 @@ serve(async (req) => {
         error_code: "ERR_NO_SUBSCRIPTION",
         message: "You need an active subscription to post jobs. Choose a plan to get started.",
         current_tier: null,
+        plan_type: null,
         upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
         entitlement_id: null,
       };
@@ -153,6 +156,7 @@ serve(async (req) => {
         error_code: "ERR_LIMIT_REACHED",
         message: `You have used all your job posts for your ${currentTier?.replace(/_/g, " ")} plan. Upgrade to post more jobs.`,
         current_tier: currentTier,
+        plan_type: currentTier,
         upgrade_options: upgradeOptions,
         entitlement_id: null,
       };
@@ -173,6 +177,7 @@ serve(async (req) => {
       error_code: null,
       message: null,
       current_tier: selectedEntitlement.plan_type,
+      plan_type: selectedEntitlement.plan_type,
       upgrade_options: [],
       entitlement_id: selectedEntitlement.id,
     };

@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface JobDetailsStepProps {
   formData: {
@@ -12,6 +13,7 @@ interface JobDetailsStepProps {
     positions_available: string;
   };
   maxPositions: number;
+  isFreeTier?: boolean;
   onChange: (data: Partial<JobDetailsStepProps["formData"]>) => void;
 }
 
@@ -21,7 +23,7 @@ const INDUSTRIES = [
   "Manufacturing", "Office & Admin", "Retail", "Transportation", "Other",
 ];
 
-export function JobDetailsStep({ formData, maxPositions, onChange }: JobDetailsStepProps) {
+export function JobDetailsStep({ formData, maxPositions, isFreeTier = false, onChange }: JobDetailsStepProps) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -77,16 +79,32 @@ export function JobDetailsStep({ formData, maxPositions, onChange }: JobDetailsS
       </div>
 
       <div className="space-y-2">
-        <Label>Positions Available *</Label>
+        <div className="flex items-center gap-2">
+          <Label>Positions Available *</Label>
+          {isFreeTier && (
+            <Badge variant="secondary" className="text-xs">Free Tier Limit</Badge>
+          )}
+        </div>
         <Input
           type="number"
           min="1"
           max={maxPositions}
           value={formData.positions_available}
-          onChange={(e) => onChange({ positions_available: e.target.value })}
+          onChange={(e) => {
+            // Enforce max positions limit
+            const value = Math.min(parseInt(e.target.value) || 1, maxPositions);
+            onChange({ positions_available: String(value) });
+          }}
+          disabled={isFreeTier}
           required
         />
-        <p className="text-xs text-muted-foreground">Maximum {maxPositions} positions per job posting</p>
+        {isFreeTier ? (
+          <p className="text-xs text-muted-foreground">
+            Free tier is limited to 1 position per job posting. <span className="text-primary font-medium">Upgrade your plan</span> to post multiple positions.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">Maximum {maxPositions} positions per job posting</p>
+        )}
       </div>
     </div>
   );

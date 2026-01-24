@@ -44,6 +44,7 @@ export default function PostJob() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [maxPositions, setMaxPositions] = useState(10);
+  const [isFreeTier, setIsFreeTier] = useState(false);
   
   // Entitlement state from backend
   const [canPostJob, setCanPostJob] = useState(true);
@@ -119,6 +120,14 @@ export default function PostJob() {
         setRemainingPosts(entitlementData.remaining_posts);
         if (!entitlementData.can_post) {
           setEntitlementError(entitlementData.message);
+        }
+        
+        // Check if user is on free tier - limit positions to 1
+        if (entitlementData.plan_type === "free_contractor") {
+          setIsFreeTier(true);
+          setMaxPositions(1);
+          // Ensure positions_available is set to 1 for free tier
+          setFormData(prev => ({ ...prev, positions_available: "1" }));
         }
       }
 
@@ -318,6 +327,7 @@ export default function PostJob() {
           <JobDetailsStep
             formData={formData}
             maxPositions={maxPositions}
+            isFreeTier={isFreeTier}
             onChange={updateFormData}
           />
         );
