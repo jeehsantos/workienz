@@ -3,13 +3,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { 
   CheckCircle2, 
   XCircle, 
@@ -18,7 +16,6 @@ import {
   Clock, 
   Shield, 
   Loader2,
-  AlertTriangle,
   ChevronRight,
   ChevronLeft
 } from "lucide-react";
@@ -52,10 +49,16 @@ export function ApplicationRequirementsDialog({
   const [isAllowed, setIsAllowed] = useState(true);
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [userResponses, setUserResponses] = useState<Record<number, boolean>>({});
+  const [rejectedStep, setRejectedStep] = useState<number | null>(null);
 
   useEffect(() => {
     if (open && jobId) {
       validateRequirements();
+      // Reset state when dialog opens
+      setCurrentStep(0);
+      setUserResponses({});
+      setRejectedStep(null);
     }
   }, [open, jobId]);
 
@@ -108,12 +111,18 @@ export function ApplicationRequirementsDialog({
   const currentRequirement = requirements[currentStep];
   const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 100;
 
-  const handleNext = () => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(currentStep + 1);
+  const handleResponse = (meetsRequirement: boolean) => {
+    setUserResponses(prev => ({ ...prev, [currentStep]: meetsRequirement }));
+    
+    if (!meetsRequirement) {
+      // User said "No" - they don't meet this requirement
+      setRejectedStep(currentStep);
     } else {
-      // Final step - check if allowed
-      if (isAllowed) {
+      // User said "Yes" - move to next step or complete
+      if (currentStep < totalSteps - 1) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        // All requirements confirmed - proceed with application
         onProceed();
         onOpenChange(false);
       }
@@ -121,13 +130,17 @@ export function ApplicationRequirementsDialog({
   };
 
   const handleBack = () => {
-    if (currentStep > 0) {
+    if (rejectedStep !== null) {
+      // Going back from rejection screen
+      setRejectedStep(null);
+    } else if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
   };
 
-  const allRequirementsMet = requirements.every(r => r.met);
-  const hasUnmetRequirements = requirements.some(r => !r.met);
+  const handleClose = () => {
+    onOpenChange(false);
+  };
 
   if (isLoading) {
     return (
@@ -135,7 +148,7 @@ export function ApplicationRequirementsDialog({
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-8">
             <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-            <p className="text-muted-foreground">Checking your eligibility...</p>
+            <p className="text-muted-foreground">Checking eligibility...</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -143,23 +156,24 @@ export function ApplicationRequirementsDialog({
   }
 
   // No requirements to check - proceed directly
-  if (requirements.length === 0) {
+  if (requirements.length === 0 && !blockedReason) {
     onProceed();
     onOpenChange(false);
     return null;
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-xl">Application Check</DialogTitle>
-          <DialogDescription>
-            Let's make sure you're a good fit for <span className="font-medium">{jobTitle}</span>
-          </DialogDescription>
-        </DialogHeader>
+  // Blocked by visa or other critical issue
+  if (blockedReason) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Unable to Apply</DialogTitle>
+            <DialogDescription>
+              Application for <span className="font-medium">{jobTitle}</span>
+            </DialogDescription>
+          </DialogHeader>
 
-        {blockedReason ? (
           <div className="py-6">
             <Card className="p-6 bg-destructive/10 border-destructive/20">
               <div className="flex items-start gap-4">
@@ -167,107 +181,131 @@ export function ApplicationRequirementsDialog({
                   <XCircle className="w-6 h-6 text-destructive" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-destructive mb-2">Unable to Apply</h3>
+                  <h3 className="font-semibold text-destructive mb-2">Application Blocked</h3>
                   <p className="text-sm text-muted-foreground">{blockedReason}</p>
                 </div>
               </div>
             </Card>
           </div>
-        ) : (
-          <>
-            <Progress value={progress} className="h-2 mb-4" />
-            
-            <div className="py-4">
-              <p className="text-sm text-muted-foreground mb-4">
-                Step {currentStep + 1} of {totalSteps}
-              </p>
-              
-              <Card className={`p-6 transition-colors ${
-                currentRequirement?.met 
-                  ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900" 
-                  : "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900"
-              }`}>
-                <div className="flex items-start gap-4">
-                  <div className={`p-2 rounded-full ${
-                    currentRequirement?.met 
-                      ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400" 
-                      : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
-                  }`}>
-                    {currentRequirement?.met 
-                      ? <CheckCircle2 className="w-6 h-6" />
-                      : getIconForType(currentRequirement?.type || "")}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-1">{currentRequirement?.label}</h3>
-                    {currentRequirement?.reason && (
-                      <p className="text-sm text-muted-foreground">{currentRequirement.reason}</p>
-                    )}
-                    <Badge 
-                      variant={currentRequirement?.met ? "default" : "secondary"} 
-                      className="mt-3"
-                    >
-                      {currentRequirement?.met ? "You meet this requirement" : "Review your profile"}
-                    </Badge>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </>
-        )}
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          {blockedReason ? (
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handleClose}>
               Close
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // User rejected a requirement
+  if (rejectedStep !== null) {
+    const rejectedRequirement = requirements[rejectedStep];
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Application Cannot Proceed</DialogTitle>
+            <DialogDescription>
+              Unfortunately, you don't meet the requirements for <span className="font-medium">{jobTitle}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6">
+            <Card className="p-6 bg-destructive/10 border-destructive/20">
+              <div className="flex items-start gap-4">
+                <div className="p-2 rounded-full bg-destructive/20">
+                  <XCircle className="w-6 h-6 text-destructive" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-destructive mb-2">Requirement Not Met</h3>
+                  <p className="text-sm font-medium mb-1">{rejectedRequirement?.label}</p>
+                  <p className="text-sm text-muted-foreground">
+                    This role requires candidates who meet all listed requirements. 
+                    We encourage you to explore other opportunities that may be a better fit for your profile.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <div className="flex justify-between">
+            <Button variant="ghost" onClick={handleBack}>
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Go Back
+            </Button>
+            <Button variant="outline" onClick={handleClose}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Normal requirement step
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-xl">Eligibility Check</DialogTitle>
+          <DialogDescription>
+            Please confirm you meet the requirements for <span className="font-medium">{jobTitle}</span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <Progress value={progress} className="h-2 mb-4" />
+        
+        <div className="py-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            Question {currentStep + 1} of {totalSteps}
+          </p>
+          
+          <Card className="p-6 bg-muted/30 border-border">
+            <div className="flex items-start gap-4">
+              <div className="p-2 rounded-full bg-primary/10 text-primary">
+                {getIconForType(currentRequirement?.type || "")}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold mb-2">Do you meet this requirement?</h3>
+                <p className="text-base mb-1">{currentRequirement?.label}</p>
+                {currentRequirement?.reason && (
+                  <p className="text-sm text-muted-foreground">{currentRequirement.reason}</p>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+          {currentStep > 0 ? (
+            <Button variant="ghost" onClick={handleBack} className="order-2 sm:order-1">
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back
+            </Button>
           ) : (
-            <>
-              {currentStep > 0 && (
-                <Button variant="outline" onClick={handleBack} className="w-full sm:w-auto">
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Back
-                </Button>
-              )}
-              
-              {currentStep === totalSteps - 1 ? (
-                hasUnmetRequirements ? (
-                  <div className="flex flex-col gap-2 flex-1">
-                    <div className="flex items-center gap-2 text-amber-600 text-sm">
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>Some requirements are not met</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => onOpenChange(false)}
-                        className="flex-1"
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleNext}
-                        className="flex-1"
-                        disabled={!isAllowed}
-                      >
-                        Apply Anyway
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button onClick={handleNext} className="w-full sm:w-auto">
-                    Continue to Application
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                )
-              ) : (
-                <Button onClick={handleNext} className="w-full sm:w-auto">
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              )}
-            </>
+            <div className="hidden sm:block" />
           )}
-        </DialogFooter>
+          
+          <div className="flex gap-2 order-1 sm:order-2">
+            <Button 
+              variant="outline" 
+              onClick={() => handleResponse(false)}
+              className="flex-1 sm:flex-none border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              No
+            </Button>
+            <Button 
+              onClick={() => handleResponse(true)}
+              className="flex-1 sm:flex-none"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Yes
+              {currentStep === totalSteps - 1 && <ChevronRight className="w-4 h-4 ml-1" />}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
