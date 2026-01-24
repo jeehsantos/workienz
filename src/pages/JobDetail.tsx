@@ -270,12 +270,22 @@ export default function JobDetail() {
         },
       });
 
+      // Handle edge function errors (returns error in response.data when status is 4xx/5xx)
       if (response.error) {
         console.error("Error applying:", response.error);
-        const errorMessage = response.error.message || "Failed to submit application. Please try again.";
+        // Try to extract error message from the edge function response
+        let errorMessage = "Failed to submit application. Please try again.";
+        try {
+          // Edge function errors often have the message in response.error.message or as JSON
+          if (typeof response.error === 'object' && response.error.message) {
+            errorMessage = response.error.message;
+          }
+        } catch {
+          // Keep default message
+        }
         setApplicationError(errorMessage);
         toast({
-          title: "Error",
+          title: "Application Error",
           description: errorMessage,
           variant: "destructive",
         });
@@ -285,11 +295,24 @@ export default function JobDetail() {
 
       const result = response.data;
 
-      if (!result.success) {
-        setApplicationError(result.error || "Failed to submit application.");
+      // Check for error response from the edge function
+      if (result?.error) {
+        setApplicationError(result.error);
         toast({
-          title: "Error",
-          description: result.error || "Failed to submit application.",
+          title: "Application Error",
+          description: result.error,
+          variant: "destructive",
+        });
+        setIsApplying(false);
+        return;
+      }
+
+      if (!result?.success) {
+        const errorMsg = result?.error || "Failed to submit application.";
+        setApplicationError(errorMsg);
+        toast({
+          title: "Application Error",
+          description: errorMsg,
           variant: "destructive",
         });
         setIsApplying(false);
