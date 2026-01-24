@@ -8,15 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Plus, X, FileText } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, X, FileText, ArrowRight, Save } from "lucide-react";
 import { FormalCVSections } from "@/components/profile/FormalCVSections";
 import type { WorkExperience, Education, CVReference } from "@/types/employeeProfile";
 import { format } from "date-fns";
 import { dispatchProfileUpdated } from "@/hooks/useProfileRefresh";
 import { DatePicker } from "@/components/ui/date-picker";
 import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
+import { StepIndicator } from "@/components/jobs/StepIndicator";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -52,34 +53,24 @@ const VISA_STATUSES = [
 ];
 
 /**
- * Tab configuration for the employee profile form
- * Defines the order and labels of tabs in the tabbed interface
+ * Wizard steps configuration for the employee profile form
+ * Defines the order and labels of steps in the wizard interface
  */
-const TABS = [
-  { value: "professional", label: "Professional" },
-  { value: "compliance-contact", label: "Compliance & Contact" },
-  { value: "skills-languages", label: "Skills & Languages" },
-  { value: "work-preferences", label: "Work Preferences" },
-  { value: "enhanced-cv", label: "Enhanced CV" },
-] as const;
-
-/**
- * Maps form field names to their corresponding tab names
- * Used to provide helpful validation error messages that indicate which tab contains the missing field
- */
-const FIELD_TO_TAB_MAP = {
-  headline: "Professional",
-  bio: "Professional",
-  industry: "Professional",
-  visa_status: "Compliance & Contact",
-  phone: "Compliance & Contact",
-} as const;
+const STEPS = [
+  { id: 1, title: "Identity" },
+  { id: 2, title: "Professional" },
+  { id: 3, title: "Compliance" },
+  { id: 4, title: "Skills" },
+  { id: 5, title: "Preferences" },
+  { id: 6, title: "Enhanced CV" },
+];
 
 export default function EmployeeProfile() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
   const { toast } = useToast();
 
+  const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [existingProfile, setExistingProfile] = useState<string | null>(null);
@@ -122,12 +113,102 @@ export default function EmployeeProfile() {
     ? getSuburbsByCity(formData.location_region, formData.location_city) : [];
 
   /**
-   * Handles tab change events and scrolls to top on mobile viewports
-   * @param value - The value of the newly selected tab
+   * Validates the current step before allowing navigation
+   * @param step - The step number to validate
+   * @returns boolean indicating if the step is valid
    */
-  const handleTabChange = (value: string) => {
-    if (window.innerWidth < 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1: // Identity
+        if (!formData.first_name || !formData.last_name) {
+          toast({
+            title: "Required Fields Missing",
+            description: "Please provide your first and last name.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!dateOfBirth) {
+          toast({
+            title: "Required Field Missing",
+            description: "Please provide your date of birth.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      case 2: // Professional
+        if (!formData.headline) {
+          toast({
+            title: "Required Field Missing",
+            description: "Please provide a professional headline.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.bio) {
+          toast({
+            title: "Required Field Missing",
+            description: "Please provide an 'About Me' description.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.industry) {
+          toast({
+            title: "Required Field Missing",
+            description: "Please select your preferred industry.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      case 3: // Compliance & Contact
+        if (!formData.visa_status) {
+          toast({
+            title: "Required Field Missing",
+            description: "Please select your visa status.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.phone) {
+          toast({
+            title: "Required Field Missing",
+            description: "Please provide your phone number.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
+
+  /**
+   * Handles navigation to the next step
+   */
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+    }
+  };
+
+  /**
+   * Handles navigation to the previous step
+   */
+  const handlePrevious = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  /**
+   * Handles clicking on a step indicator
+   * @param step - The step number to navigate to
+   */
+  const handleStepClick = (step: number) => {
+    if (step <= currentStep) {
+      setCurrentStep(step);
     }
   };
 
@@ -244,75 +325,19 @@ export default function EmployeeProfile() {
 
   /**
    * Handles form submission and saves the employee profile
-   * Validates required fields and provides tab-specific error messages
-   * Updates both employee_profiles and profiles tables
+   * Validates all required fields and updates both employee_profiles and profiles tables
    * @param e - The form submission event
    */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!user) return;
 
-    if (!formData.first_name || !formData.last_name) {
-      toast({
-        title: "Required Fields Missing",
-        description: "Please provide your first and last name.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!dateOfBirth) {
-      toast({
-        title: "Required Field Missing",
-        description: "Please provide your date of birth.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.headline) {
-      toast({
-        title: "Required Field Missing",
-        description: `Please provide a professional headline in the '${FIELD_TO_TAB_MAP.headline}' tab.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.bio) {
-      toast({
-        title: "Required Field Missing",
-        description: `Please provide an 'About Me' description in the '${FIELD_TO_TAB_MAP.bio}' tab.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.industry) {
-      toast({
-        title: "Required Field Missing",
-        description: `Please select your preferred industry in the '${FIELD_TO_TAB_MAP.industry}' tab.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.visa_status) {
-      toast({
-        title: "Required Field Missing",
-        description: `Please select your visa status in the '${FIELD_TO_TAB_MAP.visa_status}' tab.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.phone) {
-      toast({
-        title: "Required Field Missing",
-        description: `Please provide your phone number in the '${FIELD_TO_TAB_MAP.phone}' tab.`,
-        variant: "destructive",
-      });
-      return;
+    // Validate all steps
+    for (let step = 1; step <= 3; step++) {
+      if (!validateStep(step)) {
+        setCurrentStep(step);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -395,6 +420,423 @@ export default function EmployeeProfile() {
     navigate("/employee/view-profile");
   };
 
+  /**
+   * Renders the content for the current step
+   */
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1: // Identity
+        return (
+          <div className="space-y-6">
+            {/* Availability Toggle */}
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div>
+                <Label htmlFor="is_available">Available for Work</Label>
+                <p className="text-sm text-muted-foreground">
+                  Show your profile to contractors looking for workers
+                </p>
+              </div>
+              <Switch
+                id="is_available"
+                checked={formData.is_available}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Personal Information</h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    placeholder="e.g., John"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    placeholder="e.g., Doe"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date of Birth *</Label>
+                <DatePicker
+                  value={dateOfBirth}
+                  onChange={setDateOfBirth}
+                  placeholder="Select your date of birth"
+                  disabledDates={(date) => date > new Date() || date < new Date("1940-01-01")}
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2: // Professional
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Professional Information</h3>
+            <div className="space-y-2">
+              <Label htmlFor="headline">Professional Headline *</Label>
+              <Input
+                id="headline"
+                value={formData.headline}
+                onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                placeholder="e.g., Experienced Warehouse Worker"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio">About Me *</Label>
+              <Textarea
+                id="bio"
+                value={formData.bio}
+                onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                placeholder="Share a short introduction about yourself, your background, and what you're looking for..."
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="industry">Preferred Industry *</Label>
+              <Select
+                value={formData.industry}
+                onValueChange={(value) => setFormData({ ...formData, industry: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your preferred industry" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4}>
+                  {INDUSTRIES.map((ind) => (
+                    <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="experience_years">Years of Experience</Label>
+                <Input
+                  id="experience_years"
+                  type="number"
+                  min="0"
+                  value={formData.experience_years}
+                  onChange={(e) => setFormData({ ...formData, experience_years: e.target.value })}
+                  placeholder="e.g., 5"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="availability">Availability</Label>
+                <Select
+                  value={formData.availability}
+                  onValueChange={(value) => setFormData({ ...formData, availability: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4}>
+                    <SelectItem value="immediate">Immediate</SelectItem>
+                    <SelectItem value="1-week">Within 1 Week</SelectItem>
+                    <SelectItem value="2-weeks">Within 2 Weeks</SelectItem>
+                    <SelectItem value="flexible">Flexible</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3: // Compliance & Contact
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Compliance & Contact</h3>
+            <div className="space-y-2">
+              <Label htmlFor="visa_status">Visa Status *</Label>
+              <Select
+                value={formData.visa_status}
+                onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select visa status" />
+                </SelectTrigger>
+                <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                  {VISA_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="e.g., +64 21 123 4567"
+                required
+              />
+              <p className="text-xs text-muted-foreground">For employers to contact you</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                value={formData.country}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Region</Label>
+                <Select
+                  value={formData.location_region}
+                  onValueChange={(v) => setFormData({ ...formData, location_region: v, location_city: "", location_suburb: "" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select region" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {NZ_REGIONS.map((r) => (
+                      <SelectItem key={r.region} value={r.region}>{r.region}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Select
+                  value={formData.location_city}
+                  onValueChange={(v) => setFormData({ ...formData, location_city: v, location_suburb: "" })}
+                  disabled={!formData.location_region}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.location_region ? "Select city" : "Select region first"} />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {availableCities.map((city) => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Suburb</Label>
+                <Select
+                  value={formData.location_suburb}
+                  onValueChange={(v) => setFormData({ ...formData, location_suburb: v })}
+                  disabled={!formData.location_city}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.location_city ? "Select suburb" : "Select city first"} />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                    {availableSuburbs.map((suburb) => (
+                      <SelectItem key={suburb} value={suburb}>{suburb}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4: // Skills & Languages
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Skills & Languages</h3>
+            <div className="space-y-2">
+              <Label>Languages</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={languageInput}
+                  onChange={(e) => setLanguageInput(e.target.value)}
+                  placeholder="Add a language..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addLanguage();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={addLanguage}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {languages.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {languages.map((lang) => (
+                    <span
+                      key={lang}
+                      className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm flex items-center gap-1"
+                    >
+                      {lang}
+                      <button type="button" onClick={() => removeLanguage(lang)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Skills</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  placeholder="Add a skill..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addSkill();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={addSkill}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {skills.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1"
+                    >
+                      {skill}
+                      <button type="button" onClick={() => removeSkill(skill)}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case 5: // Work Preferences
+        return (
+          <div className="space-y-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold mb-1">Work Preferences & Status</h3>
+              <p className="text-sm text-muted-foreground">
+                Help employers find the right match by sharing your preferences
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="comfortable_heavy_lifting" className="font-normal">Comfortable with Heavy Lifting</Label>
+                  <p className="text-xs text-muted-foreground">Can lift {'>'} 10kg</p>
+                </div>
+                <Switch
+                  id="comfortable_heavy_lifting"
+                  checked={comfortableHeavyLifting}
+                  onCheckedChange={setComfortableHeavyLifting}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="comfortable_standing" className="font-normal">Comfortable Standing</Label>
+                  <p className="text-xs text-muted-foreground">For long periods</p>
+                </div>
+                <Switch
+                  id="comfortable_standing"
+                  checked={comfortableStanding}
+                  onCheckedChange={setComfortableStanding}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="has_car" className="font-normal">Has Car</Label>
+                  <p className="text-xs text-muted-foreground">Own transport available</p>
+                </div>
+                <Switch
+                  id="has_car"
+                  checked={hasCar}
+                  onCheckedChange={setHasCar}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <Label htmlFor="has_ird_number" className="font-normal">Has IRD Number</Label>
+                  <p className="text-xs text-muted-foreground">Tax number ready</p>
+                </div>
+                <Switch
+                  id="has_ird_number"
+                  checked={hasIrdNumber}
+                  onCheckedChange={setHasIrdNumber}
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 6: // Enhanced CV
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-primary" />
+                <div>
+                  <h3 className="text-lg font-semibold">Enhanced CV Details</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Enable to add detailed work experience, education, and references for a professional CV
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="enable_formal_cv"
+                checked={enableFormalCv}
+                onCheckedChange={setEnableFormalCv}
+              />
+            </div>
+
+            {enableFormalCv && (
+              <div className="mt-6 pt-4 border-t border-border/50">
+                <FormalCVSections
+                  workExperience={workExperience}
+                  education={education}
+                  cvReferences={cvReferences}
+                  onWorkExperienceChange={setWorkExperience}
+                  onEducationChange={setEducation}
+                  onReferencesChange={setCvReferences}
+                />
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -405,7 +847,7 @@ export default function EmployeeProfile() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container-tight py-8 pb-32">
+      <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/dashboard">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -422,427 +864,55 @@ export default function EmployeeProfile() {
             : "Complete your profile so contractors can find and contact you."}
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-          {/* Availability Toggle - Fixed at top */}
-          <div className="flex items-center justify-between p-4 bg-card rounded-lg border border-border/50">
-            <div>
-              <Label htmlFor="is_available">Available for Work</Label>
-              <p className="text-sm text-muted-foreground">
-                Show your profile to contractors looking for workers
-              </p>
-            </div>
-            <Switch
-              id="is_available"
-              checked={formData.is_available}
-              onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
-            />
+        {/* Step Indicator */}
+        <div className="mb-8">
+          <StepIndicator
+            steps={STEPS}
+            currentStep={currentStep}
+            onStepClick={handleStepClick}
+          />
+        </div>
+
+        {/* Step Content */}
+        <Card className="mb-8">
+          <CardContent className="pt-6">
+            {renderStepContent()}
+          </CardContent>
+        </Card>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between gap-4 pb-16">
+          <div>
+            {currentStep > 1 && (
+              <Button type="button" variant="outline" onClick={handlePrevious}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Previous
+              </Button>
+            )}
           </div>
 
-          {/* Identity Section - Fixed at top */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Identity</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">First Name *</Label>
-                <Input
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  placeholder="e.g., John"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name *</Label>
-                <Input
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  placeholder="e.g., Doe"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Date of Birth *</Label>
-              <DatePicker
-                value={dateOfBirth}
-                onChange={setDateOfBirth}
-                placeholder="Select your date of birth"
-                disabledDates={(date) => date > new Date() || date < new Date("1940-01-01")}
-              />
-            </div>
+          <div className="flex gap-3">
+            {currentStep === STEPS.length ? (
+              <Button
+                type="button"
+                onClick={() => handleSubmit()}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save Profile
+              </Button>
+            ) : (
+              <Button type="button" onClick={handleNext}>
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
           </div>
-
-          {/* Tabbed Form Sections */}
-          <Tabs defaultValue="professional" className="w-full" onValueChange={handleTabChange}>
-            <TabsList className="w-full justify-start overflow-x-auto md:overflow-x-visible">
-              {TABS.map((tab) => (
-                <TabsTrigger 
-                  key={tab.value}
-                  value={tab.value}
-                  className="min-h-[44px] px-4 py-2 text-sm md:text-base"
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {/* Professional Tab */}
-            <TabsContent value="professional" className="space-y-4">
-              <h3 className="text-lg font-semibold">Professional Information</h3>
-              <div className="space-y-2">
-                <Label htmlFor="headline">Professional Headline *</Label>
-                <Input
-                  id="headline"
-                  value={formData.headline}
-                  onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-                  placeholder="e.g., Experienced Warehouse Worker"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio">About Me *</Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder="Share a short introduction about yourself, your background, and what you're looking for..."
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="industry">Preferred Industry *</Label>
-                <Select
-                  value={formData.industry}
-                  onValueChange={(value) => setFormData({ ...formData, industry: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your preferred industry" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={4}>
-                    {INDUSTRIES.map((ind) => (
-                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="experience_years">Years of Experience</Label>
-                  <Input
-                    id="experience_years"
-                    type="number"
-                    min="0"
-                    value={formData.experience_years}
-                    onChange={(e) => setFormData({ ...formData, experience_years: e.target.value })}
-                    placeholder="e.g., 5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="availability">Availability</Label>
-                  <Select
-                    value={formData.availability}
-                    onValueChange={(value) => setFormData({ ...formData, availability: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4}>
-                      <SelectItem value="immediate">Immediate</SelectItem>
-                      <SelectItem value="1-week">Within 1 Week</SelectItem>
-                      <SelectItem value="2-weeks">Within 2 Weeks</SelectItem>
-                      <SelectItem value="flexible">Flexible</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Compliance & Contact Tab */}
-            <TabsContent value="compliance-contact" className="space-y-4">
-              <h3 className="text-lg font-semibold">Compliance & Contact</h3>
-              <div className="space-y-2">
-                <Label htmlFor="visa_status">Visa Status *</Label>
-                <Select
-                  value={formData.visa_status}
-                  onValueChange={(value) => setFormData({ ...formData, visa_status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select visa status" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
-                    {VISA_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="e.g., +64 21 123 4567"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">For employers to contact you</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="country">Country</Label>
-                <Input
-                  id="country"
-                  value={formData.country}
-                  disabled
-                  className="bg-muted"
-                />
-              </div>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Region</Label>
-                  <Select
-                    value={formData.location_region}
-                    onValueChange={(v) => setFormData({ ...formData, location_region: v, location_city: "", location_suburb: "" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select region" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
-                      {NZ_REGIONS.map((r) => (
-                        <SelectItem key={r.region} value={r.region}>{r.region}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>City</Label>
-                  <Select
-                    value={formData.location_city}
-                    onValueChange={(v) => setFormData({ ...formData, location_city: v, location_suburb: "" })}
-                    disabled={!formData.location_region}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={formData.location_region ? "Select city" : "Select region first"} />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
-                      {availableCities.map((city) => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Suburb</Label>
-                  <Select
-                    value={formData.location_suburb}
-                    onValueChange={(v) => setFormData({ ...formData, location_suburb: v })}
-                    disabled={!formData.location_city}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={formData.location_city ? "Select suburb" : "Select city first"} />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
-                      {availableSuburbs.map((suburb) => (
-                        <SelectItem key={suburb} value={suburb}>{suburb}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Skills & Languages Tab */}
-            <TabsContent value="skills-languages" className="space-y-4">
-              <h3 className="text-lg font-semibold">Skills & Languages</h3>
-              <div className="space-y-2">
-                <Label>Languages</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={languageInput}
-                    onChange={(e) => setLanguageInput(e.target.value)}
-                    placeholder="Add a language..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addLanguage();
-                      }
-                    }}
-                  />
-                  <Button type="button" variant="outline" onClick={addLanguage}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {languages.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {languages.map((lang) => (
-                      <span
-                        key={lang}
-                        className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm flex items-center gap-1"
-                      >
-                        {lang}
-                        <button type="button" onClick={() => removeLanguage(lang)}>
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Skills</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    placeholder="Add a skill..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addSkill();
-                      }
-                    }}
-                  />
-                  <Button type="button" variant="outline" onClick={addSkill}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                {skills.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {skills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-1"
-                      >
-                        {skill}
-                        <button type="button" onClick={() => removeSkill(skill)}>
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Work Preferences Tab */}
-            <TabsContent value="work-preferences" className="space-y-4">
-              <div className="p-6 bg-card rounded-lg border border-border/50">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold mb-1">Work Preferences & Status</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Help employers find the right match by sharing your preferences
-                  </p>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <div>
-                      <Label htmlFor="comfortable_heavy_lifting" className="font-normal">Comfortable with Heavy Lifting</Label>
-                      <p className="text-xs text-muted-foreground">Can lift {'>'} 10kg</p>
-                    </div>
-                    <Switch
-                      id="comfortable_heavy_lifting"
-                      checked={comfortableHeavyLifting}
-                      onCheckedChange={setComfortableHeavyLifting}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <div>
-                      <Label htmlFor="comfortable_standing" className="font-normal">Comfortable Standing</Label>
-                      <p className="text-xs text-muted-foreground">For long periods</p>
-                    </div>
-                    <Switch
-                      id="comfortable_standing"
-                      checked={comfortableStanding}
-                      onCheckedChange={setComfortableStanding}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <div>
-                      <Label htmlFor="has_car" className="font-normal">Has Car</Label>
-                      <p className="text-xs text-muted-foreground">Own transport available</p>
-                    </div>
-                    <Switch
-                      id="has_car"
-                      checked={hasCar}
-                      onCheckedChange={setHasCar}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <div>
-                      <Label htmlFor="has_ird_number" className="font-normal">Has IRD Number</Label>
-                      <p className="text-xs text-muted-foreground">Tax number ready</p>
-                    </div>
-                    <Switch
-                      id="has_ird_number"
-                      checked={hasIrdNumber}
-                      onCheckedChange={setHasIrdNumber}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Enhanced CV Tab */}
-            <TabsContent value="enhanced-cv" className="space-y-4">
-              <div className="p-6 bg-card rounded-lg border border-primary/20">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-primary" />
-                    <div>
-                      <h3 className="text-lg font-semibold">Enhanced CV Details</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Enable to add detailed work experience, education, and references for a professional CV
-                      </p>
-                    </div>
-                  </div>
-                  <Switch
-                    id="enable_formal_cv"
-                    checked={enableFormalCv}
-                    onCheckedChange={setEnableFormalCv}
-                  />
-                </div>
-
-                {enableFormalCv && (
-                  <div className="mt-6 pt-4 border-t border-border/50">
-                    <FormalCVSections
-                      workExperience={workExperience}
-                      education={education}
-                      cvReferences={cvReferences}
-                      onWorkExperienceChange={setWorkExperience}
-                      onEducationChange={setEducation}
-                      onReferencesChange={setCvReferences}
-                    />
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          {/* Submit Button - Fixed at bottom */}
-          <div className="pt-4">
-            <Button type="submit" disabled={isSaving}>
-              {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Profile
-            </Button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );
