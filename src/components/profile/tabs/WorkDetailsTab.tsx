@@ -101,31 +101,9 @@ export function WorkDetailsTab({
         </div>
       </div>
 
-      {/* Contact & Location Section */}
+      {/* Location Section */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Contact & Location</h3>
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone Number *</Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            placeholder="e.g., +64 21 123 4567"
-            required
-          />
-          <p className="text-xs text-muted-foreground">For employers to contact you</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="country">Country</Label>
-          <Input
-            id="country"
-            value={formData.country}
-            disabled
-            className="bg-muted"
-          />
-        </div>
+        <h3 className="text-lg font-semibold">Location Details</h3>
 
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="space-y-2">
