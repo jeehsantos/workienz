@@ -198,22 +198,16 @@ export function FormalCVSections({
 
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={exp.current}
+                  id={`work-current-${exp.id}`}
+                  checked={exp.current === true}
                   onCheckedChange={(checked) => {
                     updateWorkExperience(exp.id, "current", checked);
                     if (checked) updateWorkExperience(exp.id, "endDate", "");
                   }}
                 />
-                <label 
-                  className="font-normal cursor-pointer text-sm"
-                  onClick={() => {
-                    const newValue = !exp.current;
-                    updateWorkExperience(exp.id, "current", newValue);
-                    if (newValue) updateWorkExperience(exp.id, "endDate", "");
-                  }}
-                >
+                <Label htmlFor={`work-current-${exp.id}`} className="font-normal cursor-pointer">
                   I currently work here
-                </label>
+                </Label>
               </div>
             </Card>
           ))
@@ -309,22 +303,16 @@ export function FormalCVSections({
 
               <div className="flex items-center gap-2">
                 <Switch
-                  checked={edu.current}
+                  id={`edu-current-${edu.id}`}
+                  checked={edu.current === true}
                   onCheckedChange={(checked) => {
                     updateEducation(edu.id, "current", checked);
                     if (checked) updateEducation(edu.id, "endYear", undefined);
                   }}
                 />
-                <label 
-                  className="font-normal cursor-pointer text-sm"
-                  onClick={() => {
-                    const newValue = !edu.current;
-                    updateEducation(edu.id, "current", newValue);
-                    if (newValue) updateEducation(edu.id, "endYear", undefined);
-                  }}
-                >
+                <Label htmlFor={`edu-current-${edu.id}`} className="font-normal cursor-pointer">
                   Currently studying here
-                </label>
+                </Label>
               </div>
             </Card>
           ))
