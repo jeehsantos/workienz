@@ -4,11 +4,13 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Upload, Image as ImageIcon, X } from "lucide-react";
+import { RichTextEditor } from "@/components/articles/RichTextEditor";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function NewArticle() {
   const navigate = useNavigate();
@@ -18,12 +20,14 @@ export default function NewArticle() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [categories, setCategories] = useState<Array<{ slug: string; name: string }>>([]);
 
   const [formData, setFormData] = useState({
     title: "",
     slug: "",
     excerpt: "",
     content: "",
+    category: "",
     is_premium: true,
     is_published: false,
     cover_image_url: "",
@@ -36,6 +40,23 @@ export default function NewArticle() {
       navigate("/auth");
     }
   }, [user, authLoading, isWriter, navigate]);
+
+  useEffect(() => {
+    // Fetch active categories
+    async function fetchCategories() {
+      const { data, error } = await supabase
+        .from("article_categories")
+        .select("slug, name")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (!error && data) {
+        setCategories(data);
+      }
+    }
+
+    fetchCategories();
+  }, []);
 
   const generateSlug = (title: string) => {
     return title
@@ -182,6 +203,7 @@ export default function NewArticle() {
       slug: formData.slug || generateSlug(formData.title),
       excerpt: formData.excerpt || null,
       content: formData.content,
+      category: formData.category || null,
       cover_image_url: formData.cover_image_url || null,
       is_premium: formData.is_premium,
       is_published: publish,
@@ -308,6 +330,25 @@ export default function NewArticle() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.slug} value={cat.slug}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="content">Content *</Label>
               <label className="flex items-center gap-2 text-sm text-primary cursor-pointer hover:underline">
@@ -323,17 +364,11 @@ export default function NewArticle() {
                 />
               </label>
             </div>
-            <Textarea
-              id="content"
+            <RichTextEditor
               value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Write your article content here... You can use markdown formatting."
-              rows={15}
-              required
+              onChange={(content) => setFormData({ ...formData, content })}
+              placeholder="Write your article content here... Use the formatting toolbar for rich text."
             />
-            <p className="text-xs text-muted-foreground">
-              Supports markdown formatting. Use the "Add Image" button to insert images.
-            </p>
           </div>
 
           {/* Content Images Preview */}

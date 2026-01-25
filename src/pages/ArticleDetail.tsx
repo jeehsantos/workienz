@@ -3,10 +3,11 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Lock, Calendar, User, Pencil, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, Lock, Calendar, User, Pencil, Clock, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ReportProblemDialog } from "@/components/articles/ReportProblemDialog";
+import { ShareArticle } from "@/components/articles/ShareArticle";
 
 type Article = {
   id: string;
@@ -15,6 +16,7 @@ type Article = {
   content: string;
   excerpt: string | null;
   cover_image_url: string | null;
+  category: string | null;
   is_premium: boolean;
   created_at: string;
   author_id: string;
@@ -40,7 +42,7 @@ export default function ArticleDetail() {
 
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, slug, content, excerpt, cover_image_url, is_premium, created_at, author_id")
+        .select("id, title, slug, content, excerpt, cover_image_url, category, is_premium, created_at, author_id")
         .eq("slug", slug)
         .eq("is_published", true)
         .maybeSingle();
@@ -282,6 +284,26 @@ export default function ArticleDetail() {
             {/* Article body */}
             <div className="prose prose-slate max-w-none">
               {formatContent(article.content)}
+            </div>
+
+            {/* Category and Share Section */}
+            <div className="mt-12 pt-8 border-t space-y-6">
+              {/* Category */}
+              {article.category && (
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Category:</span>
+                  <Badge variant="secondary" className="capitalize">
+                    {article.category.replace(/-/g, ' ')}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Share Section */}
+              <ShareArticle 
+                title={article.title} 
+                url={`/articles/${article.slug}`} 
+              />
             </div>
 
             {/* End section */}

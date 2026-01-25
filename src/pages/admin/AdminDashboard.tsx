@@ -582,11 +582,21 @@ export default function AdminDashboard() {
           </Link>
         </Button>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage users, contractors, and job postings
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage users, contractors, and job postings
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/admin/categories">
+                <FileText className="w-4 h-4 mr-2" />
+                Manage Categories
+              </Link>
+            </Button>
+          </div>
         </div>
 
 
