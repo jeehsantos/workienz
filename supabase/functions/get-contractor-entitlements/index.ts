@@ -52,12 +52,12 @@ serve(async (req) => {
       );
     }
 
-    // Fetch active entitlements (including free tier)
+    // Fetch active entitlements (including free tier) - also include consumed free tier for display
     const { data: entitlements, error: entError } = await supabaseClient
       .from("contractor_entitlements")
       .select("*")
       .eq("user_id", user.id)
-      .in("status", ["active", "standby"]);
+      .or("status.in.(active,standby),and(status.eq.consumed,plan_type.in.(free_tier,free_contractor))");
 
     if (entError) {
       logStep("Error fetching entitlements", { error: entError.message });

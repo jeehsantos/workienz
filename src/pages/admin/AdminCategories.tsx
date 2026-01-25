@@ -80,7 +80,7 @@ export default function AdminCategories() {
         variant: "destructive",
       });
     } else {
-      setCategories(data || []);
+      setCategories((data as Category[]) || []);
     }
     setIsLoading(false);
   };

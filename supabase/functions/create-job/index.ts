@@ -185,8 +185,9 @@ serve(async (req) => {
           );
         }
 
-        // Enforce free tier position limit (max 1 position)
-        if (selectedEntitlement.plan_type === "free_contractor") {
+        // Enforce free tier position limit (max 1 position) - support both 'free_tier' and 'free_contractor'
+        const isFreeTier = selectedEntitlement.plan_type === "free_tier" || selectedEntitlement.plan_type === "free_contractor";
+        if (isFreeTier) {
           const maxPositionsForFreeTier = 1;
           if (jobData.positions_available && jobData.positions_available > maxPositionsForFreeTier) {
             logStep("Free tier position limit exceeded", { 
@@ -197,7 +198,7 @@ serve(async (req) => {
               JSON.stringify({
                 error: "ERR_FREE_TIER_LIMIT",
                 message: `Free tier is limited to ${maxPositionsForFreeTier} position per job posting. Please upgrade your plan to post multiple positions.`,
-                current_tier: "free_contractor",
+                current_tier: selectedEntitlement.plan_type,
                 upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
               }),
               { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }

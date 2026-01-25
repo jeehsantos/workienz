@@ -171,6 +171,9 @@ serve(async (req) => {
       ? "unlimited"
       : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0));
 
+    // Check for free tier - support both 'free_tier' and 'free_contractor' plan types
+    const isFreeTier = selectedEntitlement.plan_type === "free_tier" || selectedEntitlement.plan_type === "free_contractor";
+
     const result: ValidationResult = {
       can_post: true,
       remaining_posts: remaining,

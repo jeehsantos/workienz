@@ -598,8 +598,8 @@ export default function Subscription() {
               ) : (
                 /* No Active Subscription or Free Tier */
                 <div className="space-y-6">
-                  {/* Check if contractor has free tier */}
-                  {isContractor() && entitlements?.entitlements.some(e => e.plan_type === "free_contractor") ? (
+                  {/* Check if contractor has free tier - check for both 'free_tier' and 'free_contractor' plan types */}
+                  {isContractor() && entitlements?.entitlements.some(e => e.plan_type === "free_tier" || e.plan_type === "free_contractor") ? (
                     <>
                       {/* Free Tier Display */}
                       <div className="flex items-start justify-between">

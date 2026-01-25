@@ -63,6 +63,7 @@ type ContractorProfile = {
   created_at: string;
   email: string;
   package_name: string | null;
+  current_plan_type: string | null;
 };
 
 type Job = {
@@ -294,7 +295,7 @@ export default function AdminDashboard() {
           .eq("user_id", c.user_id)
           .maybeSingle();
 
-        // Get contractor subscription
+        // Get contractor subscription (legacy)
         const { data: subData } = await supabase
           .from("contractor_subscriptions")
           .select("package_id")
@@ -312,10 +313,21 @@ export default function AdminDashboard() {
           packageName = pkg?.name || null;
         }
 
+        // Get active entitlement plan type (new system)
+        const { data: entitlementData } = await supabase
+          .from("contractor_entitlements")
+          .select("plan_type")
+          .eq("user_id", c.user_id)
+          .eq("status", "active")
+          .order("is_recurring", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         return {
           ...c,
           email: profile?.email || "",
           package_name: packageName,
+          current_plan_type: entitlementData?.plan_type || null,
         };
       })
     );
@@ -762,7 +774,8 @@ export default function AdminDashboard() {
                       <TableRow>
                         <TableHead>Company</TableHead>
                         <TableHead>Entrepreneur</TableHead>
-                        <TableHead>Package</TableHead>
+                        <TableHead>Current Plan</TableHead>
+                        <TableHead>Legacy Package</TableHead>
                         <TableHead>Joined</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -786,6 +799,18 @@ export default function AdminDashboard() {
                                 <Star className="w-4 h-4 text-amber-500" />
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {c.current_plan_type ? (
+                              <Badge 
+                                variant={c.current_plan_type === "free_contractor" ? "secondary" : "default"}
+                                className="capitalize"
+                              >
+                                {c.current_plan_type.replace(/_/g, " ")}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">No plan</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Select
