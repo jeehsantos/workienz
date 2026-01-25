@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       article_reports: {
         Row: {
           admin_notes: string | null
@@ -61,6 +94,7 @@ export type Database = {
       articles: {
         Row: {
           author_id: string
+          category: string | null
           content: string
           cover_image_url: string | null
           created_at: string
@@ -74,6 +108,7 @@ export type Database = {
         }
         Insert: {
           author_id: string
+          category?: string | null
           content: string
           cover_image_url?: string | null
           created_at?: string
@@ -87,6 +122,7 @@ export type Database = {
         }
         Update: {
           author_id?: string
+          category?: string | null
           content?: string
           cover_image_url?: string | null
           created_at?: string
