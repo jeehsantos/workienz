@@ -252,49 +252,39 @@ export default function Articles() {
               return (
                 <article
                   key={article.id}
-                  className={`group bg-card rounded-xl border border-border/50 overflow-hidden shadow-soft hover:shadow-md hover:border-border transition-all duration-200 ${
-                    isLocked ? "opacity-90" : ""
-                  }`}
+                  className="group bg-card rounded-lg border border-border/50 overflow-hidden hover:shadow-md transition-all duration-200"
                 >
                   {article.cover_image_url ? (
-                    <div className="aspect-video bg-muted relative overflow-hidden">
+                    <div className="aspect-[16/9] bg-muted relative overflow-hidden">
                       <img
                         src={article.cover_image_url}
                         alt={article.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover"
                       />
                       {isLocked && (
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
-                            <Lock className="w-5 h-5 text-muted-foreground" />
+                        <div className="absolute top-2 right-2">
+                          <div className="w-8 h-8 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
+                            <Lock className="w-4 h-4 text-muted-foreground" />
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center relative">
+                    <div className="aspect-[16/9] bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center relative">
                       <FileText className="w-12 h-12 text-muted-foreground" />
                       {isLocked && (
-                        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
-                            <Lock className="w-5 h-5 text-muted-foreground" />
+                        <div className="absolute top-2 right-2">
+                          <div className="w-8 h-8 rounded-full bg-background/90 flex items-center justify-center shadow-lg">
+                            <Lock className="w-4 h-4 text-muted-foreground" />
                           </div>
                         </div>
                       )}
                     </div>
                   )}
 
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      {article.is_premium ? (
-                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0">
-                          <Sparkles className="w-3 h-3 mr-1" />
-                          Premium
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="border-0">Free</Badge>
-                      )}
-                      <span className="text-xs text-muted-foreground">
+                  <div className="p-4">
+                    <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                      <span>
                         {new Date(article.created_at).toLocaleDateString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -303,28 +293,31 @@ export default function Articles() {
                       </span>
                     </div>
 
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2 group-hover:text-primary transition-colors">
-                      {article.title}
+                    <h3 className="font-semibold text-base mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                      <Link to={isLocked ? "/pricing" : `/articles/${article.slug}`}>
+                        {article.title}
+                      </Link>
                     </h3>
 
                     {article.excerpt && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                         {article.excerpt}
                       </p>
                     )}
 
-                    {isLocked ? (
-                      <Button variant="outline" size="sm" className="w-full" asChild>
-                        <Link to="/pricing">
-                          <Lock className="w-4 h-4 mr-2" />
-                          Subscribe to Read
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button variant="outline" size="sm" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" asChild>
-                        <Link to={`/articles/${article.slug}`}>Read Article</Link>
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-between">
+                      <Link 
+                        to={isLocked ? "/pricing" : `/articles/${article.slug}`}
+                        className="text-sm text-primary hover:underline font-medium"
+                      >
+                        Read more
+                      </Link>
+                      {article.is_premium && (
+                        <Badge variant="secondary" className="text-xs">
+                          Premium
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </article>
               );

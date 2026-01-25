@@ -211,114 +211,123 @@ export default function ArticleDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero header with cover image */}
-      {article.cover_image_url && (
-        <div className="container-tight pt-6 md:pt-8">
-          <div className="aspect-video max-h-[400px] bg-muted rounded-xl overflow-hidden mx-auto">
-            <img
-              src={article.cover_image_url}
-              alt={article.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="container-tight">
-        {/* Back button and edit button */}
-        <div className="flex items-center justify-between py-6 md:py-8">
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Back button */}
+        <div className="py-6 md:py-8">
           <Button variant="ghost" asChild>
             <Link to="/articles">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Articles
             </Link>
           </Button>
-          
-          {canEdit && (
-            <Button variant="outline" asChild>
-              <Link to={`/writer/articles/${article.id}/edit`}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit Article
-              </Link>
-            </Button>
-          )}
         </div>
 
-        {/* Article content container */}
-        <article className="max-w-3xl mx-auto pb-16 md:pb-24">
-          {/* Meta info bar */}
-          <div className="flex flex-wrap items-center gap-4 mb-4 text-sm text-muted-foreground">
-            <Badge className={article.is_premium ? "bg-primary/10 text-primary hover:bg-primary/20 border-0" : "bg-secondary text-secondary-foreground border-0"}>
-              {article.is_premium ? 'Premium' : 'Free'}
-            </Badge>
-            <span className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4" />
-              {new Date(article.created_at).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              {readingTime} min read
-            </span>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-4xl md:text-5xl font-bold font-display leading-tight mb-6">
-            {article.title}
-          </h1>
-
-          {/* Author info */}
-          {authorName && (
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">{authorName}</p>
-                <p className="text-sm text-muted-foreground">Author</p>
-              </div>
-            </div>
-          )}
-
-          {/* Excerpt/Lead paragraph */}
-          {article.excerpt && (
-            <p className="text-xl text-muted-foreground leading-relaxed mb-8">
-              {article.excerpt}
-            </p>
-          )}
-
-          <Separator className="mb-8" />
-
-          {/* Article body with proper typography */}
-          <div className="article-content">
-            {formatContent(article.content)}
-          </div>
-
-          {/* End of article */}
-          <Separator className="my-12" />
-          
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 rounded-xl bg-muted/50 border border-border/50">
-            <div className="text-center sm:text-left">
-              <p className="font-medium text-foreground">Enjoyed this article?</p>
-              <p className="text-sm text-muted-foreground">Check out more content for job seekers</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {user && isEmployee() && (
-                <ReportProblemDialog 
-                  articleId={article.id} 
-                  userId={user.id} 
-                  articleTitle={article.title} 
-                />
+        <div className="grid lg:grid-cols-[1fr_300px] gap-8 pb-16">
+          {/* Main Content */}
+          <article className="min-w-0">
+            {/* Author info and metadata */}
+            <div className="flex items-center gap-3 mb-6">
+              {authorName && (
+                <>
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{authorName}</p>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>
+                        {new Date(article.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </>
               )}
-              <Button asChild>
-                <Link to="/articles">Browse More Articles</Link>
-              </Button>
+              {canEdit && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/writer/articles/${article.id}/edit`}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </Link>
+                </Button>
+              )}
             </div>
-          </div>
-        </article>
+
+            {/* Title */}
+            <h1 className="text-3xl md:text-4xl font-bold leading-tight mb-6">
+              {article.title}
+            </h1>
+
+            {/* Excerpt */}
+            {article.excerpt && (
+              <p className="text-lg text-muted-foreground leading-relaxed mb-8 pb-8 border-b">
+                {article.excerpt}
+              </p>
+            )}
+
+            {/* Cover Image */}
+            {article.cover_image_url && (
+              <div className="mb-8">
+                <img
+                  src={article.cover_image_url}
+                  alt={article.title}
+                  className="w-full rounded-lg"
+                />
+              </div>
+            )}
+
+            {/* Article body */}
+            <div className="prose prose-slate max-w-none">
+              {formatContent(article.content)}
+            </div>
+
+            {/* End section */}
+            <div className="mt-12 pt-8 border-t">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium">Enjoyed this article?</p>
+                  <p className="text-sm text-muted-foreground">Check out more content</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {user && isEmployee() && (
+                    <ReportProblemDialog 
+                      articleId={article.id} 
+                      userId={user.id} 
+                      articleTitle={article.title} 
+                    />
+                  )}
+                  <Button asChild>
+                    <Link to="/articles">Browse More Articles</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          {/* Sidebar */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-8 space-y-6">
+              {/* Table of Contents placeholder */}
+              <div className="bg-card rounded-lg border border-border/50 p-4">
+                <h3 className="font-semibold mb-3">Table of contents</h3>
+                <div className="text-sm text-muted-foreground space-y-2">
+                  <p className="text-xs">Article sections will appear here</p>
+                </div>
+              </div>
+
+              {/* Reading time */}
+              <div className="bg-card rounded-lg border border-border/50 p-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">{readingTime} min read</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
