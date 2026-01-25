@@ -122,8 +122,9 @@ export default function PostJob() {
           setEntitlementError(entitlementData.message);
         }
         
-        // Check if user is on free tier - limit positions to 1
-        if (entitlementData.plan_type === "free_contractor") {
+        // Check if user is on free tier - limit positions to 1 (support both 'free_tier' and 'free_contractor')
+        const isFreeTierPlan = entitlementData.plan_type === "free_tier" || entitlementData.plan_type === "free_contractor";
+        if (isFreeTierPlan) {
           setIsFreeTier(true);
           setMaxPositions(1);
           // Ensure positions_available is set to 1 for free tier

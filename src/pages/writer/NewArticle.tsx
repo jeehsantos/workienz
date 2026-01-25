@@ -51,7 +51,7 @@ export default function NewArticle() {
         .order("display_order", { ascending: true });
 
       if (!error && data) {
-        setCategories(data);
+        setCategories(data as Array<{ slug: string; name: string }>);
       }
     }
 
