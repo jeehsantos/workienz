@@ -231,18 +231,18 @@ export default function Dashboard() {
             </Link>
           )}
 
-          {/* Admin Article Categories */}
+          {/* Admin Article Management */}
           {isAdmin() && (
             <Link 
-              to="/admin/categories"
+              to="/admin/articles"
               className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
             >
               <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4 group-hover:bg-secondary/80 transition-colors">
                 <FolderEdit className="w-6 h-6 text-secondary-foreground" />
               </div>
-              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">Article Categories</h3>
+              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">Article Management</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Manage article categories for writers.
+                Manage categories, articles, and reports.
               </p>
             </Link>
           )}

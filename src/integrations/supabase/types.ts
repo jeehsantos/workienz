@@ -571,6 +571,36 @@ export type Database = {
           },
         ]
       }
+      job_deletion_tracking: {
+        Row: {
+          contractor_user_id: string
+          custom_reason: string | null
+          deleted_at: string
+          deletion_reason: string
+          id: string
+          job_id: string
+          job_title: string
+        }
+        Insert: {
+          contractor_user_id: string
+          custom_reason?: string | null
+          deleted_at?: string
+          deletion_reason: string
+          id?: string
+          job_id: string
+          job_title: string
+        }
+        Update: {
+          contractor_user_id?: string
+          custom_reason?: string | null
+          deleted_at?: string
+          deletion_reason?: string
+          id?: string
+          job_id?: string
+          job_title?: string
+        }
+        Relationships: []
+      }
       job_shifts: {
         Row: {
           break_minutes: number | null
