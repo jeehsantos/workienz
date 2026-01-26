@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { memo } from "react";
 import {
   Bell,
   CheckCheck,
@@ -55,7 +56,7 @@ const getNotificationBg = (type: string, read: boolean) => {
   }
 };
 
-export function NotificationDropdown({
+export const NotificationDropdown = memo(function NotificationDropdown({
   notifications,
   unreadCount,
   isLoading,
@@ -194,4 +195,4 @@ export function NotificationDropdown({
       )}
     </div>
   );
-}
+});

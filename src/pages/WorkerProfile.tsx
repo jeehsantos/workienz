@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, MapPin, Clock, User, MessageCircle, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SkeletonProfile } from "@/components/ui/skeleton-components";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface WorkerDTO {
   id: string;
@@ -129,8 +131,33 @@ export default function WorkerProfile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <div className="container-tight py-8">
+          <div className="mb-6">
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <SkeletonProfile showCover={false} showBio={true} showStats={false} />
+            </div>
+            <div className="space-y-6">
+              <div className="bg-card rounded-xl p-6 border border-border/50 space-y-3">
+                <Skeleton className="h-5 w-20" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                ))}
+              </div>
+              <div className="bg-card rounded-xl p-6 border border-border/50 space-y-4">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

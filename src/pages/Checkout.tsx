@@ -9,8 +9,16 @@ import { Loader2, ArrowLeft, Check, CreditCard, Shield, Info, AlertTriangle } fr
 import { Button } from "@/components/ui/button";
 import { StripePaymentForm } from "@/components/checkout/StripePaymentForm";
 import { StripeEmbeddedCheckout } from "@/components/checkout/StripeEmbeddedCheckout";
-// Stripe publishable key (safe to expose in frontend)
-const STRIPE_PUBLISHABLE_KEY = "pk_test_51SlOSuLpM66OQZ3PLtksU9feUwDZ1AImfhFr6Kn8s6uSZ5v1Wi7kbblbcVJA9p3TLTd3T0O837IHeElItmvNbOB900WMcPPR4K";
+
+// Get Stripe publishable key from environment variables
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+if (!STRIPE_PUBLISHABLE_KEY) {
+  throw new Error(
+    'Missing VITE_STRIPE_PUBLISHABLE_KEY environment variable. ' +
+    'Please ensure it is set in your .env file.'
+  );
+}
 
 interface PlanProduct {
   id: string;

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { JOB_TYPE_CONFIG, JobType } from "@/data/jobTypes";
+import { memo } from "react";
 
 interface JobTypeBadgeProps {
   jobType: JobType;
@@ -11,7 +12,7 @@ interface JobTypeBadgeProps {
  * Supports all job types: temporary, short-term, contract, volunteering
  * Includes dark mode compatibility
  */
-export function JobTypeBadge({ jobType, className = "" }: JobTypeBadgeProps) {
+export const JobTypeBadge = memo(({ jobType, className = "" }: JobTypeBadgeProps) => {
   const config = JOB_TYPE_CONFIG[jobType];
   
   if (!config) {
@@ -23,4 +24,6 @@ export function JobTypeBadge({ jobType, className = "" }: JobTypeBadgeProps) {
       {config.label}
     </Badge>
   );
-}
+});
+
+JobTypeBadge.displayName = 'JobTypeBadge';

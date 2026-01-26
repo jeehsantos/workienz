@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+/**
+ * useNotifications Hook
+ * 
+ * Manages user notifications with real-time updates and debouncing.
+ * Implements notification debouncing to prevent UI thrashing (Requirement 9.4).
+ */
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Notification {
@@ -13,10 +20,17 @@ export interface Notification {
   created_at: string;
 }
 
+const DEBOUNCE_DELAY = 500; // 500ms debounce delay (Requirement 9.4)
+
 export function useNotifications(userId: string | undefined) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Debouncing state (Requirement 9.4)
+  const pendingUpdatesRef = useRef<Notification[]>([]);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   const fetchNotifications = useCallback(async () => {
     if (!userId) {
@@ -48,6 +62,42 @@ export function useNotifications(userId: string | undefined) {
       setIsLoading(false);
     }
   }, [userId]);
+
+  // Debounced notification update handler (Requirement 9.4)
+  const flushPendingUpdates = useCallback(() => {
+    if (pendingUpdatesRef.current.length === 0 || !isMountedRef.current) return;
+
+    const updates = [...pendingUpdatesRef.current];
+    pendingUpdatesRef.current = [];
+
+    console.info(
+      `[useNotifications] Flushing ${updates.length} batched notification updates`
+    );
+
+    // Apply all pending updates
+    setNotifications((prev) => {
+      const newNotifications = [...updates, ...prev.slice(0, 19)];
+      return newNotifications;
+    });
+    
+    setUnreadCount((prev) => prev + updates.filter(n => !n.read).length);
+  }, []);
+
+  const debouncedAddNotification = useCallback((notification: Notification) => {
+    // Add to pending updates
+    pendingUpdatesRef.current.push(notification);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer to flush updates after debounce delay
+    debounceTimerRef.current = setTimeout(() => {
+      flushPendingUpdates();
+      debounceTimerRef.current = null;
+    }, DEBOUNCE_DELAY);
+  }, [flushPendingUpdates]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     const { error } = await supabase
@@ -96,10 +146,19 @@ export function useNotifications(userId: string | undefined) {
 
   // Initial fetch
   useEffect(() => {
+    isMountedRef.current = true;
     fetchNotifications();
+    
+    return () => {
+      isMountedRef.current = false;
+      // Clear any pending debounce timer on unmount
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [fetchNotifications]);
 
-  // Realtime subscription for new notifications
+  // Realtime subscription for new notifications with debouncing (Requirement 9.4)
   useEffect(() => {
     if (!userId) return;
 
@@ -115,8 +174,8 @@ export function useNotifications(userId: string | undefined) {
         },
         (payload) => {
           const newNotif = payload.new as Notification;
-          setNotifications((prev) => [newNotif, ...prev.slice(0, 19)]);
-          setUnreadCount((prev) => prev + 1);
+          // Use debounced handler instead of immediate update
+          debouncedAddNotification(newNotif);
         }
       )
       .on(
@@ -152,7 +211,7 @@ export function useNotifications(userId: string | undefined) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, debouncedAddNotification]);
 
   return {
     notifications,

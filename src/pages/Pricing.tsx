@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -402,8 +402,10 @@ export default function Pricing() {
     fetchSubscription();
   }, [user, isContractor]);
 
-  // Check if toggle should be locked
-  const isToggleLocked = user && (isContractor() || isEmployee());
+  // Memoize toggle lock state
+  const isToggleLocked = useMemo(() => {
+    return user && (isContractor() || isEmployee());
+  }, [user, isContractor, isEmployee]);
 
   // Get plan price from database data
   const getPlanPrice = (planId: string): number => {
@@ -474,7 +476,8 @@ export default function Pricing() {
     return "downgrade";
   };
 
-  const handleSelectPlan = (planId: string, planName: string) => {
+  // Stabilize plan selection callback
+  const handleSelectPlan = useCallback((planId: string, planName: string) => {
     // Free plan - just go to signup
     if (planId === "free_seeker") {
       navigate("/auth?mode=signup");
@@ -497,9 +500,10 @@ export default function Pricing() {
     } else {
       navigate(`/auth?mode=signup&plan=${planId}`);
     }
-  };
+  }, [user, navigate, getPlanPrice, getPlanAction]);
 
-  const handlePlanChangeSuccess = async () => {
+  // Stabilize plan change success callback
+  const handlePlanChangeSuccess = useCallback(async () => {
     // Refresh subscription data
     if (user) {
       const { data } = await supabase
@@ -524,7 +528,7 @@ export default function Pricing() {
         });
       }
     }
-  };
+  }, [user]);
 
   // Get button label and variant for a plan
   const getPlanButtonConfig = (planId: string, planPrice: number, defaultCta: string) => {
@@ -542,8 +546,14 @@ export default function Pricing() {
     }
   };
 
-  const contractorFeatures = Object.keys(contractorFeatureMatrix.single_post);
-  const seekerFeatures = Object.keys(seekerFeatureMatrix.free_seeker);
+  // Memoize feature arrays to avoid recalculating on every render
+  const contractorFeatures = useMemo(() => {
+    return Object.keys(contractorFeatureMatrix.single_post);
+  }, []);
+  
+  const seekerFeatures = useMemo(() => {
+    return Object.keys(seekerFeatureMatrix.free_seeker);
+  }, []);
 
   return (
     <main className="min-h-screen">

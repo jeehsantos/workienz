@@ -8,6 +8,11 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "lint:security": "eslint . --config .eslintrc-security.json",
+    "security:scan": "tsx scripts/security-scan.ts",
+    "security:scan:json": "tsx scripts/security-scan.ts --format json --output security-report.json",
+    "security:scan:ci": "tsx scripts/security-scan.ts --fail-on-critical",
+    "check-env": "node scripts/check-env.js",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,8 @@ import { dispatchProfileUpdated } from "@/hooks/useProfileRefresh";
 import { DatePicker } from "@/components/ui/date-picker";
 import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
 import { StepIndicator } from "@/components/jobs/StepIndicator";
+import { SkeletonForm } from "@/components/ui/skeleton-components";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -108,9 +110,15 @@ export default function EmployeeProfile() {
   const [education, setEducation] = useState<Education[]>([]);
   const [cvReferences, setCvReferences] = useState<CVReference[]>([]);
 
-  const availableCities = formData.location_region ? getCitiesByRegion(formData.location_region) : [];
-  const availableSuburbs = formData.location_region && formData.location_city 
-    ? getSuburbsByCity(formData.location_region, formData.location_city) : [];
+  // Memoize expensive location computations
+  const availableCities = useMemo(() => {
+    return formData.location_region ? getCitiesByRegion(formData.location_region) : [];
+  }, [formData.location_region]);
+  
+  const availableSuburbs = useMemo(() => {
+    return formData.location_region && formData.location_city 
+      ? getSuburbsByCity(formData.location_region, formData.location_city) : [];
+  }, [formData.location_region, formData.location_city]);
 
   /**
    * Validates the current step before allowing navigation
@@ -839,8 +847,35 @@ export default function EmployeeProfile() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <div className="container-tight py-8">
+          <div className="mb-6">
+            <Skeleton className="h-10 w-32" />
+          </div>
+          <div className="space-y-4 mb-8">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+          <div className="mb-8">
+            <div className="flex justify-between items-center">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex flex-col items-center gap-2">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <SkeletonForm fields={6} showSubmit={false} />
+            </CardContent>
+          </Card>
+          <div className="flex justify-between">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
       </div>
     );
   }

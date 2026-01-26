@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -77,6 +77,28 @@ type ConversationData = {
   other_party_user_id: string | null;
 };
 
+// Memoized Message component to prevent unnecessary re-renders
+const MessageBubble = memo(({ message, isOwn }: { message: Message; isOwn: boolean }) => {
+  return (
+    <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
+          isOwn
+            ? "bg-primary text-primary-foreground rounded-br-md"
+            : "bg-muted rounded-bl-md"
+        }`}
+      >
+        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        <p className={`text-[10px] sm:text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+          {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </p>
+      </div>
+    </div>
+  );
+});
+
+MessageBubble.displayName = 'MessageBubble';
+
 export default function Conversation() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -96,6 +118,12 @@ export default function Conversation() {
   const [showSubscriberDialog, setShowSubscriberDialog] = useState(false);
   const [isFreeTier, setIsFreeTier] = useState(false);
   const [checkingFreeTier, setCheckingFreeTier] = useState(false);
+  
+  // Pagination state (Requirement 9.3)
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
+  const MESSAGES_PER_PAGE = 50;
 
   // Check if contractor is on free tier
   useEffect(() => {
@@ -226,14 +254,29 @@ export default function Conversation() {
         other_party_user_id: otherUserId,
       });
 
-      // Fetch messages
-      const { data: messagesData } = await supabase
+      // Fetch messages with pagination (Requirement 9.3: Limit initial load to 50 messages)
+      const { data: messagesData, error: messagesError } = await supabase
         .from("messages")
         .select("*")
         .eq("conversation_id", id)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
 
-      setMessages(messagesData || []);
+      if (messagesError) {
+        console.error("Error fetching messages:", messagesError);
+      }
+
+      const messages = (messagesData || []).reverse(); // Reverse to show oldest first
+      setMessages(messages);
+      
+      // Check if there are more messages
+      if (messages.length === MESSAGES_PER_PAGE) {
+        setHasMoreMessages(true);
+        setOldestMessageId(messages[0]?.id || null);
+      } else {
+        setHasMoreMessages(false);
+      }
+      
       setIsLoading(false);
 
       // Mark conversation as read
@@ -280,6 +323,53 @@ export default function Conversation() {
   }, [messages]);
 
   const MAX_MESSAGE_LENGTH = 5000;
+
+  // Load more messages (infinite scroll for message history - Requirement 9.3)
+  const loadMoreMessages = useCallback(async () => {
+    if (!id || !oldestMessageId || isLoadingMore || !hasMoreMessages) return;
+
+    setIsLoadingMore(true);
+
+    try {
+      // Get the oldest message's created_at timestamp
+      const oldestMessage = messages.find(m => m.id === oldestMessageId);
+      if (!oldestMessage) {
+        setIsLoadingMore(false);
+        return;
+      }
+
+      const { data: olderMessages, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", id)
+        .lt("created_at", oldestMessage.created_at)
+        .order("created_at", { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
+
+      if (error) {
+        console.error("Error loading more messages:", error);
+        setIsLoadingMore(false);
+        return;
+      }
+
+      if (olderMessages && olderMessages.length > 0) {
+        const reversedMessages = olderMessages.reverse();
+        setMessages(prev => [...reversedMessages, ...prev]);
+        setOldestMessageId(reversedMessages[0]?.id || null);
+        
+        // Check if there are more messages
+        if (olderMessages.length < MESSAGES_PER_PAGE) {
+          setHasMoreMessages(false);
+        }
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error("Error in loadMoreMessages:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [id, oldestMessageId, isLoadingMore, hasMoreMessages, messages, MESSAGES_PER_PAGE]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -528,7 +618,8 @@ export default function Conversation() {
   const isUserContractor = conversation.contractor_user_id === user?.id;
   const isHired = conversation.job_application?.status === "hired";
 
-  const getExpiryStatus = () => {
+  // Memoize expiry status calculation
+  const expiryStatus = useMemo(() => {
     if (!conversation.activity_started_at || !conversation.last_activity_at || isClosed) {
       return { status: "active" as const, hoursLeft: 0, showWarning: false };
     }
@@ -550,9 +641,7 @@ export default function Conversation() {
 
     const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
     return { status: "warning" as const, hoursLeft, showWarning: true };
-  };
-
-  const expiryStatus = getExpiryStatus();
+  }, [conversation.activity_started_at, conversation.last_activity_at, isClosed]);
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
@@ -779,24 +868,31 @@ export default function Conversation() {
             </div>
           )}
 
+          {/* Load More Messages Button (Requirement 9.3) */}
+          {hasMoreMessages && messages.length > 0 && (
+            <div className="flex justify-center py-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadMoreMessages}
+                disabled={isLoadingMore}
+                className="text-xs"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  `Load older messages`
+                )}
+              </Button>
+            </div>
+          )}
+
           {messages.map((message) => {
             const isOwn = message.sender_user_id === user?.id;
-            return (
-              <div key={message.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
-                    isOwn
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted rounded-bl-md"
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                  <p className={`text-[10px] sm:text-xs mt-1 ${isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                    {new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </div>
-            );
+            return <MessageBubble key={message.id} message={message} isOwn={isOwn} />;
           })}
           <div ref={messagesEndRef} />
         </div>

@@ -8,6 +8,7 @@ import { useProfileRefreshListener } from "@/hooks/useProfileRefresh";
 import { SocialProfileView } from "@/components/profile/SocialProfileView";
 import { FormalCVView } from "@/components/profile/FormalCVView";
 import { ProfileViewToggle } from "@/components/profile/ProfileViewToggle";
+import { SkeletonProfile } from "@/components/ui/skeleton-components";
 import type { EmployeeProfileData, ProfileViewMode } from "@/types/employeeProfile";
 
 export default function ViewProfile() {
@@ -106,8 +107,17 @@ export default function ViewProfile() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <div className="container-tight py-8">
+          <div className="mb-6">
+            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div className="h-9 w-48 bg-muted animate-pulse rounded" />
+            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+          </div>
+          <SkeletonProfile showCover={false} showBio={true} showStats={true} />
+        </div>
       </div>
     );
   }

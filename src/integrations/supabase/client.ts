@@ -5,6 +5,99 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Validate that required environment variables are set
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error(
+    'Missing required Supabase environment variables. ' +
+    'Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set in your .env file.'
+  );
+}
+
+// Connection pool metrics tracking
+interface ConnectionMetrics {
+  totalRequests: number;
+  activeConnections: number;
+  failedConnections: number;
+  retryAttempts: number;
+  lastConnectionTime: number;
+}
+
+const connectionMetrics: ConnectionMetrics = {
+  totalRequests: 0,
+  activeConnections: 0,
+  failedConnections: 0,
+  retryAttempts: 0,
+  lastConnectionTime: Date.now(),
+};
+
+// Exponential backoff retry configuration
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  backoffMultiplier: 2,
+};
+
+// Exponential backoff retry function
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  retries = RETRY_CONFIG.maxRetries,
+  delay = RETRY_CONFIG.initialDelay
+): Promise<T> {
+  try {
+    connectionMetrics.totalRequests++;
+    connectionMetrics.activeConnections++;
+    const result = await fn();
+    connectionMetrics.activeConnections--;
+    connectionMetrics.lastConnectionTime = Date.now();
+    return result;
+  } catch (error) {
+    connectionMetrics.activeConnections--;
+    connectionMetrics.failedConnections++;
+    
+    if (retries <= 0) {
+      console.error('[Supabase] Max retries exceeded', {
+        error,
+        metrics: getConnectionMetrics(),
+      });
+      throw error;
+    }
+
+    connectionMetrics.retryAttempts++;
+    const nextDelay = Math.min(delay * RETRY_CONFIG.backoffMultiplier, RETRY_CONFIG.maxDelay);
+    
+    console.warn(`[Supabase] Connection failed, retrying in ${delay}ms (${retries} retries left)`, {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      retryAttempt: RETRY_CONFIG.maxRetries - retries + 1,
+    });
+
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return retryWithBackoff(fn, retries - 1, nextDelay);
+  }
+}
+
+// Get connection pool metrics
+export function getConnectionMetrics(): Readonly<ConnectionMetrics> {
+  return { ...connectionMetrics };
+}
+
+// Log connection metrics (for monitoring)
+export function logConnectionMetrics(): void {
+  const metrics = getConnectionMetrics();
+  const uptime = Date.now() - metrics.lastConnectionTime;
+  
+  console.info('[Supabase] Connection Pool Metrics', {
+    totalRequests: metrics.totalRequests,
+    activeConnections: metrics.activeConnections,
+    failedConnections: metrics.failedConnections,
+    retryAttempts: metrics.retryAttempts,
+    failureRate: metrics.totalRequests > 0 
+      ? ((metrics.failedConnections / metrics.totalRequests) * 100).toFixed(2) + '%'
+      : '0%',
+    timeSinceLastConnection: `${uptime}ms`,
+  });
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -13,5 +106,49 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'workie-app',
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  // Configure connection timeout and retry behavior
+  realtime: {
+    params: {
+      eventsPerSecond: 10, // Limit real-time events to prevent connection overload
+    },
+  },
 });
+
+// Wrap Supabase client methods with retry logic
+const originalFrom = supabase.from.bind(supabase);
+supabase.from = function<T extends keyof Database['public']['Tables']>(table: T) {
+  const builder = originalFrom(table);
+  
+  // Wrap query execution methods with retry logic
+  const originalSelect = builder.select.bind(builder);
+  builder.select = function(...args: any[]) {
+    const query = originalSelect(...args);
+    const originalThen = query.then?.bind(query);
+    
+    if (originalThen) {
+      query.then = function(onfulfilled?: any, onrejected?: any) {
+        return retryWithBackoff(() => originalThen(onfulfilled, onrejected));
+      };
+    }
+    
+    return query;
+  };
+  
+  return builder;
+};
+
+// Periodic metrics logging (every 5 minutes in development)
+if (import.meta.env.DEV) {
+  setInterval(() => {
+    logConnectionMetrics();
+  }, 5 * 60 * 1000);
+}

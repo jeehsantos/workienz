@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, ArrowLeft, FileText, Lock, Search, BookOpen, GraduationCap, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { HighlightsSection } from "@/components/articles/HighlightsSection";
+import { SkeletonCard, SkeletonGrid } from "@/components/ui/skeleton-components";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Article = {
   id: string;
@@ -107,8 +109,38 @@ export default function Articles() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <div className="bg-gradient-to-br from-primary/10 via-background to-secondary/10 border-b border-border/50">
+          <div className="container-tight py-12">
+            <Skeleton className="h-10 w-40 mb-6" />
+            <div className="flex items-center gap-3 mb-4">
+              <Skeleton className="w-12 h-12 rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-5 w-80" />
+              </div>
+            </div>
+            <div className="flex gap-6 mt-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-5 w-24" />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="container-tight py-8">
+          <div className="mb-8">
+            <Skeleton className="h-48 w-full rounded-xl" />
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-10 w-64" />
+          </div>
+          <div className="flex items-center gap-4 mb-8">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-5 w-24" />
+          </div>
+          <SkeletonGrid columns={3} count={6} cardProps={{ showImage: true, showTitle: true, showDescription: true, lines: 2 }} />
+        </div>
       </div>
     );
   }

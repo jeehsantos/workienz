@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -212,7 +212,8 @@ export default function JobDetail() {
     checkApplication();
   }, [user, id, isEmployee]);
 
-  const canApply = () => {
+  // Memoize eligibility check
+  const eligibility = useMemo(() => {
     if (!job || !employeeProfileId) return { allowed: false, reason: "Complete your profile first" };
     
     // Check experience requirement - job seeker must have experience in the job's industry
@@ -239,9 +240,19 @@ export default function JobDetail() {
     }
 
     return { allowed: true, reason: null };
+  }, [job, employeeProfileId, employeeExperienceYears, employeeIndustry, hasActiveSubscription, activeApplicationsCount]);
+
+  // Memoize formatted hourly rate
+  const hourlyRate = useMemo(
+    () => formatHourlyRate(job?.hourly_rate_min, job?.hourly_rate_max),
+    [job?.hourly_rate_min, job?.hourly_rate_max]
+  );
+
+  const canApply = () => {
+    return eligibility;
   };
 
-  const handleApply = async () => {
+  const handleApply = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
 
     // Client-side pre-check (but backend will do the real validation)
@@ -253,9 +264,9 @@ export default function JobDetail() {
 
     // Show requirements dialog first
     setShowRequirementsDialog(true);
-  };
+  }, [employeeProfileId, id, user, canApply]);
 
-  const proceedWithApplication = async () => {
+  const proceedWithApplication = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
 
     setIsApplying(true);
@@ -340,7 +351,7 @@ export default function JobDetail() {
       });
       setIsApplying(false);
     }
-  };
+  }, [employeeProfileId, id, user, coverLetter, toast]);
 
   if (isLoading) {
     return (
@@ -365,8 +376,6 @@ export default function JobDetail() {
     );
   }
 
-  const eligibility = canApply();
-
   // Render requirements dialog
   const renderRequirementsDialog = () => (
     <ApplicationRequirementsDialog
@@ -377,7 +386,6 @@ export default function JobDetail() {
       onProceed={proceedWithApplication}
     />
   );
-  const hourlyRate = formatHourlyRate(job.hourly_rate_min, job.hourly_rate_max);
 
   return (
       <div className="min-h-screen bg-background">

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { recordPaymentFailure, markPaymentRetrySuccess } from "../_shared/payment-retry.ts";
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
@@ -45,6 +46,37 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
+
+    // Check if this event has already been processed (idempotency)
+    const { data: existingEvent } = await supabase
+      .from("webhook_events")
+      .select("id")
+      .eq("event_id", event.id)
+      .single();
+
+    if (existingEvent) {
+      logStep("Event already processed, skipping", { eventId: event.id });
+      return new Response(JSON.stringify({ received: true, skipped: true }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Record this event as being processed
+    const { error: recordError } = await supabase
+      .from("webhook_events")
+      .insert({
+        event_id: event.id,
+        event_type: event.type,
+        payload: event as any,
+      });
+
+    if (recordError) {
+      logStep("Error recording webhook event", { error: recordError.message });
+      // Continue processing even if recording fails (better than dropping the event)
+    } else {
+      logStep("Webhook event recorded", { eventId: event.id });
+    }
 
     switch (event.type) {
       case "checkout.session.completed": {
@@ -180,6 +212,118 @@ serve(async (req) => {
           logStep("Error cancelling subscription", { error: error.message });
         } else {
           logStep("Subscription cancelled in database");
+        }
+        break;
+      }
+
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        logStep("Payment failed", { 
+          paymentIntentId: paymentIntent.id,
+          error: paymentIntent.last_payment_error?.message 
+        });
+
+        // Get user_id from metadata
+        const userId = paymentIntent.metadata?.user_id;
+        if (!userId) {
+          logStep("No user_id in payment intent metadata, skipping retry");
+          break;
+        }
+
+        // Record failure and schedule retry
+        const retryResult = await recordPaymentFailure(supabase, {
+          userId,
+          stripePaymentIntentId: paymentIntent.id,
+          error: paymentIntent.last_payment_error?.message || "Payment failed",
+          maxAttempts: 5,
+        });
+
+        if (retryResult.success) {
+          logStep("Payment retry scheduled", {
+            retryId: retryResult.retryId,
+            nextRetryAt: retryResult.nextRetryAt,
+          });
+        } else {
+          logStep("Max retry attempts reached or retry scheduling failed");
+        }
+        break;
+      }
+
+      case "payment_intent.succeeded": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        logStep("Payment succeeded", { paymentIntentId: paymentIntent.id });
+
+        // Mark any pending retries as succeeded
+        const userId = paymentIntent.metadata?.user_id;
+        if (userId) {
+          await markPaymentRetrySuccess(supabase, {
+            userId,
+            stripePaymentIntentId: paymentIntent.id,
+          });
+          logStep("Payment retry marked as succeeded");
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        logStep("Invoice payment failed", {
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription,
+        });
+
+        // Get user from subscription
+        if (invoice.subscription) {
+          const { data: subscription } = await supabase
+            .from("subscriptions")
+            .select("user_id")
+            .eq("stripe_subscription_id", invoice.subscription)
+            .single();
+
+          if (subscription?.user_id) {
+            // Record failure and schedule retry
+            const retryResult = await recordPaymentFailure(supabase, {
+              userId: subscription.user_id,
+              stripeSubscriptionId: invoice.subscription as string,
+              error: invoice.last_finalization_error?.message || "Invoice payment failed",
+              maxAttempts: 5,
+            });
+
+            if (retryResult.success) {
+              logStep("Subscription payment retry scheduled", {
+                retryId: retryResult.retryId,
+                nextRetryAt: retryResult.nextRetryAt,
+              });
+            } else {
+              logStep("Max retry attempts reached or retry scheduling failed");
+            }
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        logStep("Invoice payment succeeded", {
+          invoiceId: invoice.id,
+          subscriptionId: invoice.subscription,
+        });
+
+        // Mark any pending retries as succeeded
+        if (invoice.subscription) {
+          const { data: subscription } = await supabase
+            .from("subscriptions")
+            .select("user_id")
+            .eq("stripe_subscription_id", invoice.subscription)
+            .single();
+
+          if (subscription?.user_id) {
+            await markPaymentRetrySuccess(supabase, {
+              userId: subscription.user_id,
+              stripeSubscriptionId: invoice.subscription as string,
+            });
+            logStep("Subscription payment retry marked as succeeded");
+          }
         }
         break;
       }

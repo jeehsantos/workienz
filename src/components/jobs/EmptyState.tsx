@@ -1,5 +1,6 @@
 import { Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { memo } from "react";
 
 interface EmptyStateProps {
   hasActiveFilters: boolean;
@@ -10,7 +11,7 @@ interface EmptyStateProps {
  * Enhanced empty state component for job search
  * Shows helpful messaging and clear filters button when no jobs match
  */
-export function EmptyState({ hasActiveFilters, onClearFilters }: EmptyStateProps) {
+export const EmptyState = memo(({ hasActiveFilters, onClearFilters }: EmptyStateProps) => {
   return (
     <div className="text-center py-16 bg-card rounded-xl border border-border/50">
       <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -28,4 +29,6 @@ export function EmptyState({ hasActiveFilters, onClearFilters }: EmptyStateProps
       )}
     </div>
   );
-}
+});
+
+EmptyState.displayName = 'EmptyState';

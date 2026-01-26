@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,17 +35,21 @@ const passwordRequirements = [
 
 // Password strength indicator component
 function PasswordStrengthIndicator({ password }: { password: string }) {
-  const metRequirements = passwordRequirements.filter(req => req.test(password)).length;
-  const strengthPercentage = (metRequirements / passwordRequirements.length) * 100;
+  // Memoize expensive password requirement calculations
+  const metRequirements = useMemo(() => {
+    return passwordRequirements.filter(req => req.test(password)).length;
+  }, [password]);
   
-  const getStrengthLabel = () => {
+  const strengthPercentage = useMemo(() => {
+    return (metRequirements / passwordRequirements.length) * 100;
+  }, [metRequirements]);
+  
+  const strength = useMemo(() => {
     if (metRequirements === 0) return { label: "", color: "bg-muted" };
     if (metRequirements <= 2) return { label: "Weak", color: "bg-destructive" };
     if (metRequirements <= 4) return { label: "Medium", color: "bg-warning" };
     return { label: "Strong", color: "bg-success" };
-  };
-
-  const strength = getStrengthLabel();
+  }, [metRequirements]);
 
   if (!password) return null;
 
@@ -194,7 +198,8 @@ export default function Auth() {
     );
   }
 
-  const validateForm = () => {
+  // Stabilize form validation callback
+  const validateForm = useCallback(() => {
     const newErrors: { 
       email?: string; 
       password?: string; 
@@ -232,9 +237,10 @@ export default function Auth() {
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [email, password, confirmPassword, firstName, lastName, isSignUp]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Stabilize form submit callback
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -343,7 +349,44 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [validateForm, isSignUp, userType, signUp, email, password, firstName, lastName, toast, navigate, signIn, user]);
+
+  // Stabilize user type selection callbacks
+  const handleSelectContractor = useCallback(() => {
+    setUserType("contractor");
+  }, []);
+
+  const handleSelectEmployee = useCallback(() => {
+    setUserType("employee");
+  }, []);
+
+  // Stabilize Google sign-in callback
+  const handleGoogleSignIn = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) {
+        toast({
+          title: "Google sign-in failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to initiate Google sign-in.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
 
   return (
     <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
@@ -385,7 +428,7 @@ export default function Auth() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setUserType("contractor")}
+                  onClick={handleSelectContractor}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     userType === "contractor"
                       ? "border-primary bg-primary/5"
@@ -402,7 +445,7 @@ export default function Auth() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUserType("employee")}
+                  onClick={handleSelectEmployee}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     userType === "employee"
                       ? "border-primary bg-primary/5"
@@ -565,32 +608,7 @@ export default function Auth() {
             size="lg"
             className="w-full"
             disabled={isLoading}
-            onClick={async () => {
-              setIsLoading(true);
-              try {
-                const { error } = await supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    redirectTo: `${window.location.origin}/dashboard`,
-                  },
-                });
-                if (error) {
-                  toast({
-                    title: "Google sign-in failed",
-                    description: error.message,
-                    variant: "destructive",
-                  });
-                }
-              } catch (error) {
-                toast({
-                  title: "Error",
-                  description: "Failed to initiate Google sign-in.",
-                  variant: "destructive",
-                });
-              } finally {
-                setIsLoading(false);
-              }
-            }}
+            onClick={handleGoogleSignIn}
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path

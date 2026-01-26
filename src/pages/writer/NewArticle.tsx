@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Upload, Image as ImageIcon, X } from "lucide-react";
-import { RichTextEditor } from "@/components/articles/RichTextEditor";
 import { Textarea } from "@/components/ui/textarea";
+
+// Lazy load the RichTextEditor component
+const RichTextEditor = lazy(() => import("@/components/articles/RichTextEditor").then(module => ({ default: module.RichTextEditor })));
 
 export default function NewArticle() {
   const navigate = useNavigate();
@@ -364,11 +366,17 @@ export default function NewArticle() {
                 />
               </label>
             </div>
-            <RichTextEditor
-              value={formData.content}
-              onChange={(content) => setFormData({ ...formData, content })}
-              placeholder="Write your article content here... Use the formatting toolbar for rich text."
-            />
+            <Suspense fallback={
+              <div className="flex items-center justify-center p-8 border border-border rounded-lg">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            }>
+              <RichTextEditor
+                value={formData.content}
+                onChange={(content) => setFormData({ ...formData, content })}
+                placeholder="Write your article content here... Use the formatting toolbar for rich text."
+              />
+            </Suspense>
           </div>
 
           {/* Content Images Preview */}

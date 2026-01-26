@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -15,6 +15,8 @@ import { JobTypeBadge } from "@/components/jobs/JobTypeBadge";
 import { IndustryBadge } from "@/components/jobs/IndustryBadge";
 import { EmptyState } from "@/components/jobs/EmptyState";
 import { useDebounce } from "@/hooks/useDebounce";
+import { SkeletonJobPosting } from "@/components/ui/skeleton-components";
+import { searchJobs } from "@/lib/fullTextSearch"; // Import FTS utility (Requirement 14.1)
 
 type Job = {
   id: string;
@@ -36,6 +38,110 @@ type Job = {
   } | null;
 };
 
+// Memoized JobCard component to prevent unnecessary re-renders
+const JobCard = memo(({ job, user }: { job: Job; user: any }) => {
+  // Determine if we should show hourly rate for volunteering jobs
+  const showHourlyRate = job.job_type !== "volunteering" || 
+                         (job.hourly_rate_min !== null && job.hourly_rate_min > 0);
+  
+  return (
+    <div
+      className="bg-card rounded-xl p-4 sm:p-6 border border-border/50 shadow-soft hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+    >
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {/* Industry and Job Type Badges */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            <JobTypeBadge jobType={job.job_type as JobType} />
+            <IndustryBadge industry={job.industry as Industry} />
+          </div>
+
+          <h3 className="text-lg font-semibold mb-1 break-words">{job.title}</h3>
+          {user ? (
+            <p className="text-sm text-muted-foreground mb-3">
+              {job.contractor?.company_name || "Company"}
+            </p>
+          ) : (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
+              <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Sign in to see company details</span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3 sm:gap-4 text-sm text-muted-foreground mb-3">
+            {job.location_city && (
+              <span className="flex items-center gap-1">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="break-words">
+                  {job.location_suburb && `${job.location_suburb}, `}
+                  {job.location_city}
+                </span>
+              </span>
+            )}
+            {job.duration && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                {job.duration}
+              </span>
+            )}
+            {/* Conditional hourly rate display */}
+            {showHourlyRate && (job.hourly_rate_min || job.hourly_rate_max) && (
+              <span className="flex items-center gap-1">
+                <DollarSign className="w-4 h-4 flex-shrink-0" />$
+                {job.hourly_rate_min || "?"} - ${job.hourly_rate_max || "?"}/hr
+              </span>
+            )}
+            {/* Volunteer Position badge when no rate is shown */}
+            {job.job_type === "volunteering" && !showHourlyRate && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                Volunteer Position
+              </Badge>
+            )}
+            <span className="flex items-center gap-1">
+              <Users className="w-4 h-4 flex-shrink-0" />
+              {job.positions_available - job.positions_filled} position{job.positions_available - job.positions_filled > 1 ? "s" : ""} left
+            </span>
+          </div>
+
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-3 break-words">
+            {job.description}
+          </p>
+
+          {job.skills_required && job.skills_required.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {job.skills_required.slice(0, 5).map((skill) => (
+                <Badge key={skill} variant="secondary" className="text-xs">
+                  {skill}
+                </Badge>
+              ))}
+              {job.skills_required.length > 5 && (
+                <Badge variant="outline" className="text-xs">
+                  +{job.skills_required.length - 5}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {new Date(job.created_at).toLocaleDateString()}
+          </span>
+          <Button 
+            asChild 
+            className="h-11 min-h-[44px] sm:h-10 sm:min-h-0"
+            aria-label={`View details for ${job.title}`}
+          >
+            <Link to={`/jobs/${job.id}`}>View Details</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+JobCard.displayName = 'JobCard';
+
 export default function JobSearch() {
   const { user } = useAuthContext();
 
@@ -56,31 +162,29 @@ export default function JobSearch() {
   // Debounce search term to prevent excessive re-renders
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Utility function to count active filters
-  const getActiveFilterCount = () => {
+  // Memoize active filter count calculation
+  const activeFilterCount = useMemo(() => {
     let count = 0;
     if (searchTerm) count++;
     if (cityFilter) count++;
     if (jobTypeFilter !== "all") count++;
     if (industryFilter !== "all") count++;
     return count;
-  };
+  }, [searchTerm, cityFilter, jobTypeFilter, industryFilter]);
 
-  const activeFilterCount = getActiveFilterCount();
-
-  // Clear all filters
-  const handleClearAllFilters = () => {
+  // Stabilize filter clear callback
+  const handleClearAllFilters = useCallback(() => {
     setSearchTerm("");
     setCityFilter("");
     setJobTypeFilter("all");
     setIndustryFilter("all");
-  };
+  }, []);
 
-  // Retry function for error handling
-  const handleRetry = () => {
+  // Stabilize retry callback
+  const handleRetry = useCallback(() => {
     setError(null);
     setIsLoading(true);
-  };
+  }, []);
 
   useEffect(() => {
     async function fetchJobs() {
@@ -91,41 +195,18 @@ export default function JobSearch() {
       }
 
       try {
-        let query = supabase
-          .from("jobs")
-          .select(`
-            id,
-            title,
-            description,
-            job_type,
-            industry,
-            duration,
-            location_city,
-            location_suburb,
-            hourly_rate_min,
-            hourly_rate_max,
-            skills_required,
-            positions_available,
-            positions_filled,
-            created_at,
-            contractor_id
-          `)
-          .eq("status", "published")
-          .order("created_at", { ascending: false });
-
-        if (cityFilter) {
-          query = query.ilike("location_city", `%${cityFilter}%`);
-        }
-
-        if (jobTypeFilter !== "all") {
-          query = query.eq("job_type", jobTypeFilter);
-        }
-
-        if (industryFilter !== "all") {
-          query = query.eq("industry", industryFilter);
-        }
-
-        const { data, error: queryError } = await query;
+        // Use full-text search utility (Requirement 14.1, 14.4)
+        const { data, error: queryError } = await searchJobs(
+          supabase,
+          debouncedSearchTerm,
+          {
+            status: "published",
+            location_city: cityFilter || undefined,
+            job_type: jobTypeFilter !== "all" ? jobTypeFilter : undefined,
+            industry: industryFilter !== "all" ? industryFilter : undefined,
+          },
+          100 // Fetch more results for client-side filtering
+        );
 
         if (queryError) {
           console.error("Error fetching jobs:", queryError);
@@ -140,19 +221,19 @@ export default function JobSearch() {
         
         if (user) {
           // Fetch contractor info for authenticated users
-          const contractorIds = [...new Set(data?.map((j) => j.contractor_id) || [])];
+          const contractorIds = [...new Set(data?.map((j: any) => j.contractor_id) || [])];
           const { data: contractors } = await supabase
             .from("contractor_profiles")
             .select("id, company_name")
             .in("id", contractorIds);
 
-          jobsWithContractor = data?.map((job) => ({
+          jobsWithContractor = data?.map((job: any) => ({
             ...job,
             contractor: contractors?.find((c) => c.id === job.contractor_id) || null,
           })) || [];
         } else {
           // For unauthenticated users, hide company info
-          jobsWithContractor = data?.map((job) => ({
+          jobsWithContractor = data?.map((job: any) => ({
             ...job,
             contractor: null,
           })) || [];
@@ -168,18 +249,6 @@ export default function JobSearch() {
           ...job,
           industry: job.industry || "Other"
         }));
-
-        // Client-side search filtering using debounced search term
-        if (debouncedSearchTerm) {
-          const term = debouncedSearchTerm.toLowerCase();
-          filtered = filtered.filter(
-            (j) =>
-              j.title.toLowerCase().includes(term) ||
-              j.description.toLowerCase().includes(term) ||
-              j.contractor?.company_name.toLowerCase().includes(term) ||
-              j.skills_required?.some((s) => s.toLowerCase().includes(term))
-          );
-        }
 
         setJobs(filtered);
         setError(null);
@@ -424,9 +493,10 @@ export default function JobSearch() {
 
         {/* Results */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-            <p className="text-sm text-muted-foreground">Loading jobs...</p>
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonJobPosting key={i} variant="card" />
+            ))}
           </div>
         ) : jobs.length === 0 ? (
           <EmptyState 
@@ -435,107 +505,9 @@ export default function JobSearch() {
           />
         ) : (
           <div className="space-y-4">
-            {jobs.map((job) => {
-              // Determine if we should show hourly rate for volunteering jobs
-              const showHourlyRate = job.job_type !== "volunteering" || 
-                                     (job.hourly_rate_min !== null && job.hourly_rate_min > 0);
-              
-              return (
-                <div
-                  key={job.id}
-                  className="bg-card rounded-xl p-4 sm:p-6 border border-border/50 shadow-soft hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      {/* Industry and Job Type Badges */}
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <JobTypeBadge jobType={job.job_type as JobType} />
-                        <IndustryBadge industry={job.industry as Industry} />
-                      </div>
-
-                      <h3 className="text-lg font-semibold mb-1 break-words">{job.title}</h3>
-                      {user ? (
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {job.contractor?.company_name || "Company"}
-                        </p>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
-                          <Lock className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>Sign in to see company details</span>
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-3 sm:gap-4 text-sm text-muted-foreground mb-3">
-                        {job.location_city && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4 flex-shrink-0" />
-                            <span className="break-words">
-                              {job.location_suburb && `${job.location_suburb}, `}
-                              {job.location_city}
-                            </span>
-                          </span>
-                        )}
-                        {job.duration && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4 flex-shrink-0" />
-                            {job.duration}
-                          </span>
-                        )}
-                        {/* Conditional hourly rate display */}
-                        {showHourlyRate && (job.hourly_rate_min || job.hourly_rate_max) && (
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4 flex-shrink-0" />$
-                            {job.hourly_rate_min || "?"} - ${job.hourly_rate_max || "?"}/hr
-                          </span>
-                        )}
-                        {/* Volunteer Position badge when no rate is shown */}
-                        {job.job_type === "volunteering" && !showHourlyRate && (
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
-                            Volunteer Position
-                          </Badge>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Users className="w-4 h-4 flex-shrink-0" />
-                          {job.positions_available - job.positions_filled} position{job.positions_available - job.positions_filled > 1 ? "s" : ""} left
-                        </span>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3 break-words">
-                        {job.description}
-                      </p>
-
-                      {job.skills_required && job.skills_required.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {job.skills_required.slice(0, 5).map((skill) => (
-                            <Badge key={skill} variant="secondary" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                          {job.skills_required.length > 5 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{job.skills_required.length - 5}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-2">
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(job.created_at).toLocaleDateString()}
-                      </span>
-                      <Button 
-                        asChild 
-                        className="h-11 min-h-[44px] sm:h-10 sm:min-h-0"
-                        aria-label={`View details for ${job.title}`}
-                      >
-                        <Link to={`/jobs/${job.id}`}>View Details</Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {jobs.map((job) => (
+              <JobCard key={job.id} job={job} user={user} />
+            ))}
           </div>
         )}
       </div>

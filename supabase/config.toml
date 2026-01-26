@@ -1,5 +1,14 @@
 project_id = "xzrlnezeuubdoqllvodi"
 
+# Database connection pooling configuration
+[db]
+# Connection pool settings for optimal performance
+pooler_enabled = true
+pool_mode = "transaction"  # Use transaction pooling for better performance
+default_pool_size = 15     # Default pool size per user
+max_client_conn = 100      # Maximum client connections
+pool_timeout = 30          # Connection timeout in seconds
+
 [functions.send-password-reset]
 verify_jwt = false
 

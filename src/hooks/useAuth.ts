@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { initializeSessionManager, stopSessionManager } from "@/lib/sessionManager";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
 
@@ -86,6 +87,7 @@ export function useAuth() {
       if (event === "SIGNED_OUT") {
         clearAuthStorage();
         clearAuthState();
+        stopSessionManager();
         return;
       }
 
@@ -97,6 +99,16 @@ export function useAuth() {
         rolesLoading: session?.user ? true : false,
         roles: session?.user ? prev.roles : [],
       }));
+
+      // Initialize session manager when user signs in
+      if (session?.user && event === "SIGNED_IN") {
+        initializeSessionManager({
+          onSessionTimeout: async () => {
+            // Auto sign out on timeout
+            await supabase.auth.signOut();
+          },
+        });
+      }
 
       // Defer role fetching to avoid deadlock
       if (session?.user) {
@@ -138,6 +150,14 @@ export function useAuth() {
           if (isMounted) {
             setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
           }
+          
+          // Initialize session manager for existing session
+          initializeSessionManager({
+            onSessionTimeout: async () => {
+              // Auto sign out on timeout
+              await supabase.auth.signOut();
+            },
+          });
         } else {
           if (isMounted) {
             setAuthState((prev) => ({ ...prev, rolesLoading: false }));
@@ -220,6 +240,13 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    // Stop session manager
+    stopSessionManager();
+    
+    // Clear auth storage
+    clearAuthStorage();
+    
+    // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
     return { error };
   };

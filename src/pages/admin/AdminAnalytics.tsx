@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -15,19 +15,19 @@ import {
   Building,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+
+// Lazy load chart components from recharts
+const BarChart = lazy(() => import("recharts").then(module => ({ default: module.BarChart })));
+const Bar = lazy(() => import("recharts").then(module => ({ default: module.Bar })));
+const XAxis = lazy(() => import("recharts").then(module => ({ default: module.XAxis })));
+const YAxis = lazy(() => import("recharts").then(module => ({ default: module.YAxis })));
+const CartesianGrid = lazy(() => import("recharts").then(module => ({ default: module.CartesianGrid })));
+const Tooltip = lazy(() => import("recharts").then(module => ({ default: module.Tooltip })));
+const ResponsiveContainer = lazy(() => import("recharts").then(module => ({ default: module.ResponsiveContainer })));
+const PieChart = lazy(() => import("recharts").then(module => ({ default: module.PieChart })));
+const Pie = lazy(() => import("recharts").then(module => ({ default: module.Pie })));
+const Cell = lazy(() => import("recharts").then(module => ({ default: module.Cell })));
+const Legend = lazy(() => import("recharts").then(module => ({ default: module.Legend })));
 
 type MetricData = {
   totalHires: number;
@@ -299,27 +299,33 @@ export default function AdminAnalytics() {
             </CardHeader>
             <CardContent>
               {metrics.industryHiring.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={metrics.industryHiring}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis 
-                      dataKey="name" 
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px"
-                      }}
-                    />
-                    <Bar dataKey="hires" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-[300px]">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                }>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={metrics.industryHiring}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px"
+                        }}
+                      />
+                      <Bar dataKey="hires" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Suspense>
               ) : (
                 <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                   No hiring data available yet
@@ -338,32 +344,38 @@ export default function AdminAnalytics() {
             </CardHeader>
             <CardContent>
               {metrics.jobSeekerLocations.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={metrics.jobSeekerLocations}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {metrics.jobSeekerLocations.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px"
-                      }}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-[300px]">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                }>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={metrics.jobSeekerLocations}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {metrics.jobSeekerLocations.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px"
+                        }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Suspense>
               ) : (
                 <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                   No location data available yet

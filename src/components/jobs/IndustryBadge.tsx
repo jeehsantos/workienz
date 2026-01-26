@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { INDUSTRY_CONFIG, Industry } from "@/data/industries";
+import { memo } from "react";
 
 interface IndustryBadgeProps {
   industry: Industry;
@@ -12,11 +13,11 @@ interface IndustryBadgeProps {
  * Supports all industries defined in INDUSTRY_CONFIG
  * Includes dark mode compatibility
  */
-export function IndustryBadge({ 
+export const IndustryBadge = memo(({ 
   industry, 
   className = "", 
   variant = "outline" 
-}: IndustryBadgeProps) {
+}: IndustryBadgeProps) => {
   const config = INDUSTRY_CONFIG[industry];
   
   if (!config) {
@@ -28,4 +29,6 @@ export function IndustryBadge({
       {industry}
     </Badge>
   );
-}
+});
+
+IndustryBadge.displayName = 'IndustryBadge';

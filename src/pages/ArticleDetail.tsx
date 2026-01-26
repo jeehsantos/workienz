@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ReportProblemDialog } from "@/components/articles/ReportProblemDialog";
 import { ShareArticle } from "@/components/articles/ShareArticle";
+import { SkeletonArticle } from "@/components/ui/skeleton-components";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Article = {
   id: string;
@@ -127,8 +129,29 @@ export default function ArticleDetail() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="py-6 md:py-8">
+            <Skeleton className="h-10 w-40" />
+          </div>
+          <div className="grid lg:grid-cols-[1fr_300px] gap-8 pb-16">
+            <div className="min-w-0">
+              <SkeletonArticle showImage={true} showMeta={true} />
+            </div>
+            <aside className="hidden lg:block">
+              <div className="sticky top-8 space-y-6">
+                <div className="bg-card rounded-lg border border-border/50 p-4 space-y-3">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+                <div className="bg-card rounded-lg border border-border/50 p-4">
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
       </div>
     );
   }

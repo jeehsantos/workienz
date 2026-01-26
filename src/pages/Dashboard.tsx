@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,12 @@ export default function Dashboard() {
   if (!user) {
     return null;
   }
+
+  // Memoize role-based UI decisions
+  const showEmployeeCards = useMemo(() => isEmployee(), [isEmployee]);
+  const showContractorCards = useMemo(() => isContractor(), [isContractor]);
+  const showWriterCards = useMemo(() => isWriter(), [isWriter]);
+  const showAdminCards = useMemo(() => isAdmin(), [isAdmin]);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -56,7 +62,7 @@ export default function Dashboard() {
         {/* Quick actions grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Profile Card - Employee */}
-          {isEmployee() && (
+          {showEmployeeCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                 <User className="w-6 h-6 text-primary" />
@@ -72,7 +78,7 @@ export default function Dashboard() {
           )}
 
           {/* Profile Card - Contractor */}
-          {isContractor() && (
+          {showContractorCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
                 <User className="w-6 h-6 text-accent" />
@@ -88,7 +94,7 @@ export default function Dashboard() {
           )}
 
           {/* Contractor: Post Jobs */}
-          {isContractor() && (
+          {showContractorCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
                 <Briefcase className="w-6 h-6 text-accent" />
@@ -104,7 +110,7 @@ export default function Dashboard() {
           )}
 
           {/* Contractor: My Jobs */}
-          {isContractor() && (
+          {showContractorCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-accent" />
@@ -120,7 +126,7 @@ export default function Dashboard() {
           )}
 
           {/* Contractor-specific: Find Workers */}
-          {isContractor() && (
+          {showContractorCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-accent/20 flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-accent" />
@@ -136,7 +142,7 @@ export default function Dashboard() {
           )}
 
           {/* Employee-specific */}
-          {isEmployee() && (
+          {showEmployeeCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                 <Briefcase className="w-6 h-6 text-primary" />
@@ -152,7 +158,7 @@ export default function Dashboard() {
           )}
 
           {/* Writer-specific */}
-          {isWriter() && (
+          {showWriterCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-secondary-foreground" />
@@ -168,7 +174,7 @@ export default function Dashboard() {
           )}
 
           {/* Writer: My Articles */}
-          {isWriter() && (
+          {showWriterCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-secondary-foreground" />
@@ -184,7 +190,7 @@ export default function Dashboard() {
           )}
 
           {/* Admin-specific */}
-          {isAdmin() && (
+          {showAdminCards && (
             <Link 
               to="/admin"
               className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
@@ -200,7 +206,7 @@ export default function Dashboard() {
           )}
 
           {/* Admin Partners */}
-          {isAdmin() && (
+          {showAdminCards && (
             <Link 
               to="/admin/partners"
               className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
@@ -216,7 +222,7 @@ export default function Dashboard() {
           )}
 
           {/* Admin Analytics */}
-          {isAdmin() && (
+          {showAdminCards && (
             <Link 
               to="/admin/analytics"
               className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
@@ -232,7 +238,7 @@ export default function Dashboard() {
           )}
 
           {/* Admin Article Management */}
-          {isAdmin() && (
+          {showAdminCards && (
             <Link 
               to="/admin/articles"
               className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
@@ -248,7 +254,7 @@ export default function Dashboard() {
           )}
 
           {/* Articles (for employees) */}
-          {isEmployee() && (
+          {showEmployeeCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
                 <FileText className="w-6 h-6 text-secondary-foreground" />
@@ -279,7 +285,7 @@ export default function Dashboard() {
         </div>
 
         {/* My Conversations Section - for employees and contractors */}
-        {(isEmployee() || isContractor()) && user && (
+        {(showEmployeeCards || showContractorCards) && user && (
           <div className="mt-8">
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
               <div className="flex items-center gap-2 mb-4">
