@@ -14,11 +14,9 @@ interface RequirementsStepProps {
   };
   physicalRequirements: string[];
   requiresCar: boolean;
-  experienceRequired: boolean;
   skills: string[];
   onFormChange: (data: { requirements: string }) => void;
   onPhysicalReqsChange: (reqs: string[]) => void;
-  onExperienceChange: (value: boolean) => void;
   onRequiresCarChange: (value: boolean) => void;
   onSkillsChange: (skills: string[]) => void;
 }
@@ -26,10 +24,8 @@ interface RequirementsStepProps {
 export function RequirementsStep({
   formData,
   physicalRequirements,
-  experienceRequired,
   requiresCar,
   skills,
-  onExperienceChange,
   onFormChange,
   onPhysicalReqsChange,
   onRequiresCarChange,
@@ -69,16 +65,6 @@ export function RequirementsStep({
 
   return (
     <div className="space-y-6">
-
-      {/* Experience Required */}
-      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-        <div>
-          <Label className="font-normal">Experience Required</Label>
-          <p className="text-xs text-muted-foreground">Only experienced workers can apply</p>
-        </div>
-        <Switch checked={experienceRequired} onCheckedChange={onExperienceChange} />
-      </div>
-
       {/* Physical Requirements */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">

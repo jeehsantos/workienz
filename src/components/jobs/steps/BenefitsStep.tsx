@@ -10,17 +10,21 @@ const DEFAULT_BENEFITS = ["Provides training", "Provides accommodation"];
 
 interface BenefitsStepProps {
   selectedBenefits: string[];
+  experienceRequired: boolean;
   isSSE: boolean;
   showSSE: boolean;
   onBenefitsChange: (benefits: string[]) => void;
+  onExperienceChange: (value: boolean) => void;
   onSSEChange: (value: boolean) => void;
 }
 
 export function BenefitsStep({
   selectedBenefits,
+  experienceRequired,
   isSSE,
   showSSE,
   onBenefitsChange,
+  onExperienceChange,
   onSSEChange,
 }: BenefitsStepProps) {
   const [allBenefits, setAllBenefits] = useState<string[]>(DEFAULT_BENEFITS);
@@ -79,6 +83,15 @@ export function BenefitsStep({
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Experience Required */}
+      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+        <div>
+          <Label className="font-normal">Experience Required</Label>
+          <p className="text-xs text-muted-foreground">Only experienced workers can apply</p>
+        </div>
+        <Switch checked={experienceRequired} onCheckedChange={onExperienceChange} />
       </div>
 
       {/* SSE Position (only for Agriculture) */}
