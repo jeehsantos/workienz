@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, ArrowLeft, Briefcase, Eye, Edit, Trash2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { JobDeletionDialog } from "@/components/jobs/JobDeletionDialog";
 
 type Job = {
   id: string;
@@ -26,6 +27,7 @@ export default function MyJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [contractorProfileId, setContractorProfileId] = useState<string | null>(null);
+  const [deletingJob, setDeletingJob] = useState<Job | null>(null);
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
@@ -77,8 +79,27 @@ export default function MyJobs() {
     }
   }, [user, isContractor, toast]);
 
-  const handleDelete = async (jobId: string) => {
-    const { error } = await supabase.from("jobs").delete().eq("id", jobId);
+  const handleDelete = async (reason: string, customReason?: string) => {
+    if (!deletingJob || !user) return;
+
+    // First insert the deletion tracking record
+    const { error: trackingError } = await supabase
+      .from("job_deletion_tracking")
+      .insert({
+        job_id: deletingJob.id,
+        job_title: deletingJob.title,
+        contractor_user_id: user.id,
+        deletion_reason: reason,
+        custom_reason: customReason || null,
+      });
+
+    if (trackingError) {
+      console.error("Error tracking deletion:", trackingError);
+      // Continue with deletion even if tracking fails
+    }
+
+    // Then delete the job
+    const { error } = await supabase.from("jobs").delete().eq("id", deletingJob.id);
 
     if (error) {
       toast({
@@ -86,11 +107,11 @@ export default function MyJobs() {
         description: "Failed to delete job.",
         variant: "destructive",
       });
-      return;
+      throw error;
     }
 
-    setJobs(jobs.filter((j) => j.id !== jobId));
-    toast({ title: "Job deleted" });
+    setJobs(jobs.filter((j) => j.id !== deletingJob.id));
+    toast({ title: "Job deleted successfully" });
   };
 
   const getStatusColor = (status: string) => {
@@ -206,7 +227,7 @@ export default function MyJobs() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDelete(job.id)}
+                      onClick={() => setDeletingJob(job)}
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
@@ -217,6 +238,14 @@ export default function MyJobs() {
           </div>
         )}
       </div>
+
+      {/* Job Deletion Dialog */}
+      <JobDeletionDialog
+        isOpen={!!deletingJob}
+        onClose={() => setDeletingJob(null)}
+        onConfirm={handleDelete}
+        jobTitle={deletingJob?.title || ""}
+      />
     </div>
   );
 }
