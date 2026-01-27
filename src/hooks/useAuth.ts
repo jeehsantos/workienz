@@ -243,8 +243,20 @@ export function useAuth() {
     // Stop session manager
     stopSessionManager();
     
-    // Clear auth storage
-    clearAuthStorage();
+    // Clear auth storage - inline implementation
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        if (k.startsWith("sb-") || k.includes("supabase") || k.includes("auth-token")) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      // ignore
+    }
     
     // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
