@@ -705,9 +705,20 @@ export default function Subscription() {
                 </div>
 
                 <div className="space-y-4">
-                  {entitlements.entitlements.map((ent) => {
+                {entitlements.entitlements.map((ent) => {
+                    // Check if this is a free tier entitlement (free_tier or free_contractor)
+                    const isFreeTier = ent.plan_type === "free_tier" || ent.plan_type === "free_contractor";
+                    
+                    // For free tier with remaining slots, always show as active (not on hold)
+                    const hasRemainingSlots = ent.remaining_slots === "unlimited" || (typeof ent.remaining_slots === "number" && ent.remaining_slots > 0);
+                    
                     // Determine if this one-time entitlement should be shown as "on hold" because a recurring subscription is active
-                    const isOnHoldDueToSubscription = !ent.is_recurring && hasActiveRecurringSubscription && ent.status === "active";
+                    // BUT exclude free tier entitlements that have remaining posts - they should show as active
+                    const isOnHoldDueToSubscription = !ent.is_recurring && 
+                      hasActiveRecurringSubscription && 
+                      ent.status === "active" && 
+                      !(isFreeTier && hasRemainingSlots);
+                    
                     const displayStatus = isOnHoldDueToSubscription ? "on_hold" : ent.status;
                     
                     return (
