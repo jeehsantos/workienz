@@ -8,7 +8,7 @@ interface FormalCVViewProps {
 }
 
 export function FormalCVView({ profile }: FormalCVViewProps) {
-  const locationParts = [profile.suburb, profile.city, profile.region, profile.country]
+  const locationParts = [profile.suburb, profile.city]
     .filter(Boolean);
   const locationString = locationParts.join(", ");
 
@@ -32,21 +32,17 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
           <p className="text-base sm:text-lg md:text-xl print:text-lg text-gray-600 mt-1">
             {profile.professionalTitle}
           </p>
-          
+          <p className="flex items-start gap-2">
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+            <span className="min-w-0">
+              <span className="font-medium">Availability:</span>
+              <span className="text-gray-700 ml-1 sm:ml-2 capitalize">
+                {profile.availability}
+              </span>
+            </span>
+         </p>
           {/* Contact Row - Stack on mobile */}
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 print:flex-row print:gap-3 mt-3 text-xs sm:text-sm text-gray-600">
-            {profile.phone && (
-              <span className="flex items-center gap-1">
-                <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                <span className="truncate">{profile.phone}</span>
-              </span>
-            )}
-            {profile.email && (
-              <span className="flex items-center gap-1">
-                <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                <span className="truncate">{profile.email}</span>
-              </span>
-            )}
             {locationString && (
               <span className="flex items-center gap-1">
                 <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
@@ -125,76 +121,6 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               </section>
             )}
 
-            {/* Professional Details */}
-            <section>
-              <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
-                Professional Details
-              </h2>
-              <div className="space-y-2 text-xs sm:text-sm print:text-xs">
-                {profile.industry && (
-                  <div className="flex items-start gap-2">
-                    <Briefcase className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <span className="font-medium">Industry:</span>
-                      <span className="text-gray-700 ml-1 sm:ml-2">{profile.industry}</span>
-                    </div>
-                  </div>
-                )}
-                {profile.experienceYears !== null && (
-                  <div className="flex items-start gap-2">
-                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <span className="font-medium">Experience:</span>
-                      <span className="text-gray-700 ml-1 sm:ml-2">{profile.experienceYears} years</span>
-                    </div>
-                  </div>
-                )}
-                {profile.availability && (
-                  <div className="flex items-start gap-2">
-                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <span className="font-medium">Availability:</span>
-                      <span className="text-gray-700 ml-1 sm:ml-2 capitalize">{profile.availability}</span>
-                    </div>
-                  </div>
-                )}
-                {profile.visaStatus && (
-                  <div className="flex items-start gap-2">
-                    <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <span className="font-medium">Visa:</span>
-                      <span className="text-gray-700 ml-1 sm:ml-2 break-words">{profile.visaStatus}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Work Capabilities */}
-            <section>
-              <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
-                Work Capabilities
-              </h2>
-              <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm print:text-xs">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profile.comfortableHeavyLifting ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <span className="text-gray-700">Heavy Lifting</span>
-                </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profile.comfortableStanding ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <span className="text-gray-700">Standing Work</span>
-                </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profile.hasCar ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <span className="text-gray-700">Own Transport</span>
-                </div>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profile.hasIrdNumber ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  <span className="text-gray-700">IRD Registered</span>
-                </div>
-              </div>
-            </section>
-
             {/* References */}
             <section>
               <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
@@ -223,6 +149,38 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               )}
             </section>
 
+            {/* Details */}
+            <section>
+              <h2 className="text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-3 print:mb-2">
+                Details
+              </h2>
+              <div className="space-y-1 text-sm print:text-xs text-gray-700">
+              {profile.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <span className="truncate">{profile.phone}</span>
+                  </span>
+                )}
+                {profile.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <span className="truncate">{profile.email}</span>
+                  </span>
+                )}
+                {profile.dateOfBirth && (
+                  <p>DOB: {format(new Date(profile.dateOfBirth), "MMM d, yyyy")}</p>
+                )}
+                {profile.visaStatus && (
+                  <div className="flex items-start gap-2">
+                    <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-medium">Visa:</span>
+                      <span className="text-gray-700 ml-1 sm:ml-2 break-words">{profile.visaStatus}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
             {/* Skills - Show in main column on mobile */}
             <section className="md:hidden">
               {profile.skills?.length > 0 && (
@@ -296,18 +254,6 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               </section>
             )}
 
-            {/* Additional Info */}
-            <section>
-              <h2 className="text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-3 print:mb-2">
-                Additional Info
-              </h2>
-              <div className="space-y-1 text-sm print:text-xs text-gray-700">
-                {profile.dateOfBirth && (
-                  <p>DOB: {format(new Date(profile.dateOfBirth), "MMM d, yyyy")}</p>
-                )}
-                <p>Country: {profile.country}</p>
-              </div>
-            </section>
           </div>
         </div>
 
