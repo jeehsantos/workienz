@@ -62,7 +62,8 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             {/* Professional Summary */}
             {profile.bio && (
               <section>
-                <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                <h2 className="flex items-center gap-2 text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                  <Users className="w-4 h-4 text-gray-500" />
                   Professional Summary
                 </h2>
                 <p className="text-xs sm:text-sm print:text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
@@ -74,7 +75,8 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             {/* Work Experience */}
             {profile.workExperience?.length > 0 && (
               <section>
-                <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                <h2 className="flex items-center gap-2 text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                  <Briefcase className="w-4 h-4 text-gray-500" />
                   Work Experience
                 </h2>
                 <div className="space-y-3 print:space-y-2">
@@ -101,7 +103,8 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             {/* Education */}
             {profile.education?.length > 0 && (
               <section>
-                <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                <h2 className="flex items-center gap-2 text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                  <GraduationCap className="w-4 h-4 text-gray-500" />
                   Education & Qualifications
                 </h2>
                 <div className="space-y-2 print:space-y-1.5">
@@ -126,7 +129,8 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
 
             {/* References */}
             <section>
-              <h2 className="text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+              <h2 className="flex items-center gap-2 text-base sm:text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2 sm:mb-3 print:mb-2">
+                <Users className="w-4 h-4 text-gray-500" />
                 References
               </h2>
               {profile.cvReferences?.length > 0 ? (
@@ -153,7 +157,7 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             </section>
 
             {/* Skills - Show in main column on mobile */}
-            <section className="md:hidden print:block">
+            <section className="md:hidden">
               {profile.skills?.length > 0 && (
                 <>
                   <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
@@ -171,7 +175,7 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             </section>
 
             {/* Languages - Show in main column on mobile */}
-            <section className="md:hidden print:block">
+            <section className="md:hidden">
               {profile.languages?.length > 0 && (
                 <>
                   <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
