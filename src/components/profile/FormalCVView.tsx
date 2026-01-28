@@ -43,12 +43,24 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
          </p>
           {/* Contact Row - Stack on mobile */}
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 print:flex-row print:gap-3 mt-3 text-xs sm:text-sm text-gray-600">
-            {locationString && (
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                <span className="truncate">{locationString}</span>
-              </span>
-            )}
+             {profile.availability && (
+                  <div className="flex items-start gap-2">
+                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-medium">Availability:</span>
+                      <span className="text-gray-700 ml-1 sm:ml-2 capitalize">{profile.availability}</span>
+                    </div>
+                  </div>
+                )}  
+                {profile.visaStatus && (
+                  <div className="flex items-start gap-2">
+                    <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <span className="font-medium">Visa:</span>
+                      <span className="text-gray-700 ml-1 sm:ml-2 break-words">{profile.visaStatus}</span>
+                    </div>
+                  </div>
+                )}
           </div>
         </header>
 
@@ -150,11 +162,17 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             </section>
 
             {/* Details */}
-            <section>
-              <h2 className="text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-3 print:mb-2">
+            <section className="md:hidden">
+              <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
                 Details
               </h2>
-              <div className="space-y-1 text-sm print:text-xs text-gray-700">
+              <div className="flex flex-wrap gap-1.5">
+                {locationString && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+                    <span className="truncate">{locationString}</span>
+                  </span>
+                )}
               {profile.phone && (
                   <span className="flex items-center gap-1">
                     <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
@@ -169,15 +187,6 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
                 )}
                 {profile.dateOfBirth && (
                   <p>DOB: {format(new Date(profile.dateOfBirth), "MMM d, yyyy")}</p>
-                )}
-                {profile.visaStatus && (
-                  <div className="flex items-start gap-2">
-                    <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <span className="font-medium">Visa:</span>
-                      <span className="text-gray-700 ml-1 sm:ml-2 break-words">{profile.visaStatus}</span>
-                    </div>
-                  </div>
                 )}
               </div>
             </section>
