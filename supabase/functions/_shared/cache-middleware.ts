@@ -57,17 +57,18 @@ export function withCache<T>(
 ): Promise<{ data: T; fromCache: boolean; headers: Record<string, string> }> {
   const { key, ttl = 5 * 60 * 1000, cacheHeaders } = options;
 
-  return (async () => {
+  return (async (): Promise<{ data: T; fromCache: boolean; headers: Record<string, string> }> => {
     // Try cache first
     const cached = edgeCache.get<T>(key);
     if (cached) {
+      const headers: Record<string, string> = cacheHeaders ? {
+        'Cache-Control': generateCacheControl(cacheHeaders),
+        'X-Cache': 'HIT',
+      } : {};
       return {
         data: cached,
         fromCache: true,
-        headers: cacheHeaders ? {
-          'Cache-Control': generateCacheControl(cacheHeaders),
-          'X-Cache': 'HIT',
-        } : {},
+        headers,
       };
     }
 
@@ -77,13 +78,14 @@ export function withCache<T>(
     // Store in cache
     edgeCache.set(key, data, ttl);
 
+    const headers: Record<string, string> = cacheHeaders ? {
+      'Cache-Control': generateCacheControl(cacheHeaders),
+      'X-Cache': 'MISS',
+    } : {};
     return {
       data,
       fromCache: false,
-      headers: cacheHeaders ? {
-        'Cache-Control': generateCacheControl(cacheHeaders),
-        'X-Cache': 'MISS',
-      } : {},
+      headers,
     };
   })();
 }

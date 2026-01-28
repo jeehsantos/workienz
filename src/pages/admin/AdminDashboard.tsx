@@ -21,12 +21,14 @@ import {
   Settings,
   Save,
   DollarSign,
+  Gift,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProductPriceManager } from "@/components/admin/ProductPriceManager";
+import { AdminReferralManagement } from "@/components/admin/AdminReferralManagement";
 import {
   Select,
   SelectContent,
@@ -546,7 +548,7 @@ export default function AdminDashboard() {
 
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Users
@@ -563,6 +565,10 @@ export default function AdminDashboard() {
               <Briefcase className="w-4 h-4" />
               Jobs
             </TabsTrigger>
+            <TabsTrigger value="referrals" className="flex items-center gap-2">
+              <Gift className="w-4 h-4" />
+              Referrals
+            </TabsTrigger>
             <TabsTrigger value="pricing" className="flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               Pricing
@@ -573,8 +579,8 @@ export default function AdminDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Search - hide on settings and pricing tabs */}
-          {activeTab !== "settings" && activeTab !== "pricing" && (
+          {/* Search - hide on settings, pricing, and referrals tabs */}
+          {activeTab !== "settings" && activeTab !== "pricing" && activeTab !== "referrals" && (
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -585,6 +591,11 @@ export default function AdminDashboard() {
               />
             </div>
           )}
+
+          {/* Referrals Tab - render outside loading state */}
+          <TabsContent value="referrals" className="space-y-4">
+            <AdminReferralManagement />
+          </TabsContent>
 
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
