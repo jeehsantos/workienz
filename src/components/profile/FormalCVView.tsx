@@ -152,35 +152,6 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               )}
             </section>
 
-            {/* Details */}
-            <section className="md:hidden print:block">
-              <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
-                Details
-              </h2>
-              <div className="flex flex-wrap gap-1.5">
-                {locationString && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                    <span className="truncate">{locationString}</span>
-                  </span>
-                )}
-              {profile.phone && (
-                  <span className="flex items-center gap-1">
-                    <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                    <span className="truncate">{profile.phone}</span>
-                  </span>
-                )}
-                {profile.email && (
-                  <span className="flex items-center gap-1">
-                    <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
-                    <span className="truncate">{profile.email}</span>
-                  </span>
-                )}
-                {profile.dateOfBirth && (
-                  <p>DOB: {format(new Date(profile.dateOfBirth), "MMM d, yyyy")}</p>
-                )}
-              </div>
-            </section>
             {/* Skills - Show in main column on mobile */}
             <section className="md:hidden print:block">
               {profile.skills?.length > 0 && (
@@ -220,6 +191,37 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
 
           {/* Sidebar Column - Hidden on mobile, shown on md+ and print */}
           <div className="hidden md:block print:block space-y-4 print:space-y-3">
+            {/* Details */}
+            <section>
+              <h2 className="text-lg print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-3 print:mb-2">
+                Details
+              </h2>
+              <div className="space-y-1 text-sm print:text-xs text-gray-700">
+                {locationString && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0 text-gray-500" />
+                    <span className="break-words">{locationString}</span>
+                  </div>
+                )}
+                {profile.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0 text-gray-500" />
+                    <span className="break-words">{profile.phone}</span>
+                  </div>
+                )}
+                {profile.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0 text-gray-500" />
+                    <span className="break-words">{profile.email}</span>
+                  </div>
+                )}
+                {profile.dateOfBirth && (
+                  <div className="text-gray-600">
+                    DOB: {format(new Date(profile.dateOfBirth), "MMM d, yyyy")}
+                  </div>
+                )}
+              </div>
+            </section>
             {/* Skills */}
             {profile.skills?.length > 0 && (
               <section>
