@@ -156,6 +156,41 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               )}
             </section>
 
+            {/* Skills - Show in main column on mobile */}
+            <section className="md:hidden">
+              {profile.skills?.length > 0 && (
+                <>
+                  <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
+                    Skills
+                  </h2>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.skills.map((skill) => (
+                      <span key={skill} className="text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+
+            {/* Languages - Show in main column on mobile */}
+            <section className="md:hidden">
+              {profile.languages?.length > 0 && (
+                <>
+                  <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
+                    Languages
+                  </h2>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.languages.map((lang) => (
+                      <span key={lang} className="text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
           </div>
 
           {/* Sidebar Column - Hidden on mobile, shown on md+ and print */}
