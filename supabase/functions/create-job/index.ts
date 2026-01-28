@@ -83,7 +83,7 @@ serve(async (req) => {
     if (!jobData || !jobData.title || !jobData.description) {
       return new Response(
         JSON.stringify({ error: "ERR_INVALID_DATA", message: "Job title and description are required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 },
       );
     }
 
@@ -96,8 +96,11 @@ serve(async (req) => {
 
     if (cpError || !contractorProfile) {
       return new Response(
-        JSON.stringify({ error: "ERR_NO_CONTRACTOR_PROFILE", message: "You must complete your contractor profile first" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        JSON.stringify({
+          error: "ERR_NO_CONTRACTOR_PROFILE",
+          message: "You must complete your contractor profile first",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
       );
     }
 
@@ -114,14 +117,14 @@ serve(async (req) => {
           .eq("id", jobId)
           .eq("contractor_id", contractorProfile.id)
           .single();
-        
+
         isAlreadyPublished = existingJob?.status === "published";
         logStep("Existing job status check", { jobId, isAlreadyPublished, currentStatus: existingJob?.status });
       }
 
       // Only check entitlements if this is a new publish (not updating an already published job)
       let selectedEntitlement = null;
-      
+
       if (!isAlreadyPublished) {
         // Fetch active entitlements
         const { data: entitlements, error: entError } = await supabaseClient
@@ -140,10 +143,11 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({
               error: "ERR_NO_SUBSCRIPTION",
-              message: "You need an active subscription to publish jobs. Choose a plan to get started.",
+              message:
+                "Love seeing those job posts fly! It looks like you’ve reached your free limit. Ready to take the next step? Choose a plan that fits your goals and let’s get your team growing again.",
               upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
             }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
           );
         }
 
@@ -151,10 +155,7 @@ serve(async (req) => {
         for (const ent of entitlements) {
           // Check expiration
           if (ent.expires_at && new Date(ent.expires_at) < new Date()) {
-            await supabaseClient
-              .from("contractor_entitlements")
-              .update({ status: "expired" })
-              .eq("id", ent.id);
+            await supabaseClient.from("contractor_entitlements").update({ status: "expired" }).eq("id", ent.id);
             continue;
           }
 
@@ -181,18 +182,19 @@ serve(async (req) => {
               current_tier: currentTier,
               upgrade_options: ["14_day_sprint", "monthly_contractor", "quarterly_contractor"],
             }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
           );
         }
 
         // Enforce free tier position limit (max 1 position) - support both 'free_tier' and 'free_contractor'
-        const isFreeTier = selectedEntitlement.plan_type === "free_tier" || selectedEntitlement.plan_type === "free_contractor";
+        const isFreeTier =
+          selectedEntitlement.plan_type === "free_tier" || selectedEntitlement.plan_type === "free_contractor";
         if (isFreeTier) {
           const maxPositionsForFreeTier = 1;
           if (jobData.positions_available && jobData.positions_available > maxPositionsForFreeTier) {
-            logStep("Free tier position limit exceeded", { 
-              requested: jobData.positions_available, 
-              allowed: maxPositionsForFreeTier 
+            logStep("Free tier position limit exceeded", {
+              requested: jobData.positions_available,
+              allowed: maxPositionsForFreeTier,
             });
             return new Response(
               JSON.stringify({
@@ -201,7 +203,7 @@ serve(async (req) => {
                 current_tier: selectedEntitlement.plan_type,
                 upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
               }),
-              { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+              { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
             );
           }
           // Force positions_available to 1 for free tier (belt and suspenders)
@@ -264,7 +266,7 @@ serve(async (req) => {
             .in("setting_key", ["single_post_duration_days", "14_day_sprint_duration_days"]);
 
           const settingsMap = Object.fromEntries(
-            (settings ?? []).map((s) => [s.setting_key, parseInt(s.setting_value, 10)])
+            (settings ?? []).map((s) => [s.setting_key, parseInt(s.setting_value, 10)]),
           );
 
           let durationDays = 14; // Default
@@ -287,10 +289,7 @@ serve(async (req) => {
           logStep("Entitlement fully consumed", { entitlementId: selectedEntitlement.id });
         }
 
-        await supabaseClient
-          .from("contractor_entitlements")
-          .update(updateData)
-          .eq("id", selectedEntitlement.id);
+        await supabaseClient.from("contractor_entitlements").update(updateData).eq("id", selectedEntitlement.id);
       }
 
       // Handle shifts if provided
@@ -318,13 +317,13 @@ serve(async (req) => {
           job_id: createdJobId,
           status: "published",
           entitlement_id: selectedEntitlement?.id ?? null,
-          remaining_posts: selectedEntitlement 
-            ? (selectedEntitlement.job_allowance === null
+          remaining_posts: selectedEntitlement
+            ? selectedEntitlement.job_allowance === null
               ? "unlimited"
-              : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1))
+              : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
             : "N/A",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
       );
     } else {
       // Draft - no entitlement check needed
@@ -381,7 +380,7 @@ serve(async (req) => {
           job_id: createdJobId,
           status: "draft",
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
       );
     }
   } catch (error) {
