@@ -32,15 +32,6 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
           <p className="text-base sm:text-lg md:text-xl print:text-lg text-gray-600 mt-1">
             {profile.professionalTitle}
           </p>
-          <p className="flex items-start gap-2">
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-            <span className="min-w-0">
-              <span className="font-medium">Availability:</span>
-              <span className="text-gray-700 ml-1 sm:ml-2 capitalize">
-                {profile.availability}
-              </span>
-            </span>
-         </p>
           {/* Contact Row - Stack on mobile */}
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 print:flex-row print:gap-3 mt-3 text-xs sm:text-sm text-gray-600">
              {profile.availability && (
@@ -53,10 +44,10 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
                   </div>
                 )}  
                 {profile.visaStatus && (
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2 sm:ml-4">
                     <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500 mt-0.5 flex-shrink-0" />
                     <div className="min-w-0">
-                      <span className="font-medium">Visa:</span>
+                      <span className="font-medium">Current visa:</span>
                       <span className="text-gray-700 ml-1 sm:ml-2 break-words">{profile.visaStatus}</span>
                     </div>
                   </div>
@@ -162,7 +153,7 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             </section>
 
             {/* Details */}
-            <section className="md:hidden">
+            <section className="md:hidden print:block">
               <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
                 Details
               </h2>
@@ -191,7 +182,7 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
               </div>
             </section>
             {/* Skills - Show in main column on mobile */}
-            <section className="md:hidden">
+            <section className="md:hidden print:block">
               {profile.skills?.length > 0 && (
                 <>
                   <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
@@ -209,7 +200,7 @@ export function FormalCVView({ profile }: FormalCVViewProps) {
             </section>
 
             {/* Languages - Show in main column on mobile */}
-            <section className="md:hidden">
+            <section className="md:hidden print:block">
               {profile.languages?.length > 0 && (
                 <>
                   <h2 className="text-base print:text-base font-bold text-gray-900 uppercase tracking-wide border-b border-gray-300 pb-1 mb-2">
