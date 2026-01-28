@@ -164,9 +164,6 @@ export default function ViewProfile() {
                     <Printer className="w-4 h-4 mr-2" />
                     Print to PDF
                   </Button>
-                  <p className="text-[10px] text-muted-foreground hidden sm:block">
-                    Tip: Disable "Headers and footers" in print settings
-                  </p>
                 </div>
               )}
               <Button asChild>
