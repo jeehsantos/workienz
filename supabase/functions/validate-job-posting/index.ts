@@ -95,7 +95,7 @@ serve(async (req) => {
         can_post: false,
         remaining_posts: 0,
         error_code: "ERR_NO_SUBSCRIPTION",
-        message: "You need an active subscription to post jobs. Choose a plan to get started.",
+        message: "Love seeing those job posts fly! It looks like you’ve reached your free limit. Ready to take the next step? Choose a plan that fits your goals and let’s get your team growing again.",
         current_tier: null,
         plan_type: null,
         upgrade_options: ["single_post", "14_day_sprint", "monthly_contractor", "quarterly_contractor"],
