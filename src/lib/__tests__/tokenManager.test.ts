@@ -130,7 +130,7 @@ describe('Token Manager', () => {
       };
 
       vi.mocked(supabase.auth.refreshSession).mockResolvedValue({
-        data: { session: newSession as any },
+        data: { session: newSession as any, user: newSession.user as any },
         error: null,
       });
 
@@ -141,7 +141,7 @@ describe('Token Manager', () => {
 
     it('should return null on refresh failure', async () => {
       vi.mocked(supabase.auth.refreshSession).mockResolvedValue({
-        data: { session: null },
+        data: { session: null, user: null },
         error: new Error('Refresh failed') as any,
       });
 
@@ -158,7 +158,7 @@ describe('Token Manager', () => {
       };
 
       vi.mocked(supabase.auth.refreshSession).mockResolvedValue({
-        data: { session: newSession as any },
+        data: { session: newSession as any, user: newSession.user as any },
         error: null,
       });
 
@@ -176,7 +176,7 @@ describe('Token Manager', () => {
       const error = new Error('Refresh failed');
 
       vi.mocked(supabase.auth.refreshSession).mockResolvedValue({
-        data: { session: null },
+        data: { session: null, user: null },
         error: error as any,
       });
 
@@ -231,6 +231,7 @@ describe('Token Manager', () => {
             refresh_token: 'new-refresh-token',
             user: { id: 'user-123' },
           } as any,
+          user: { id: 'user-123' } as any,
         },
         error: null,
       });

@@ -526,6 +526,51 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_referral_credits: {
+        Row: {
+          bonus_credits_balance: number
+          bonus_credits_used: number
+          created_at: string
+          has_premium_article_access: boolean
+          id: string
+          is_shadow_banned: boolean
+          referral_code: string
+          shadow_banned_at: string | null
+          shadow_banned_reason: string | null
+          total_verified_referrals: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bonus_credits_balance?: number
+          bonus_credits_used?: number
+          created_at?: string
+          has_premium_article_access?: boolean
+          id?: string
+          is_shadow_banned?: boolean
+          referral_code: string
+          shadow_banned_at?: string | null
+          shadow_banned_reason?: string | null
+          total_verified_referrals?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bonus_credits_balance?: number
+          bonus_credits_used?: number
+          created_at?: string
+          has_premium_article_access?: boolean
+          id?: string
+          is_shadow_banned?: boolean
+          referral_code?: string
+          shadow_banned_at?: string | null
+          shadow_banned_reason?: string | null
+          total_verified_referrals?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       job_applications: {
         Row: {
           cover_letter: string | null
@@ -1014,6 +1059,51 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown
+          referral_code: string
+          referred_user_id: string
+          referrer_user_id: string
+          status: Database["public"]["Enums"]["referral_status"]
+          updated_at: string
+          user_agent: string | null
+          verified_at: string | null
+          voided_at: string | null
+          voided_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          referral_code: string
+          referred_user_id: string
+          referrer_user_id: string
+          status?: Database["public"]["Enums"]["referral_status"]
+          updated_at?: string
+          user_agent?: string | null
+          verified_at?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          referral_code?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+          status?: Database["public"]["Enums"]["referral_status"]
+          updated_at?: string
+          user_agent?: string | null
+          verified_at?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -1082,9 +1172,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_referral_bonus_credits: {
+        Args: { verified_count: number }
+        Returns: number
+      }
       contractor_has_published_jobs: {
         Args: { _contractor_profile_id: string }
         Returns: boolean
+      }
+      generate_referral_code: { Args: never; Returns: string }
+      get_referral_credits_balance: {
+        Args: { _user_id: string }
+        Returns: number
       }
       get_unread_message_count: { Args: { _user_id: string }; Returns: number }
       get_user_roles: {
@@ -1092,6 +1191,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"][]
       }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
+      has_referral_premium_access: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1103,6 +1206,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "contractor" | "employee" | "writer"
       job_status: "draft" | "published" | "closed" | "filled"
+      referral_status: "pending" | "verified" | "voided"
       subscription_status: "active" | "cancelled" | "expired" | "pending"
     }
     CompositeTypes: {
@@ -1233,6 +1337,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "contractor", "employee", "writer"],
       job_status: ["draft", "published", "closed", "filled"],
+      referral_status: ["pending", "verified", "voided"],
       subscription_status: ["active", "cancelled", "expired", "pending"],
     },
   },

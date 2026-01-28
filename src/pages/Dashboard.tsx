@@ -4,6 +4,9 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle, BarChart3, CreditCard, FolderEdit } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
+import { ReferralDashboard } from "@/components/referrals/ReferralDashboard";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -32,6 +35,24 @@ export default function Dashboard() {
   const showContractorCards = useMemo(() => isContractor(), [isContractor]);
   const showWriterCards = useMemo(() => isWriter(), [isWriter]);
   const showAdminCards = useMemo(() => isAdmin(), [isAdmin]);
+
+  // Check if user is a free tier employee (for showing referral dashboard)
+  const { data: hasActiveSubscription } = useQuery({
+    queryKey: ["user-subscription-status", user?.id],
+    queryFn: async () => {
+      if (!user) return false;
+      const { data } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user && showEmployeeCards,
+  });
+
+  const showReferralDashboard = showEmployeeCards && !hasActiveSubscription;
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -294,6 +315,13 @@ export default function Dashboard() {
               </div>
               <MyConversations userId={user.id} />
             </div>
+          </div>
+        )}
+
+        {/* Referral Program Section - for free tier employees only */}
+        {showReferralDashboard && (
+          <div className="mt-8">
+            <ReferralDashboard />
           </div>
         )}
       </div>

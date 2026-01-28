@@ -10,6 +10,10 @@ interface SubmitRequest {
   cover_letter?: string;
 }
 
+// Constants for application limits
+const MAX_CONCURRENT_APPLICATIONS = 3;
+const BASE_FREE_TIER_APPLICATIONS = 1;
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -155,7 +159,27 @@ Deno.serve(async (req) => {
 
     const activeApplications = activeAppsCount || 0;
 
-    // 8. Calculate cooldown
+    // 8. Get referral credits for free tier users
+    let referralCreditsRemaining = 0;
+    let referralCreditsRecord: any = null;
+    
+    if (!isSubscribed) {
+      const { data: referralCredits } = await supabase
+        .from('employee_referral_credits')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (referralCredits && !referralCredits.is_shadow_banned) {
+        referralCreditsRemaining = referralCredits.bonus_credits_balance - referralCredits.bonus_credits_used;
+        referralCreditsRecord = referralCredits;
+      }
+    }
+
+    // 9. Calculate total available applications for free tier
+    const totalFreeApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
+
+    // 10. Calculate cooldown
     const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
 
     if (employeeProfile.last_application_at) {
@@ -172,7 +196,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 9. Check application slots
+    // 11. Check application slots with queue system
     if (isSubscribed) {
       if (activeApplications >= paidTierMaxActiveApps) {
         return new Response(
@@ -181,15 +205,45 @@ Deno.serve(async (req) => {
         );
       }
     } else {
-      if (activeApplications >= 1) {
+      // Free tier logic with referral credits and queue system
+      
+      // First, check the concurrency limit (max 3 active at any time)
+      if (activeApplications >= MAX_CONCURRENT_APPLICATIONS) {
         return new Response(
-          JSON.stringify({ error: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!" }),
+          JSON.stringify({ 
+            error: `You have ${activeApplications} active applications. The maximum concurrent applications is ${MAX_CONCURRENT_APPLICATIONS}. Please wait for a response on your current applications before applying to more jobs.`,
+            remaining_credits: referralCreditsRemaining,
+            active_applications: activeApplications,
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check if user has any available application credits
+      // Count how many applications the user has made (both active and completed)
+      const { count: totalApplicationsMade } = await supabase
+        .from('job_applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('employee_id', employeeProfile.id);
+
+      // For free tier: base is 1, plus any referral bonus credits
+      // Calculate if they can still apply
+      const usedCredits = referralCreditsRecord?.bonus_credits_used || 0;
+      const hasBaseApplicationLeft = activeApplications < BASE_FREE_TIER_APPLICATIONS;
+      const hasReferralCreditsLeft = referralCreditsRemaining > 0;
+
+      if (!hasBaseApplicationLeft && !hasReferralCreditsLeft) {
+        return new Response(
+          JSON.stringify({ 
+            error: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features! Alternatively, invite friends to earn more application credits.",
+            upgrade_prompt: true,
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // 10. All validations passed - create the application
+    // 12. All validations passed - create the application
     console.log('[submit-application] All validations passed, creating application');
 
     const { data: appData, error: appError } = await supabase
@@ -210,20 +264,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 11. Update last_application_at
+    // 13. Update last_application_at
     await supabase
       .from('employee_profiles')
       .update({ last_application_at: new Date().toISOString() })
       .eq('id', employeeProfile.id);
 
-    // 12. Get contractor info for conversation
+    // 14. If using referral credits (free tier, not the base application), consume one
+    if (!isSubscribed && referralCreditsRecord && activeApplications >= BASE_FREE_TIER_APPLICATIONS) {
+      await supabase
+        .from('employee_referral_credits')
+        .update({ 
+          bonus_credits_used: referralCreditsRecord.bonus_credits_used + 1,
+        })
+        .eq('user_id', userId);
+
+      console.log('[submit-application] Consumed 1 referral credit for user:', userId);
+    }
+
+    // 15. Get contractor info for conversation
     const { data: contractorProfile } = await supabase
       .from('contractor_profiles')
       .select('user_id')
       .eq('id', job.contractor_id)
       .single();
 
-    // 13. Create conversation
+    // 16. Create conversation
     let conversationId: string | null = null;
     if (contractorProfile) {
       const { data: convData } = await supabase
@@ -258,6 +324,11 @@ Deno.serve(async (req) => {
 
     console.log('[submit-application] Application created successfully:', appData.id);
 
+    // Calculate remaining credits for response
+    const newReferralCreditsRemaining = referralCreditsRecord 
+      ? Math.max(0, referralCreditsRemaining - (activeApplications >= BASE_FREE_TIER_APPLICATIONS ? 1 : 0))
+      : 0;
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -265,6 +336,8 @@ Deno.serve(async (req) => {
         data: {
           application_id: appData.id,
           conversation_id: conversationId,
+          remaining_referral_credits: newReferralCreditsRemaining,
+          active_applications: activeApplications + 1,
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

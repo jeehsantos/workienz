@@ -221,7 +221,7 @@ export default function JobSearch() {
         
         if (user) {
           // Fetch contractor info for authenticated users
-          const contractorIds = [...new Set(data?.map((j: any) => j.contractor_id) || [])];
+          const contractorIds = [...new Set(data?.map((j: any) => j.contractor_id) || [])] as string[];
           const { data: contractors } = await supabase
             .from("contractor_profiles")
             .select("id, company_name")
