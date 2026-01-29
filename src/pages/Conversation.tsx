@@ -61,6 +61,8 @@ type ConversationData = {
   activity_started_at: string | null;
   last_activity_at: string | null;
   reminder_count: number;
+  hired_at: string | null;
+  scheduled_deletion_at: string | null;
   job_application: {
     id: string;
     status: string;
@@ -173,7 +175,9 @@ export default function Conversation() {
           job_application_id,
           activity_started_at,
           last_activity_at,
-          reminder_count
+          reminder_count,
+          hired_at,
+          scheduled_deletion_at
         `)
         .eq("id", id)
         .single();
@@ -247,6 +251,8 @@ export default function Conversation() {
         activity_started_at: convData.activity_started_at,
         last_activity_at: convData.last_activity_at,
         reminder_count: convData.reminder_count || 0,
+        hired_at: convData.hired_at,
+        scheduled_deletion_at: convData.scheduled_deletion_at,
         job_application: convData.job_application_id 
           ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle } } 
           : null,
@@ -594,9 +600,29 @@ export default function Conversation() {
   const isClosed = conversation?.status === "closed";
   const isUserContractor = conversation?.contractor_user_id === user?.id;
   const isHired = conversation?.job_application?.status === "hired";
+  // Check if this is a hired conversation (has job_application and is hired)
+  const isHiredConversation = isHired && conversation?.job_application_id;
+
+  // Memoize hired countdown status - for 48h archive warning after hiring
+  const hiredCountdown = useMemo(() => {
+    if (!conversation?.hired_at || !conversation?.scheduled_deletion_at) {
+      return { isHiredChat: false, hoursLeft: 0 };
+    }
+
+    const now = new Date();
+    const deletionAt = new Date(conversation.scheduled_deletion_at);
+    const hoursLeft = Math.max(0, Math.ceil((deletionAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
+
+    return { isHiredChat: true, hoursLeft };
+  }, [conversation?.hired_at, conversation?.scheduled_deletion_at]);
 
   // Memoize expiry status calculation - MUST be before any early returns
   const expiryStatus = useMemo(() => {
+    // Don't show inactivity expiry if this is a hired conversation (has its own countdown)
+    if (hiredCountdown.isHiredChat) {
+      return { status: "active" as const, hoursLeft: 0, showWarning: false };
+    }
+
     if (!conversation?.activity_started_at || !conversation?.last_activity_at || isClosed) {
       return { status: "active" as const, hoursLeft: 0, showWarning: false };
     }
@@ -618,7 +644,7 @@ export default function Conversation() {
 
     const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
     return { status: "warning" as const, hoursLeft, showWarning: true };
-  }, [conversation?.activity_started_at, conversation?.last_activity_at, isClosed]);
+  }, [conversation?.activity_started_at, conversation?.last_activity_at, isClosed, hiredCountdown.isHiredChat]);
 
   if (isLoading) {
     return (
@@ -645,7 +671,19 @@ export default function Conversation() {
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
-      {/* Expiry Warning Banner */}
+      {/* Hired Conversation Banner - 48h archive countdown */}
+      {hiredCountdown.isHiredChat && hiredCountdown.hoursLeft > 0 && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-200 dark:border-emerald-800 px-4 py-2 flex-shrink-0">
+          <div className="max-w-4xl mx-auto flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300">
+              🎉 <strong>Hired!</strong> This conversation will be archived in <strong>{hiredCountdown.hoursLeft}h</strong>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Expiry Warning Banner (for non-hired conversations) */}
       {expiryStatus.showWarning && expiryStatus.status === "warning" && (
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex-shrink-0">
           <div className="max-w-4xl mx-auto flex items-center gap-2">
@@ -755,6 +793,8 @@ export default function Conversation() {
                     size="sm" 
                     className="text-destructive hover:text-destructive h-9"
                     onClick={() => setShowCloseDialog(true)}
+                    disabled={!!isHiredConversation}
+                    title={isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined}
                   >
                     <X className="w-4 h-4 mr-2" />
                     Close
@@ -814,13 +854,21 @@ export default function Conversation() {
 
                       <DropdownMenuSeparator />
                       
-                      <DropdownMenuItem 
-                        onClick={() => setShowCloseDialog(true)}
-                        className="h-11 text-destructive focus:text-destructive"
-                      >
-                        <X className="w-4 h-4 mr-3" />
-                        Close Conversation
-                      </DropdownMenuItem>
+                      {!isHiredConversation && (
+                        <DropdownMenuItem 
+                          onClick={() => setShowCloseDialog(true)}
+                          className="h-11 text-destructive focus:text-destructive"
+                        >
+                          <X className="w-4 h-4 mr-3" />
+                          Close Conversation
+                        </DropdownMenuItem>
+                      )}
+                      {isHiredConversation && (
+                        <DropdownMenuItem disabled className="h-11 text-muted-foreground">
+                          <Clock className="w-4 h-4 mr-3" />
+                          Auto-archives in {hiredCountdown.hoursLeft}h
+                        </DropdownMenuItem>
+                      )}
                     </>
                   )}
                 </DropdownMenuContent>

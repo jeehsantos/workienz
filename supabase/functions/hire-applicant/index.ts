@@ -206,6 +206,27 @@ Deno.serve(async (req) => {
       }
     }
 
+    // 6b. Set hired_at and scheduled_deletion_at (48 hours) for the HIRED conversation
+    if (conversationId) {
+      const deletionTime = new Date();
+      deletionTime.setHours(deletionTime.getHours() + 48);
+
+      const { error: updateConvError } = await supabase
+        .from('conversations')
+        .update({
+          hired_at: new Date().toISOString(),
+          scheduled_deletion_at: deletionTime.toISOString(),
+          // Status remains 'active' - users can still chat for 48h
+        })
+        .eq('id', conversationId);
+
+      if (updateConvError) {
+        console.error('[hire-applicant] Failed to set hired_at on conversation:', updateConvError);
+      } else {
+        console.log('[hire-applicant] Conversation marked as hired with 48h deletion scheduled');
+      }
+    }
+
     // 7. Send congratulations system message in chat
     if (conversationId) {
       const { error: msgError } = await supabase
@@ -213,7 +234,7 @@ Deno.serve(async (req) => {
         .insert({
           conversation_id: conversationId,
           sender_user_id: userId,
-          content: `🎉 **CONGRATULATIONS ${employeeName.toUpperCase()}!**\n\nYou have been officially selected for the position: **${job.title}**\n\n✅ Your application status has been updated to "Hired"\n✅ Your availability status has been set to busy\n\nThe employer will be in touch with next steps. Good luck with your new role!`,
+          content: `🎉 **CONGRATULATIONS ${employeeName.toUpperCase()}!**\n\nYou have been officially selected for the position: **${job.title}**\n\n✅ Your application status has been updated to "Hired"\n✅ Your availability status has been set to busy\n\n⏰ This conversation will be archived automatically in 48 hours.\n\nThe employer will be in touch with next steps. Good luck with your new role!`,
         });
 
       if (msgError) {
