@@ -154,51 +154,7 @@ export default function Auth() {
     return password === confirmPassword;
   }, [password, confirmPassword]);
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Don't render form if already logged in
-  if (user) {
-    return null;
-  }
-
-  // Show 2FA verification screen
-  if (requires2FA && pending2FAUserId) {
-    return (
-      <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
-        <TwoFactorVerify 
-          userId={pending2FAUserId}
-          onSuccess={() => {
-            toast({
-              title: "Welcome back!",
-              description: "You've successfully signed in.",
-            });
-            // Check for pending plan after 2FA
-            const pendingPlan = localStorage.getItem("pendingPlan");
-            if (pendingPlan) {
-              localStorage.removeItem("pendingPlan");
-              navigate(`/checkout?plan=${pendingPlan}`);
-            } else {
-              navigate("/dashboard");
-            }
-          }}
-          onCancel={() => {
-            setRequires2FA(false);
-            setPending2FAUserId(null);
-            setPassword("");
-          }}
-        />
-      </main>
-    );
-  }
-
-  // Stabilize form validation callback
+  // Stabilize form validation callback - MUST be before any early returns
   const validateForm = useCallback(() => {
     const newErrors: { 
       email?: string; 
@@ -239,7 +195,44 @@ export default function Auth() {
     return Object.keys(newErrors).length === 0;
   }, [email, password, confirmPassword, firstName, lastName, isSignUp]);
 
-  // Stabilize form submit callback
+  // Stabilize user type selection callbacks - MUST be before any early returns
+  const handleSelectContractor = useCallback(() => {
+    setUserType("contractor");
+  }, []);
+
+  const handleSelectEmployee = useCallback(() => {
+    setUserType("employee");
+  }, []);
+
+  // Stabilize Google sign-in callback - MUST be before any early returns
+  const handleGoogleSignIn = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) {
+        toast({
+          title: "Google sign-in failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to initiate Google sign-in.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  // Stabilize form submit callback - MUST be before any early returns
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -349,44 +342,51 @@ export default function Auth() {
     } finally {
       setIsLoading(false);
     }
-  }, [validateForm, isSignUp, userType, signUp, email, password, firstName, lastName, toast, navigate, signIn, user]);
+  }, [validateForm, isSignUp, userType, signUp, email, password, firstName, lastName, toast, navigate, signIn]);
 
-  // Stabilize user type selection callbacks
-  const handleSelectContractor = useCallback(() => {
-    setUserType("contractor");
-  }, []);
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  const handleSelectEmployee = useCallback(() => {
-    setUserType("employee");
-  }, []);
+  // Don't render form if already logged in
+  if (user) {
+    return null;
+  }
 
-  // Stabilize Google sign-in callback
-  const handleGoogleSignIn = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-      if (error) {
-        toast({
-          title: "Google sign-in failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to initiate Google sign-in.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
+  // Show 2FA verification screen
+  if (requires2FA && pending2FAUserId) {
+    return (
+      <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
+        <TwoFactorVerify 
+          userId={pending2FAUserId}
+          onSuccess={() => {
+            toast({
+              title: "Welcome back!",
+              description: "You've successfully signed in.",
+            });
+            // Check for pending plan after 2FA
+            const pendingPlan = localStorage.getItem("pendingPlan");
+            if (pendingPlan) {
+              localStorage.removeItem("pendingPlan");
+              navigate(`/checkout?plan=${pendingPlan}`);
+            } else {
+              navigate("/dashboard");
+            }
+          }}
+          onCancel={() => {
+            setRequires2FA(false);
+            setPending2FAUserId(null);
+            setPassword("");
+          }}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
