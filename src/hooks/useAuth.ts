@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { initializeSessionManager, stopSessionManager } from "@/lib/sessionManager";
+import { useToast } from "@/hooks/use-toast";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
 
@@ -14,6 +15,8 @@ interface AuthState {
 }
 
 export function useAuth() {
+  const hasAttemptedReferral = useRef(false);
+  const { toast } = useToast();
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     session: null,
@@ -37,6 +40,47 @@ export function useAuth() {
       return [];
     }
   }, []);
+
+  const applyPendingReferral = useCallback(async (session: Session | null) => {
+    if (!session || hasAttemptedReferral.current) return;
+
+    const referralCode = localStorage.getItem("pendingReferralCode");
+    if (!referralCode) return;
+
+    hasAttemptedReferral.current = true;
+
+    try {
+      const { data, error } = await supabase.functions.invoke("process-referral", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: { referral_code: referralCode },
+      });
+
+      if (error || data?.error) {
+        console.warn("Failed to apply referral code:", error?.message || data?.error);
+        toast({
+          title: "Referral not applied",
+          description: "We couldn't apply your referral code. Please try again or contact support.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      localStorage.removeItem("pendingReferralCode");
+      toast({
+        title: "Referral applied",
+        description: "Your referral was recorded and will be verified after email confirmation.",
+      });
+    } catch (error) {
+      console.error("Error applying referral code:", error);
+      toast({
+        title: "Referral not applied",
+        description: "We couldn't apply your referral code. Please try again or contact support.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -88,6 +132,7 @@ export function useAuth() {
         clearAuthStorage();
         clearAuthState();
         stopSessionManager();
+        hasAttemptedReferral.current = false;
         return;
       }
 
@@ -108,6 +153,7 @@ export function useAuth() {
             await supabase.auth.signOut();
           },
         });
+        void applyPendingReferral(session);
       }
 
       // Defer role fetching to avoid deadlock
@@ -158,6 +204,7 @@ export function useAuth() {
               await supabase.auth.signOut();
             },
           });
+          void applyPendingReferral(session);
         } else {
           if (isMounted) {
             setAuthState((prev) => ({ ...prev, rolesLoading: false }));
@@ -203,7 +250,7 @@ export function useAuth() {
       document.removeEventListener("visibilitychange", onVisibility);
       subscription.unsubscribe();
     };
-  }, [fetchUserRoles]);
+  }, [applyPendingReferral, fetchUserRoles]);
 
   const signUp = async (
     email: string,

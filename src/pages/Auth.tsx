@@ -104,6 +104,7 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const isSignUp = searchParams.get("mode") === "signup";
   const pendingPlanFromUrl = searchParams.get("plan");
+  const referralCodeFromUrl = searchParams.get("ref");
   const navigate = useNavigate();
   const { signIn, signUp, user, isLoading: authLoading } = useAuthContext();
   const { toast } = useToast();
@@ -133,6 +134,13 @@ export default function Auth() {
       localStorage.setItem("pendingPlan", pendingPlanFromUrl);
     }
   }, [pendingPlanFromUrl]);
+
+  // Store pending referral code in localStorage
+  useEffect(() => {
+    if (referralCodeFromUrl) {
+      localStorage.setItem("pendingReferralCode", referralCodeFromUrl);
+    }
+  }, [referralCodeFromUrl]);
 
   // Redirect if already logged in
   useEffect(() => {

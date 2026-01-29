@@ -201,8 +201,13 @@ export function FormalCVSections({
                   id={`work-current-${exp.id}`}
                   checked={exp.current === true}
                   onCheckedChange={(checked) => {
-                    updateWorkExperience(exp.id, "current", checked);
-                    if (checked) updateWorkExperience(exp.id, "endDate", "");
+                    onWorkExperienceChange(
+                      workExperience.map((item) =>
+                        item.id === exp.id
+                          ? { ...item, current: checked, endDate: checked ? "" : item.endDate }
+                          : item
+                      )
+                    );
                   }}
                 />
                 <Label htmlFor={`work-current-${exp.id}`} className="font-normal cursor-pointer">
@@ -306,8 +311,13 @@ export function FormalCVSections({
                   id={`edu-current-${edu.id}`}
                   checked={edu.current === true}
                   onCheckedChange={(checked) => {
-                    updateEducation(edu.id, "current", checked);
-                    if (checked) updateEducation(edu.id, "endYear", undefined);
+                    onEducationChange(
+                      education.map((item) =>
+                        item.id === edu.id
+                          ? { ...item, current: checked, endYear: checked ? undefined : item.endYear }
+                          : item
+                      )
+                    );
                   }}
                 />
                 <Label htmlFor={`edu-current-${edu.id}`} className="font-normal cursor-pointer">
