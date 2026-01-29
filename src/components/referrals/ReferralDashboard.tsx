@@ -48,7 +48,7 @@ export function ReferralDashboard() {
 
   const handleCopyLink = () => {
     if (stats?.referral_code) {
-      const referralLink = `${window.location.origin}/auth?ref=${stats.referral_code}`;
+      const referralLink = `${window.location.origin}/auth?mode=signup&ref=${stats.referral_code}`;
       navigator.clipboard.writeText(referralLink);
       toast({
         title: "Link Copied!",
@@ -60,14 +60,14 @@ export function ReferralDashboard() {
   const handleShareTwitter = () => {
     if (stats?.referral_code) {
       const text = encodeURIComponent("Join me on Workie and find your next job! Use my referral code for exclusive bonuses:");
-      const url = encodeURIComponent(`${window.location.origin}/auth?ref=${stats.referral_code}`);
+      const url = encodeURIComponent(`${window.location.origin}/auth?mode=signup&ref=${stats.referral_code}`);
       window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=550,height=420');
     }
   };
 
   const handleShareFacebook = () => {
     if (stats?.referral_code) {
-      const url = encodeURIComponent(`${window.location.origin}/auth?ref=${stats.referral_code}`);
+      const url = encodeURIComponent(`${window.location.origin}/auth?mode=signup&ref=${stats.referral_code}`);
       window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'width=550,height=420');
     }
   };
