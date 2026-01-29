@@ -591,6 +591,35 @@ export default function Conversation() {
     }
   };
 
+  const isClosed = conversation?.status === "closed";
+  const isUserContractor = conversation?.contractor_user_id === user?.id;
+  const isHired = conversation?.job_application?.status === "hired";
+
+  // Memoize expiry status calculation - MUST be before any early returns
+  const expiryStatus = useMemo(() => {
+    if (!conversation?.activity_started_at || !conversation?.last_activity_at || isClosed) {
+      return { status: "active" as const, hoursLeft: 0, showWarning: false };
+    }
+
+    const now = new Date();
+    const activityStart = new Date(conversation.activity_started_at);
+    const lastActivity = new Date(conversation.last_activity_at);
+
+    const hoursSinceStart = (now.getTime() - activityStart.getTime()) / (1000 * 60 * 60);
+    const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceActivity < 24) {
+      return { status: "active" as const, hoursLeft: Math.ceil(24 - hoursSinceActivity), showWarning: false };
+    }
+
+    if (hoursSinceStart >= 72) {
+      return { status: "expired" as const, hoursLeft: 0, showWarning: true };
+    }
+
+    const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
+    return { status: "warning" as const, hoursLeft, showWarning: true };
+  }, [conversation?.activity_started_at, conversation?.last_activity_at, isClosed]);
+
   if (isLoading) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-background">
@@ -613,35 +642,6 @@ export default function Conversation() {
       </div>
     );
   }
-
-  const isClosed = conversation.status === "closed";
-  const isUserContractor = conversation.contractor_user_id === user?.id;
-  const isHired = conversation.job_application?.status === "hired";
-
-  // Memoize expiry status calculation
-  const expiryStatus = useMemo(() => {
-    if (!conversation.activity_started_at || !conversation.last_activity_at || isClosed) {
-      return { status: "active" as const, hoursLeft: 0, showWarning: false };
-    }
-
-    const now = new Date();
-    const activityStart = new Date(conversation.activity_started_at);
-    const lastActivity = new Date(conversation.last_activity_at);
-
-    const hoursSinceStart = (now.getTime() - activityStart.getTime()) / (1000 * 60 * 60);
-    const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-
-    if (hoursSinceActivity < 24) {
-      return { status: "active" as const, hoursLeft: Math.ceil(24 - hoursSinceActivity), showWarning: false };
-    }
-
-    if (hoursSinceStart >= 72) {
-      return { status: "expired" as const, hoursLeft: 0, showWarning: true };
-    }
-
-    const hoursLeft = Math.max(0, Math.ceil(72 - hoursSinceStart));
-    return { status: "warning" as const, hoursLeft, showWarning: true };
-  }, [conversation.activity_started_at, conversation.last_activity_at, isClosed]);
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
