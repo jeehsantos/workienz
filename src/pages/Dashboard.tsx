@@ -12,25 +12,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user, roles, isLoading, isAdmin, isContractor, isEmployee, isWriter } = useAuthContext();
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, isLoading, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  // Memoize role-based UI decisions
+  // Memoize role-based UI decisions - MUST be before any early returns
   const showEmployeeCards = useMemo(() => isEmployee(), [isEmployee]);
   const showContractorCards = useMemo(() => isContractor(), [isContractor]);
   const showWriterCards = useMemo(() => isWriter(), [isWriter]);
@@ -53,6 +35,24 @@ export default function Dashboard() {
   });
 
   const showReferralDashboard = showEmployeeCards && !hasActiveSubscription;
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
