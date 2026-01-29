@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageCircle, Loader2, User, Clock, AlertTriangle } from "lucide-react";
+import { MessageCircle, Loader2, User, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
 
@@ -15,6 +15,9 @@ type Conversation = {
   last_message_preview: string | null;
   activity_started_at: string | null;
   last_activity_at: string | null;
+  hired_at: string | null;
+  scheduled_deletion_at: string | null;
+  application_status: string | null;
 };
 
 interface MyConversationsProps {
@@ -52,7 +55,9 @@ export default function MyConversations({ userId }: MyConversationsProps) {
           employee_user_id,
           job_application_id,
           activity_started_at,
-          last_activity_at
+          last_activity_at,
+          hired_at,
+          scheduled_deletion_at
         `)
         .or(`contractor_user_id.eq.${userId},employee_user_id.eq.${userId}`)
         .order("updated_at", { ascending: false })
@@ -67,16 +72,18 @@ export default function MyConversations({ userId }: MyConversationsProps) {
       // Enrich with job titles, other party names, and last message info
       const enriched = await Promise.all(
         (convData || []).map(async (conv) => {
-          // Get job title through job application (if exists)
+          // Get job title and application status through job application (if exists)
           let jobTitle = "Direct Contact";
+          let applicationStatus: string | null = null;
           if (conv.job_application_id) {
             const { data: appData } = await supabase
               .from("job_applications")
-              .select("job_id")
+              .select("job_id, status")
               .eq("id", conv.job_application_id)
               .maybeSingle();
 
             if (appData) {
+              applicationStatus = appData.status;
               const { data: jobData } = await supabase
                 .from("jobs")
                 .select("title")
@@ -119,6 +126,9 @@ export default function MyConversations({ userId }: MyConversationsProps) {
               : null,
             activity_started_at: conv.activity_started_at,
             last_activity_at: conv.last_activity_at,
+            hired_at: conv.hired_at,
+            scheduled_deletion_at: conv.scheduled_deletion_at,
+            application_status: applicationStatus,
           };
         })
       );
@@ -154,8 +164,24 @@ export default function MyConversations({ userId }: MyConversationsProps) {
     );
   }
 
-  // Calculate expiry status for a conversation
+  // Calculate hired countdown for a conversation
+  const getHiredStatus = (conv: Conversation) => {
+    if (!conv.hired_at || !conv.scheduled_deletion_at) {
+      return null;
+    }
+
+    const now = new Date();
+    const deletionAt = new Date(conv.scheduled_deletion_at);
+    const hoursLeft = Math.max(0, Math.ceil((deletionAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
+
+    return { isHired: true, hoursLeft };
+  };
+
+  // Calculate expiry status for a conversation (only for non-hired conversations)
   const getExpiryStatus = (conv: Conversation) => {
+    // Don't show inactivity expiry for hired conversations
+    if (conv.hired_at) return null;
+    
     if (!conv.activity_started_at || !conv.last_activity_at || conv.status !== "active") {
       return null;
     }
@@ -177,25 +203,36 @@ export default function MyConversations({ userId }: MyConversationsProps) {
   return (
     <div className="space-y-2">
       {conversations.map((conv) => {
+        const hiredStatus = getHiredStatus(conv);
         const expiry = getExpiryStatus(conv);
+
+        // Determine visual styling based on hired vs expiry
+        const isHiredConv = hiredStatus?.isHired;
+        const hasWarning = expiry?.status === "warning";
 
         return (
           <Link
             key={conv.id}
             to={`/messages/${conv.id}`}
             className={`block p-3 rounded-lg hover:bg-muted/50 transition-colors border ${
-              expiry?.status === "warning"
-                ? "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
-                : "border-transparent hover:border-border/50"
+              isHiredConv
+                ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20"
+                : hasWarning
+                  ? "border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+                  : "border-transparent hover:border-border/50"
             }`}
           >
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                expiry?.status === "warning" 
-                  ? "bg-amber-100 dark:bg-amber-900/50" 
-                  : "bg-primary/10"
+                isHiredConv
+                  ? "bg-emerald-100 dark:bg-emerald-900/50"
+                  : hasWarning 
+                    ? "bg-amber-100 dark:bg-amber-900/50" 
+                    : "bg-primary/10"
               }`}>
-                {expiry?.status === "warning" ? (
+                {isHiredConv ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                ) : hasWarning ? (
                   <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 ) : (
                   <User className="w-5 h-5 text-primary" />
@@ -207,7 +244,12 @@ export default function MyConversations({ userId }: MyConversationsProps) {
                     <p className="font-medium text-sm truncate">
                       {conv.other_party_name}
                     </p>
-                    {expiry?.status === "warning" ? (
+                    {isHiredConv ? (
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Hired • {hiredStatus.hoursLeft}h
+                      </Badge>
+                    ) : hasWarning ? (
                       <Badge variant="outline" className="text-[10px] flex-shrink-0 border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30">
                         <AlertTriangle className="w-3 h-3 mr-1" />
                         {expiry.hoursLeft}h left
@@ -235,7 +277,12 @@ export default function MyConversations({ userId }: MyConversationsProps) {
                     "{conv.last_message_preview}"
                   </p>
                 )}
-                {expiry?.status === "warning" && (
+                {isHiredConv && (
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
+                    🎉 Hired! Archives in {hiredStatus.hoursLeft} hours
+                  </p>
+                )}
+                {hasWarning && !isHiredConv && (
                   <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
                     Reply soon to keep this conversation active
                   </p>

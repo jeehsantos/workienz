@@ -383,6 +383,7 @@ export type Database = {
           contractor_user_id: string
           created_at: string
           employee_user_id: string
+          hired_at: string | null
           id: string
           job_application_id: string | null
           last_activity_at: string | null
@@ -397,6 +398,7 @@ export type Database = {
           contractor_user_id: string
           created_at?: string
           employee_user_id: string
+          hired_at?: string | null
           id?: string
           job_application_id?: string | null
           last_activity_at?: string | null
@@ -411,6 +413,7 @@ export type Database = {
           contractor_user_id?: string
           created_at?: string
           employee_user_id?: string
+          hired_at?: string | null
           id?: string
           job_application_id?: string | null
           last_activity_at?: string | null
@@ -1176,6 +1179,7 @@ export type Database = {
         Args: { verified_count: number }
         Returns: number
       }
+      cleanup_scheduled_conversations: { Args: never; Returns: number }
       contractor_has_published_jobs: {
         Args: { _contractor_profile_id: string }
         Returns: boolean
