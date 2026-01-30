@@ -53,14 +53,16 @@ Deno.serve(async (req) => {
                       'unknown';
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
-    // Check if the referred user is an employee
-    const { data: referredEmployee } = await supabase
-      .from('employee_profiles')
-      .select('id')
-      .eq('user_id', referredUserId)
-      .maybeSingle();
+    // Check if the referred user has the employee role (from user_roles table)
+    // This is set immediately during signup, unlike employee_profiles which is created later
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', referredUserId);
 
-    if (!referredEmployee) {
+    const isEmployee = userRoles?.some(r => r.role === 'employee');
+
+    if (!isEmployee) {
       return new Response(
         JSON.stringify({ error: 'Only employees can use referral codes' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -35,14 +35,15 @@ Deno.serve(async (req) => {
 
     const userId = claimsData.claims.sub as string;
 
-    // Check if user is an employee
-    const { data: employeeProfile } = await supabase
-      .from('employee_profiles')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
+    // Check if user has the employee role (from user_roles table)
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
 
-    if (!employeeProfile) {
+    const isEmployee = userRoles?.some(r => r.role === 'employee');
+
+    if (!isEmployee) {
       return new Response(
         JSON.stringify({ error: 'Only employees can access referral codes' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
