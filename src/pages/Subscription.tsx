@@ -663,6 +663,70 @@ export default function Subscription() {
                         </Button>
                       </div>
                     </>
+                  ) : isEmployee() ? (
+                    /* Employee Free Tier Display */
+                    <>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Sparkles className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-xl font-bold font-display">Free Plan</h3>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-success/10 text-success">
+                                Active
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Basic job search features</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-2xl font-bold font-display">$0</span>
+                          <span className="text-muted-foreground text-sm"> / free</span>
+                        </div>
+                      </div>
+
+                      {/* Free Tier Limitations */}
+                      <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium text-amber-800 dark:text-amber-200">Free Plan Limitations</p>
+                            <ul className="mt-2 text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                              <li>• Limited to 1 active job application</li>
+                              <li>• 3-day cooldown between applications</li>
+                              <li>• Basic profile visibility</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Free Tier Features */}
+                      <div>
+                        <p className="text-sm font-medium mb-3">Your plan includes:</p>
+                        <ul className="grid sm:grid-cols-2 gap-2">
+                          {["Browse all job listings", "Apply to jobs", "In-app messaging", "Email notifications"].map((feature, index) => (
+                            <li key={index} className="flex items-start gap-2">
+                              <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Check className="w-2.5 h-2.5 text-primary" />
+                              </div>
+                              <span className="text-sm text-foreground/80">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Upgrade CTA */}
+                      <div className="pt-4 border-t border-border/50">
+                        <Button asChild className="w-full sm:w-auto">
+                          <Link to="/pricing">
+                            <Crown className="w-4 h-4 mr-2" />
+                            Upgrade to Premium
+                          </Link>
+                        </Button>
+                      </div>
+                    </>
                   ) : (
                     /* No subscription at all */
                     <div className="text-center py-8">
