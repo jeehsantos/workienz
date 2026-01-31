@@ -180,9 +180,14 @@ Deno.serve(async (req) => {
     const totalFreeApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
 
     // 10. Calculate cooldown
-    const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
+    const hasReferralAllowance = !isSubscribed && referralCreditsRemaining > 0;
+    const cooldownDays = isSubscribed
+      ? paidTierCooldownDays
+      : hasReferralAllowance
+        ? 0
+        : freeTierCooldownDays;
 
-    if (employeeProfile.last_application_at) {
+    if (cooldownDays > 0 && employeeProfile.last_application_at) {
       const lastAppDate = new Date(employeeProfile.last_application_at);
       const now = new Date();
       const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));

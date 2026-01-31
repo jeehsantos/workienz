@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface ReferralStats {
   has_referral_code: boolean;
@@ -26,10 +26,10 @@ interface ReferralStats {
 }
 
 export function useReferralStats() {
-  const { toast } = useToast();
+  const { user } = useAuthContext();
 
   return useQuery({
-    queryKey: ["referral-stats"],
+    queryKey: ["referral-stats", user?.id],
     queryFn: async (): Promise<ReferralStats> => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -49,12 +49,14 @@ export function useReferralStats() {
       return data;
     },
     staleTime: 60000, // 1 minute
+    enabled: !!user,
   });
 }
 
 export function useGetReferralCode() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
 
   return useMutation({
     mutationFn: async () => {
@@ -76,7 +78,7 @@ export function useGetReferralCode() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["referral-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["referral-stats", user?.id] });
     },
     onError: (error: Error) => {
       toast({
@@ -134,6 +136,7 @@ export function useProcessReferral() {
 export function useVerifyReferral() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
 
   return useMutation({
     mutationFn: async () => {
@@ -156,7 +159,7 @@ export function useVerifyReferral() {
     },
     onSuccess: (data) => {
       if (data.success) {
-        queryClient.invalidateQueries({ queryKey: ["referral-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["referral-stats", user?.id] });
       }
     },
   });

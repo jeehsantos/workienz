@@ -83,8 +83,6 @@ export default function JobDetail() {
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
   const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
   const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [activeApplicationsCount, setActiveApplicationsCount] = useState(0);
   const [applicationError, setApplicationError] = useState<string | null>(null);
   const [showRequirementsDialog, setShowRequirementsDialog] = useState(false);
 
@@ -188,25 +186,7 @@ export default function JobDetail() {
           setApplicationStatus(application.status);
         }
 
-        // Get active applications count (pending or shortlisted, not rejected or hired)
-        const { count } = await supabase
-          .from("job_applications")
-          .select("id", { count: "exact", head: true })
-          .eq("employee_id", profile.id)
-          .in("status", ["pending", "shortlisted"]);
-
-        setActiveApplicationsCount(count || 0);
       }
-
-      // Check subscription
-      const { data: subscription } = await supabase
-        .from("subscriptions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .maybeSingle();
-
-      setHasActiveSubscription(!!subscription);
     }
 
     checkApplication();
@@ -232,15 +212,8 @@ export default function JobDetail() {
       }
     }
 
-    // Check application limits
-    if (!hasActiveSubscription) {
-      if (activeApplicationsCount >= 1) {
-        return { allowed: false, reason: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!" };
-      }
-    }
-
     return { allowed: true, reason: null };
-  }, [job, employeeProfileId, employeeExperienceYears, employeeIndustry, hasActiveSubscription, activeApplicationsCount]);
+  }, [job, employeeProfileId, employeeExperienceYears, employeeIndustry]);
 
   // Memoize formatted hourly rate
   const hourlyRate = useMemo(
