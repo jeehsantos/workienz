@@ -4,6 +4,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useReferralStats } from "@/hooks/useReferrals";
 import { 
   Loader2, 
   CreditCard, 
@@ -19,7 +20,9 @@ import {
   Plus,
   Briefcase,
   PlayCircle,
-  RefreshCcw
+  RefreshCcw,
+  Gift,
+  Users
 } from "lucide-react";
 import {
   AlertDialog,
@@ -97,6 +100,9 @@ export default function Subscription() {
   
   // Entitlements state
   const [entitlements, setEntitlements] = useState<EntitlementsResponse | null>(null);
+  
+  // Referral stats for employees
+  const { data: referralStats, isLoading: referralStatsLoading } = useReferralStats();
   
   // Activation/Reimbursement state
   const [activatingId, setActivatingId] = useState<string | null>(null);
@@ -752,6 +758,120 @@ export default function Subscription() {
                 </div>
               )}
             </div>
+
+            {/* Employee Application Allowance Card */}
+            {isEmployee() && !hasActiveSubscription && (
+              <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Gift className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-semibold font-display">Application Allowance</h2>
+                  </div>
+                  {referralStats && (
+                    <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
+                      {1 + referralStats.remaining_credits} total applications
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {/* Base Application Credit */}
+                  <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-semibold">Base Application</h4>
+                        <p className="text-sm text-muted-foreground">Free tier includes 1 active application</p>
+                      </div>
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-success/10 text-success">
+                        Included
+                      </span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Allowance</p>
+                        <p className="font-medium">1 active application</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Cooldown</p>
+                        <p className="font-medium">3 days between applications</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Referral Bonus Credits */}
+                  {referralStats && referralStats.has_referral_code && (
+                    <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h4 className="font-semibold flex items-center gap-2">
+                            <Users className="w-4 h-4 text-primary" />
+                            Referral Bonus Credits
+                          </h4>
+                          <p className="text-sm text-muted-foreground">Earned from referring friends</p>
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          referralStats.remaining_credits > 0 
+                            ? "bg-success/10 text-success" 
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                          {referralStats.remaining_credits > 0 ? "Available" : "None"}
+                        </span>
+                      </div>
+                      <div className="grid sm:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Total Earned</p>
+                          <p className="font-medium">{referralStats.bonus_credits_balance} credits</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Used</p>
+                          <p className="font-medium">{referralStats.bonus_credits_used} credits</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Remaining</p>
+                          <p className="font-medium text-primary">{referralStats.remaining_credits} credits</p>
+                        </div>
+                      </div>
+                      {referralStats.remaining_credits > 0 && (
+                        <div className="mt-3 pt-3 border-t border-primary/20">
+                          <p className="text-xs text-muted-foreground">
+                            💡 Each referral credit allows you to have one additional active job application
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* No referral code yet - show invite prompt */}
+                  {referralStats && !referralStats.has_referral_code && (
+                    <div className="p-4 rounded-lg bg-muted/30 border border-dashed border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Users className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium">Earn More Applications</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Invite friends to earn bonus application credits
+                          </p>
+                        </div>
+                      </div>
+                      <Button asChild size="sm" variant="outline" className="mt-3">
+                        <Link to="/dashboard">
+                          <Gift className="w-4 h-4 mr-2" />
+                          View Referral Program
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+
+                  {referralStatsLoading && (
+                    <div className="p-4 rounded-lg bg-muted/30 border border-border/50 flex items-center justify-center">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Contractor Entitlements Card */}
             {isContractor() && entitlements && entitlements.entitlements.length > 0 && (

@@ -220,23 +220,25 @@ Deno.serve(async (req) => {
       }
 
       // Check if user has any available application credits
-      // Count how many applications the user has made (both active and completed)
-      const { count: totalApplicationsMade } = await supabase
-        .from('job_applications')
-        .select('id', { count: 'exact', head: true })
-        .eq('employee_id', employeeProfile.id);
+      // Free tier users get 1 base application + any referral bonus credits
+      // Total allowed = BASE_FREE_TIER_APPLICATIONS (1) + referral credits remaining
+      const totalAllowedApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
+      
+      console.log('[submit-application] Free tier credit check:', {
+        activeApplications,
+        referralCreditsRemaining,
+        totalAllowedApplications,
+        canApply: activeApplications < totalAllowedApplications
+      });
 
-      // For free tier: base is 1, plus any referral bonus credits
-      // Calculate if they can still apply
-      const usedCredits = referralCreditsRecord?.bonus_credits_used || 0;
-      const hasBaseApplicationLeft = activeApplications < BASE_FREE_TIER_APPLICATIONS;
-      const hasReferralCreditsLeft = referralCreditsRemaining > 0;
-
-      if (!hasBaseApplicationLeft && !hasReferralCreditsLeft) {
+      // Check if user can still apply (have available credits)
+      if (activeApplications >= totalAllowedApplications) {
         return new Response(
           JSON.stringify({ 
             error: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features! Alternatively, invite friends to earn more application credits.",
             upgrade_prompt: true,
+            remaining_credits: referralCreditsRemaining,
+            active_applications: activeApplications,
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
