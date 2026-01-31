@@ -200,7 +200,7 @@ export default function NewArticle() {
       .getPublicUrl(filePath);
 
     // Add markdown image syntax to content
-    const imageMarkdown = `\n![Image](${urlData.publicUrl})\n`;
+    const imageMarkdown = `\n\n![Image](${urlData.publicUrl})\n\n`;
     setFormData({ ...formData, content: formData.content + imageMarkdown });
     setIsUploading(false);
     if (fileInputRef.current) {
