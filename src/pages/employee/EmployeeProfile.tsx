@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useVerifyReferral } from "@/hooks/useReferrals";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,7 @@ export default function EmployeeProfile() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
   const { toast } = useToast();
+  const verifyReferral = useVerifyReferral();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -388,6 +390,11 @@ export default function EmployeeProfile() {
     } else {
       const result = await supabase.from("employee_profiles").insert(profileData as any);
       error = result.error;
+      
+      // First-time profile creation - verify any pending referral
+      if (!error) {
+        verifyReferral.mutate();
+      }
     }
 
     if (!error) {
