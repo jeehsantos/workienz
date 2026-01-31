@@ -268,6 +268,9 @@ export default function JobDetail() {
 
   const proceedWithApplication = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
+    
+    // Prevent duplicate submissions
+    if (isApplying) return;
 
     setIsApplying(true);
     setApplicationError(null);

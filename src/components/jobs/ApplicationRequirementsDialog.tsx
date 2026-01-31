@@ -51,6 +51,7 @@ export function ApplicationRequirementsDialog({
   const [currentStep, setCurrentStep] = useState(0);
   const [userResponses, setUserResponses] = useState<Record<number, boolean>>({});
   const [rejectedStep, setRejectedStep] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (open && jobId) {
@@ -59,6 +60,7 @@ export function ApplicationRequirementsDialog({
       setCurrentStep(0);
       setUserResponses({});
       setRejectedStep(null);
+      setIsSubmitting(false);
     }
   }, [open, jobId]);
 
@@ -112,6 +114,9 @@ export function ApplicationRequirementsDialog({
   const progress = totalSteps > 0 ? ((currentStep + 1) / totalSteps) * 100 : 100;
 
   const handleResponse = (meetsRequirement: boolean) => {
+    // Prevent double-clicks when submitting
+    if (isSubmitting) return;
+    
     setUserResponses(prev => ({ ...prev, [currentStep]: meetsRequirement }));
     
     if (!meetsRequirement) {
@@ -123,6 +128,8 @@ export function ApplicationRequirementsDialog({
         setCurrentStep(currentStep + 1);
       } else {
         // All requirements confirmed - proceed with application
+        // Mark as submitting to prevent duplicate calls
+        setIsSubmitting(true);
         onProceed();
         onOpenChange(false);
       }
@@ -292,6 +299,7 @@ export function ApplicationRequirementsDialog({
               variant="outline" 
               onClick={() => handleResponse(false)}
               className="flex-1 sm:flex-none border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={isSubmitting}
             >
               <XCircle className="w-4 h-4 mr-2" />
               No
@@ -299,10 +307,15 @@ export function ApplicationRequirementsDialog({
             <Button 
               onClick={() => handleResponse(true)}
               className="flex-1 sm:flex-none"
+              disabled={isSubmitting}
             >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Yes
-              {currentStep === totalSteps - 1 && <ChevronRight className="w-4 h-4 ml-1" />}
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+              )}
+              {isSubmitting ? "Submitting..." : "Yes"}
+              {!isSubmitting && currentStep === totalSteps - 1 && <ChevronRight className="w-4 h-4 ml-1" />}
             </Button>
           </div>
         </div>
