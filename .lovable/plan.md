@@ -1,56 +1,87 @@
-# Post-Hiring Chat Management System - ✅ IMPLEMENTED
 
-## Summary
-Enhanced chat management after an employee is hired by a contractor. The system now:
-- ✅ Disables the Close button for hired conversations (both parties)
-- ✅ Shows a 48-hour countdown banner for hired chats
-- ✅ Automatically archives hired conversations after 48 hours
-- ✅ Rejects other open applications when a worker is hired
-- ✅ Sends informative messages to affected contractors
-- ✅ Runs hourly cleanup via cron job
+# Fix Referral Verification on Profile Completion
+
+## Problem Summary
+The referral system has a gap in its workflow. When a user signs up via a referral link:
+1. The referral is recorded with `status: 'pending'` (this works correctly)
+2. The referred user completes their profile
+3. **The referral never gets verified** because the `verify-referral` edge function is never called
+
+The referrer sees their referred friend as "Pending" forever, even after the friend completes their profile.
+
+## Current Flow vs Expected Flow
+
+```text
+CURRENT FLOW:
+┌────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌────────────────┐
+│ User clicks    │───▶│ User signs up    │───▶│ process-referral │───▶│ Referral stays │
+│ referral link  │    │ & signs in       │    │ creates "pending"│    │ PENDING forever│
+└────────────────┘    └──────────────────┘    └──────────────────┘    └────────────────┘
+                                                      │
+                                        User completes profile
+                                              (nothing happens)
+
+EXPECTED FLOW:
+┌────────────────┐    ┌──────────────────┐    ┌──────────────────┐    ┌────────────────┐
+│ User clicks    │───▶│ User signs up    │───▶│ process-referral │───▶│ User completes │
+│ referral link  │    │ & signs in       │    │ creates "pending"│    │ profile setup  │
+└────────────────┘    └──────────────────┘    └──────────────────┘    └───────┬────────┘
+                                                                              │
+                                                                              ▼
+                                    ┌────────────────────┐    ┌───────────────────────┐
+                                    │ Referrer receives  │◀───│ verify-referral edge  │
+                                    │ bonus credits!     │    │ function called       │
+                                    └────────────────────┘    └───────────────────────┘
+```
+
+## Solution
+Call the `verify-referral` edge function when an employee completes their profile setup for the first time.
+
+### Implementation Details
+
+**File: `src/pages/employee/EmployeeProfile.tsx`**
+
+1. **Import the verification hook**
+   - Add `useVerifyReferral` from `@/hooks/useReferrals`
+
+2. **Initialize the hook in the component**
+   - Create a `verifyReferral` mutation instance
+
+3. **Trigger verification after successful first-time profile save**
+   - In the `handleSubmit` function, after a successful INSERT (not UPDATE)
+   - Call `verifyReferral.mutate()` to trigger the edge function
+   - This verifies any pending referral for this user and credits the referrer
+
+### Why This Approach?
+
+1. **Backend-centric**: The actual verification logic remains in the edge function, not the frontend
+2. **Idempotent**: The `verify-referral` function safely handles cases where there's no pending referral
+3. **Single trigger point**: Profile completion is a clear milestone that happens exactly once
+4. **Minimal changes**: Only requires adding ~5 lines to the existing profile save logic
 
 ---
 
-## Implementation Details
+## Technical Changes
 
-### Database Changes
-- Added `hired_at` column to `conversations` table
-- Created `cleanup_scheduled_conversations()` function with SECURITY DEFINER
-- Enabled `pg_cron` and `pg_net` extensions for scheduled cleanup
-- Created hourly cron job to trigger cleanup
+### `src/pages/employee/EmployeeProfile.tsx`
 
-### Edge Function: `hire-applicant`
-When a contractor hires an applicant:
-1. Sets `application.status = 'hired'`
-2. Sets `employee.is_available = false`
-3. Sets `conversation.hired_at = now()`
-4. Sets `conversation.scheduled_deletion_at = now() + 48h`
-5. Sends congratulations message with 48h archive notice
-6. For OTHER applications by this employee:
-   - Sets status = 'rejected'
-   - Sends "hired elsewhere" message
-   - Sets conversation status = 'closed'
-   - Schedules deletion in 48h
+**Add import:**
+```typescript
+import { useVerifyReferral } from "@/hooks/useReferrals";
+```
 
-### Edge Function: `cleanup-hired-conversations`
-- Calls `cleanup_scheduled_conversations()` RPC
-- Deletes messages, read status, and conversations past their `scheduled_deletion_at`
-- Runs hourly via pg_cron
+**Initialize hook (inside component):**
+```typescript
+const verifyReferral = useVerifyReferral();
+```
 
-### UI: `Conversation.tsx`
-- Fetches `hired_at` and `scheduled_deletion_at`
-- Shows emerald "Hired! Archives in Xh" banner for hired chats
-- Disables Close button for hired conversations (desktop + mobile)
-- Shows auto-archive countdown in mobile dropdown
+**Modify handleSubmit (after successful first-time profile creation):**
+```typescript
+// After the INSERT succeeds and before showing success toast:
+if (!existingProfile) {
+  // This is a new profile - verify any pending referral
+  verifyReferral.mutate();
+}
+```
 
-### UI: `MyConversations.tsx`
-- Shows "Hired" badge with emerald styling and countdown
-- Different visual treatment from expiry warnings
-
----
-
-## Files Modified
-1. `supabase/functions/hire-applicant/index.ts` - Added hired_at/scheduled_deletion_at logic
-2. `supabase/functions/cleanup-hired-conversations/index.ts` - No changes needed (already correct)
-3. `src/pages/Conversation.tsx` - Disabled Close button, added hired banner
-4. `src/components/dashboard/MyConversations.tsx` - Added hired status indicators
+This small change connects the profile completion event to the referral verification system, ensuring referrers get their credits when their friends complete the signup process.
