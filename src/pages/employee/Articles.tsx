@@ -23,6 +23,7 @@ type Article = {
 
 export default function Articles() {
   const { user, isEmployee, isWriter, isLoading: authLoading } = useAuthContext();
+  const writerAccess = isWriter();
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
@@ -47,8 +48,8 @@ export default function Articles() {
         setFilteredArticles(articlesData || []);
       }
 
-      // Check subscription if user is logged in
-      if (user) {
+      // Check subscription if user is logged in (writers always have access)
+      if (user && !writerAccess) {
         const { data: subData } = await supabase
           .from("subscriptions")
           .select("id")
@@ -57,13 +58,15 @@ export default function Articles() {
           .maybeSingle();
 
         setHasSubscription(!!subData);
+      } else if (writerAccess) {
+        setHasSubscription(true);
       }
 
       setIsLoading(false);
     }
 
     fetchData();
-  }, [user]);
+  }, [user, writerAccess]);
 
   useEffect(() => {
     let filtered = articles;
@@ -200,7 +203,7 @@ export default function Articles() {
 
       <div className="container-tight py-8">
         {/* Highlights Section */}
-        <HighlightsSection articles={articles} hasSubscription={hasSubscription} />
+        <HighlightsSection articles={articles} hasSubscription={hasSubscription || writerAccess} />
 
         {/* Latest Posts Section Header with Search */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -233,7 +236,7 @@ export default function Articles() {
           </span>
         </div>
 
-        {!hasSubscription && user && (isEmployee() || isWriter()) && (
+        {!hasSubscription && user && isEmployee() && (
           <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-6 mb-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -279,7 +282,7 @@ export default function Articles() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArticles.map((article) => {
-              const isLocked = article.is_premium && !hasSubscription;
+              const isLocked = article.is_premium && !hasSubscription && !writerAccess;
 
               return (
                 <article
