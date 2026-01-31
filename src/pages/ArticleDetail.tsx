@@ -28,6 +28,7 @@ export default function ArticleDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { user, isWriter, isEmployee, isLoading: authLoading } = useAuthContext();
+  const writerAccess = isWriter();
 
   const [article, setArticle] = useState<Article | null>(null);
   const [authorName, setAuthorName] = useState<string | null>(null);
@@ -68,8 +69,8 @@ export default function ArticleDetail() {
         setAuthorName(profile?.full_name || "Anonymous");
       }
 
-      // Check subscription if user is logged in
-      if (user) {
+      // Check subscription only for premium articles and non-writers
+      if (user && data?.is_premium && !writerAccess) {
         const { data: subData } = await supabase
           .from("subscriptions")
           .select("id")
@@ -78,13 +79,15 @@ export default function ArticleDetail() {
           .maybeSingle();
 
         setHasSubscription(!!subData);
+      } else if (writerAccess) {
+        setHasSubscription(true);
       }
 
       setIsLoading(false);
     }
 
     fetchArticle();
-  }, [slug, user]);
+  }, [slug, user, writerAccess]);
 
   // Calculate reading time
   const calculateReadingTime = (text: string) => {
@@ -100,6 +103,10 @@ export default function ArticleDetail() {
     const sections = content.split(/\n\n+/);
     
     return sections.map((section, idx) => {
+      const lines = section.split('\n');
+      const isImageLine = (line: string) => /^!\[.*?\]\(.*?\)$/.test(line.trim());
+      const imageMatch = (line: string) => line.trim().match(/^!\[(.*?)\]\((.*?)\)$/);
+
       // Check if it looks like a heading (short, no period at end, possibly all caps or title case)
       const isHeading = section.length < 100 && !section.endsWith('.') && section.split('\n').length === 1;
       
@@ -111,17 +118,56 @@ export default function ArticleDetail() {
         );
       }
       
-      // Handle single newlines within a section as soft breaks
-      const lines = section.split('\n');
-      
-      return (
+      const elements: JSX.Element[] = [];
+      let paragraphLines: string[] = [];
+
+      const flushParagraph = () => {
+        if (paragraphLines.length === 0) return;
+        const content = paragraphLines.join('\n').trim();
+        if (!content) {
+          paragraphLines = [];
+          return;
+        }
+        const paragraphIdx = `${idx}-p-${elements.length}`;
+        elements.push(
+          <p key={paragraphIdx} className="text-base md:text-lg leading-relaxed md:leading-8 text-foreground/90 mb-6">
+            {paragraphLines.map((line, lineIdx) => (
+              <span key={`${paragraphIdx}-${lineIdx}`}>
+                {line}
+                {lineIdx < paragraphLines.length - 1 && <br />}
+              </span>
+            ))}
+          </p>
+        );
+        paragraphLines = [];
+      };
+
+      lines.forEach((line, lineIdx) => {
+        if (isImageLine(line)) {
+          flushParagraph();
+          const match = imageMatch(line);
+          if (!match) return;
+          elements.push(
+            <img
+              key={`${idx}-img-${lineIdx}`}
+              src={match[2]}
+              alt={match[1] || "Article image"}
+              className="w-full rounded-lg my-6"
+            />
+          );
+          return;
+        }
+
+        paragraphLines.push(line);
+      });
+
+      flushParagraph();
+
+      return elements.length > 0 ? (
+        <div key={idx}>{elements}</div>
+      ) : (
         <p key={idx} className="text-base md:text-lg leading-relaxed md:leading-8 text-foreground/90 mb-6">
-          {lines.map((line, lineIdx) => (
-            <span key={lineIdx}>
-              {line}
-              {lineIdx < lines.length - 1 && <br />}
-            </span>
-          ))}
+          {section}
         </p>
       );
     });
@@ -174,7 +220,7 @@ export default function ArticleDetail() {
     );
   }
 
-  const isLocked = article.is_premium && !hasSubscription;
+  const isLocked = article.is_premium && !hasSubscription && !writerAccess;
   const readingTime = calculateReadingTime(article.content);
 
   // If locked, show premium gate

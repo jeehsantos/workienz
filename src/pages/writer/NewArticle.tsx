@@ -78,6 +78,33 @@ export default function NewArticle() {
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
+  const extractContentImageUrls = (content: string): string[] => {
+    const regex = /!\[[^\]]*]\(([^)]+)\)/g;
+    return Array.from(content.matchAll(regex), (match) => match[1]).filter(Boolean);
+  };
+
+  const removeContentImage = (url: string) => {
+    const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const imageRegex = new RegExp(`\\n?!\\[[^\\]]*\\]\\(${escapedUrl}\\)\\n?`, "g");
+
+    setFormData((prev) => {
+      const cleanedContent = prev.content
+        .replace(imageRegex, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      return { ...prev, content: cleanedContent };
+    });
+
+    toast({
+      title: "Image Removed",
+      description: "The image has been removed from your content.",
+    });
+  };
+
+  useEffect(() => {
+    setContentImages(extractContentImageUrls(formData.content));
+  }, [formData.content]);
+
   const validateImageFile = (file: File): string | null => {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       return "Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.";
@@ -173,10 +200,12 @@ export default function NewArticle() {
       .getPublicUrl(filePath);
 
     // Add markdown image syntax to content
-    const imageMarkdown = `\n![Image](${urlData.publicUrl})\n`;
+    const imageMarkdown = `\n\n![Image](${urlData.publicUrl})\n\n`;
     setFormData({ ...formData, content: formData.content + imageMarkdown });
-    setContentImages([...contentImages, urlData.publicUrl]);
     setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     
     toast({
       title: "Image Added",
@@ -383,14 +412,24 @@ export default function NewArticle() {
           {contentImages.length > 0 && (
             <div className="space-y-2">
               <Label>Uploaded Images</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {contentImages.map((url, idx) => (
-                  <img
-                    key={idx}
-                    src={url}
-                    alt={`Content ${idx + 1}`}
-                    className="w-20 h-20 object-cover rounded border border-border"
-                  />
+                  <div key={url} className="relative">
+                    <img
+                      src={url}
+                      alt={`Content ${idx + 1}`}
+                      className="w-24 h-24 object-cover rounded border border-border"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="destructive"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={() => removeContentImage(url)}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             </div>
