@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +25,9 @@ interface ReferralStats {
   }>;
 }
 
-export function useReferralStats() {
+export function useReferralStats(
+  options?: Omit<UseQueryOptions<ReferralStats, Error>, "queryKey" | "queryFn">
+) {
   const { toast } = useToast();
 
   return useQuery({
@@ -49,6 +51,7 @@ export function useReferralStats() {
       return data;
     },
     staleTime: 60000, // 1 minute
+    ...options,
   });
 }
 

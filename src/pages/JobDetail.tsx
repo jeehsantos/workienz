@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
 import { ApplicationRequirementsDialog } from "@/components/jobs/ApplicationRequirementsDialog";
+import { useReferralStats } from "@/hooks/useReferrals";
 
 
 type JobShift = {
@@ -87,6 +88,9 @@ export default function JobDetail() {
   const [activeApplicationsCount, setActiveApplicationsCount] = useState(0);
   const [applicationError, setApplicationError] = useState<string | null>(null);
   const [showRequirementsDialog, setShowRequirementsDialog] = useState(false);
+  const { data: referralStats } = useReferralStats({
+    enabled: !!user && isEmployee(),
+  });
 
   useEffect(() => {
     async function fetchJob() {
@@ -234,13 +238,15 @@ export default function JobDetail() {
 
     // Check application limits
     if (!hasActiveSubscription) {
-      if (activeApplicationsCount >= 1) {
+      const referralAllowance = referralStats?.remaining_credits ?? 0;
+      const allowedApplications = 1 + referralAllowance;
+      if (activeApplicationsCount >= allowedApplications) {
         return { allowed: false, reason: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features!" };
       }
     }
 
     return { allowed: true, reason: null };
-  }, [job, employeeProfileId, employeeExperienceYears, employeeIndustry, hasActiveSubscription, activeApplicationsCount]);
+  }, [job, employeeProfileId, employeeExperienceYears, employeeIndustry, hasActiveSubscription, activeApplicationsCount, referralStats?.remaining_credits]);
 
   // Memoize formatted hourly rate
   const hourlyRate = useMemo(
