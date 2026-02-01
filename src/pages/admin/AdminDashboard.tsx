@@ -65,6 +65,12 @@ type ContractorProfile = {
   email: string;
   package_name: string | null;
   current_plan_type: string | null;
+  current_entitlement_id: string | null;
+};
+
+type ContractorTier = {
+  plan_id: string;
+  plan_name: string;
 };
 
 type Job = {
@@ -92,6 +98,7 @@ export default function AdminDashboard() {
   const [contractors, setContractors] = useState<ContractorProfile[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [packages, setPackages] = useState<{ id: string; name: string }[]>([]);
+  const [contractorTiers, setContractorTiers] = useState<ContractorTier[]>([]);
   
   
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -139,6 +146,14 @@ export default function AdminDashboard() {
       .select("id, name")
       .eq("is_active", true);
     setPackages(pkgData || []);
+
+    // Fetch contractor tiers from plan_products
+    const { data: tierData } = await supabase
+      .from("plan_products")
+      .select("plan_id, plan_name")
+      .eq("plan_type", "contractor")
+      .order("price_cents", { ascending: true });
+    setContractorTiers(tierData || []);
 
     setIsLoading(false);
   }
@@ -305,7 +320,7 @@ export default function AdminDashboard() {
         // Get active entitlement plan type (new system)
         const { data: entitlementData } = await supabase
           .from("contractor_entitlements")
-          .select("plan_type")
+          .select("id, plan_type")
           .eq("user_id", c.user_id)
           .eq("status", "active")
           .order("is_recurring", { ascending: false })
@@ -317,6 +332,7 @@ export default function AdminDashboard() {
           email: profile?.email || "",
           package_name: packageName,
           current_plan_type: entitlementData?.plan_type || null,
+          current_entitlement_id: entitlementData?.id || null,
         };
       })
     );
@@ -483,6 +499,83 @@ export default function AdminDashboard() {
     setUpdatingId(null);
   }
 
+  async function updateContractorTier(contractor: ContractorProfile, newPlanId: string) {
+    setUpdatingId(contractor.id);
+
+    const tier = contractorTiers.find(t => t.plan_id === newPlanId);
+    if (!tier) {
+      toast({ title: "Error", description: "Invalid tier selected", variant: "destructive" });
+      setUpdatingId(null);
+      return;
+    }
+
+    // Determine job_allowance based on plan type
+    let jobAllowance: number | null = null;
+    let isRecurring = false;
+    switch (newPlanId) {
+      case "free_contractor":
+        jobAllowance = 1;
+        isRecurring = false;
+        break;
+      case "single_post":
+        jobAllowance = 1;
+        isRecurring = false;
+        break;
+      case "14_day_sprint":
+        jobAllowance = 3;
+        isRecurring = false;
+        break;
+      case "monthly_contractor":
+      case "quarterly_contractor":
+        jobAllowance = null; // Unlimited
+        isRecurring = true;
+        break;
+    }
+
+    // Check if contractor already has an active entitlement
+    if (contractor.current_entitlement_id) {
+      // Deactivate the current entitlement
+      const { error: deactivateError } = await supabase
+        .from("contractor_entitlements")
+        .update({ 
+          status: "consumed", 
+          deactivated_at: new Date().toISOString(),
+          deactivated_reason: "admin_tier_change"
+        })
+        .eq("id", contractor.current_entitlement_id);
+
+      if (deactivateError) {
+        toast({ title: "Error", description: "Failed to deactivate existing entitlement", variant: "destructive" });
+        setUpdatingId(null);
+        return;
+      }
+    }
+
+    // Create new entitlement with the selected tier
+    const { error: createError } = await supabase
+      .from("contractor_entitlements")
+      .insert({
+        user_id: contractor.user_id,
+        plan_type: newPlanId,
+        status: "active",
+        job_allowance: jobAllowance,
+        jobs_used: 0,
+        is_recurring: isRecurring,
+        is_stackable: false,
+        activated_at: new Date().toISOString(),
+        purchased_at: new Date().toISOString(),
+      });
+
+    if (createError) {
+      toast({ title: "Error", description: "Failed to assign tier: " + createError.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `Tier updated to ${tier.plan_name}` });
+      // Refresh contractors to get the new entitlement ID
+      await fetchContractors();
+    }
+
+    setUpdatingId(null);
+  }
 
   const filteredUsers = users.filter(
     (u) =>
@@ -713,7 +806,7 @@ export default function AdminDashboard() {
                       <TableRow>
                         <TableHead>Company</TableHead>
                         <TableHead>Entrepreneur</TableHead>
-                        <TableHead>Current Plan</TableHead>
+                        <TableHead>Plan Tier</TableHead>
                         <TableHead>Legacy Package</TableHead>
                         <TableHead>Joined</TableHead>
                       </TableRow>
@@ -740,16 +833,22 @@ export default function AdminDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {c.current_plan_type ? (
-                              <Badge 
-                                variant={c.current_plan_type === "free_contractor" ? "secondary" : "default"}
-                                className="capitalize"
-                              >
-                                {c.current_plan_type.replace(/_/g, " ")}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">No plan</span>
-                            )}
+                            <Select
+                              value={c.current_plan_type || ""}
+                              onValueChange={(value) => updateContractorTier(c, value)}
+                              disabled={updatingId === c.id}
+                            >
+                              <SelectTrigger className="w-36">
+                                <SelectValue placeholder="No plan" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {contractorTiers.map((tier) => (
+                                  <SelectItem key={tier.plan_id} value={tier.plan_id}>
+                                    {tier.plan_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                           <TableCell>
                             <Select
