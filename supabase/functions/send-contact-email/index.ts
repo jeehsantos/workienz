@@ -24,6 +24,28 @@ const subjectLabels: Record<string, string> = {
   billing: "Billing Question",
 };
 
+// HTML escape function to prevent XSS
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Validate email format
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 255;
+}
+
+// Validate name format (alphanumeric, spaces, basic punctuation)
+function isValidName(name: string): boolean {
+  const nameRegex = /^[\w\s.\-']+$/;
+  return nameRegex.test(name) && name.length <= 100;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -44,7 +66,43 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const subjectLabel = subjectLabels[subject] || subject;
+    // Validate input formats
+    if (!isValidName(name)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid name format. Use only letters, numbers, spaces, and basic punctuation." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    if (message.length > 5000) {
+      return new Response(
+        JSON.stringify({ error: "Message is too long. Maximum 5000 characters." }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // Escape all user inputs for safe HTML embedding
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeMessage = escapeHtml(message);
+
+    const subjectLabel = subjectLabels[subject] || escapeHtml(subject);
     const companyEmail = "support@workie.co.nz";
 
     // Send notification email to the company
@@ -53,7 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
       from: "Workie Contact Form <onboarding@resend.dev>",
       to: [companyEmail],
       reply_to: email,
-      subject: `[${subjectLabel}] New message from ${name}`,
+      subject: `[${subjectLabel}] New message from ${safeName}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -79,7 +137,7 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="content">
               <div class="field">
                 <div class="field-label">From</div>
-                <div class="field-value">${name} &lt;${email}&gt;</div>
+                <div class="field-value">${safeName} &lt;${safeEmail}&gt;</div>
               </div>
               <div class="field">
                 <div class="field-label">Subject</div>
@@ -87,10 +145,10 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               <div class="field">
                 <div class="field-label">Message</div>
-                <div class="message-box">${message.replace(/\n/g, '<br>')}</div>
+                <div class="message-box">${safeMessage.replace(/\n/g, '<br>')}</div>
               </div>
               <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-                You can reply directly to this email to respond to ${name}.
+                You can reply directly to this email to respond to ${safeName}.
               </p>
             </div>
           </div>
@@ -124,7 +182,7 @@ const handler = async (req: Request): Promise<Response> => {
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0; font-size: 24px;">Thank You, ${name}!</h1>
+              <h1 style="margin: 0; font-size: 24px;">Thank You, ${safeName}!</h1>
               <p style="margin: 10px 0 0; opacity: 0.9;">We've received your message</p>
             </div>
             <div class="content">
@@ -133,7 +191,7 @@ const handler = async (req: Request): Promise<Response> => {
               <div class="highlight">
                 <p style="margin: 0;"><strong>Subject:</strong> ${subjectLabel}</p>
                 <p style="margin: 10px 0 0;"><strong>Your message:</strong></p>
-                <p style="margin: 5px 0 0; color: #6b7280;">${message.substring(0, 200)}${message.length > 200 ? '...' : ''}</p>
+                <p style="margin: 5px 0 0; color: #6b7280;">${safeMessage.substring(0, 200)}${message.length > 200 ? '...' : ''}</p>
               </div>
               
               <p><strong>What happens next?</strong></p>
@@ -167,7 +225,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-contact-email function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "An error occurred while processing your request" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
