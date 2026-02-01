@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useReferralStats } from "@/hooks/useReferrals";
+import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
 import { 
   Loader2, 
   CreditCard, 
@@ -89,6 +90,7 @@ export default function Subscription() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isContractor, isEmployee } = useAuthContext();
   const { toast } = useToast();
+  const { showUpgrade, upgradeText, upgradeLink } = useUpgradeButtonVisibility();
 
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [currentPlan, setCurrentPlan] = useState<PlanProduct | null>(null);
@@ -724,14 +726,16 @@ export default function Subscription() {
                       </div>
 
                       {/* Upgrade CTA */}
-                      <div className="pt-4 border-t border-border/50">
-                        <Button asChild className="w-full sm:w-auto">
-                          <Link to="/pricing">
-                            <Crown className="w-4 h-4 mr-2" />
-                            Upgrade to Premium
-                          </Link>
-                        </Button>
-                      </div>
+                      {showUpgrade && (
+                        <div className="pt-4 border-t border-border/50">
+                          <Button asChild className="w-full sm:w-auto">
+                            <Link to={upgradeLink}>
+                              <Crown className="w-4 h-4 mr-2" />
+                              {upgradeText}
+                            </Link>
+                          </Button>
+                        </div>
+                      )}
                     </>
                   ) : (
                     /* No subscription at all */
@@ -747,12 +751,14 @@ export default function Subscription() {
                           ? "Subscribe to start posting jobs and finding workers."
                           : "Choose a plan that fits your needs."}
                       </p>
-                      <Button asChild>
-                        <Link to="/pricing">
-                          View Plans
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </Link>
-                      </Button>
+                      {showUpgrade && (
+                        <Button asChild>
+                          <Link to={upgradeLink}>
+                            {upgradeText === "Become a Partner" ? upgradeText : "View Plans"}
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

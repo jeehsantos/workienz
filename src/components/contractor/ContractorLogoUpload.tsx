@@ -5,6 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Building2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
 
 interface ContractorLogoUploadProps {
   userId: string;
@@ -27,6 +28,7 @@ export function ContractorLogoUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentAvatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { showUpgrade, upgradeText } = useUpgradeButtonVisibility();
 
   const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
   const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -194,7 +196,11 @@ export function ContractorLogoUpload({
           <p className="text-xs text-muted-foreground text-center max-w-[200px]">
             {isPartner 
               ? "Logo upload is available for partners"
-              : "Upgrade to a paid plan to upload your company logo"}
+              : showUpgrade 
+                ? upgradeText === "Become a Partner" 
+                  ? "Contact us to become a partner and upload your logo"
+                  : "Upgrade to a paid plan to upload your company logo"
+                : "Logo upload is not available"}
           </p>
         </div>
       )}

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { HighlightsSection } from "@/components/articles/HighlightsSection";
 import { SkeletonCard, SkeletonGrid } from "@/components/ui/skeleton-components";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
 
 type Article = {
   id: string;
@@ -20,6 +21,32 @@ type Article = {
   is_premium: boolean;
   created_at: string;
 };
+
+// Inline component to avoid hook rules violation
+function PremiumUnlockBanner({ premiumCount }: { premiumCount: number }) {
+  const { showUpgrade, upgradeText, upgradeLink } = useUpgradeButtonVisibility();
+  
+  if (!showUpgrade) return null;
+  
+  return (
+    <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-6 mb-8">
+      <div className="flex items-start gap-4">
+        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-6 h-6 text-primary" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold mb-1">Unlock Premium Articles</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Get access to all {premiumCount} premium articles and boost your career with expert insights.
+          </p>
+          <Button asChild size="sm">
+            <Link to={upgradeLink}>{upgradeText === "Upgrade to Premium" ? "View Plans" : upgradeText}</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Articles() {
   const { user, isEmployee, isWriter, isLoading: authLoading } = useAuthContext();
@@ -237,22 +264,7 @@ export default function Articles() {
         </div>
 
         {!hasSubscription && user && isEmployee() && (
-          <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-6 mb-8">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-1">Unlock Premium Articles</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Get access to all {premiumCount} premium articles and boost your career with expert insights.
-                </p>
-                <Button asChild size="sm">
-                  <Link to="/pricing">View Plans</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
+          <PremiumUnlockBanner premiumCount={premiumCount} />
         )}
 
         {filteredArticles.length === 0 ? (

@@ -10,6 +10,7 @@ import { ReportProblemDialog } from "@/components/articles/ReportProblemDialog";
 import { ShareArticle } from "@/components/articles/ShareArticle";
 import { SkeletonArticle } from "@/components/ui/skeleton-components";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UpgradeButton } from "@/components/ui/upgrade-button";
 
 type Article = {
   id: string;
@@ -270,9 +271,7 @@ export default function ArticleDetail() {
                 This article is available to premium subscribers. Unlock access to all
                 premium content and accelerate your career growth.
               </p>
-              <Button asChild size="lg">
-                <Link to="/pricing">Subscribe Now</Link>
-              </Button>
+              <UpgradeButton size="lg">Subscribe Now</UpgradeButton>
             </div>
           </article>
         </div>

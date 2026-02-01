@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import { UpgradeButton } from "@/components/ui/upgrade-button";
 
 import { StepIndicator } from "@/components/jobs/StepIndicator";
 import { JobDetailsStep } from "@/components/jobs/steps/JobDetailsStep";
@@ -425,9 +426,7 @@ export default function PostJob() {
             <div>
               <p className="font-medium text-amber-800 dark:text-amber-200">Posting Limit Reached</p>
               <p className="text-sm text-amber-700 dark:text-amber-300">{entitlementError}</p>
-              <Button asChild size="sm" className="mt-3">
-                <Link to="/pricing">Upgrade Plan</Link>
-              </Button>
+              <UpgradeButton size="sm" className="mt-3" />
             </div>
           </div>
         )}

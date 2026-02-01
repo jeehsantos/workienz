@@ -8,6 +8,7 @@ import { Loader2, ArrowLeft, MapPin, Clock, User, MessageCircle, Lock } from "lu
 import { Badge } from "@/components/ui/badge";
 import { SkeletonProfile } from "@/components/ui/skeleton-components";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UpgradeButton } from "@/components/ui/upgrade-button";
 
 interface WorkerDTO {
   id: string;
@@ -342,9 +343,7 @@ export default function WorkerProfile() {
                     <p className="text-sm text-muted-foreground mb-4">
                       You need an active subscription to contact workers.
                     </p>
-                    <Button asChild size="sm" className="w-full">
-                      <Link to="/pricing">Upgrade Now</Link>
-                    </Button>
+                    <UpgradeButton size="sm" className="w-full" />
                   </div>
                 )}
               </div>
