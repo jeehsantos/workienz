@@ -4,13 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -120,7 +114,7 @@ export default function GuideHub() {
             .eq("is_active", true);
 
           return { ...journey, topic_count: count || 0 };
-        })
+        }),
       );
       setJourneys(journeysWithCounts);
     }
@@ -172,11 +166,7 @@ export default function GuideHub() {
     setIsLoading(true);
 
     // Fetch full article
-    const { data } = await supabase
-      .from("articles")
-      .select("*")
-      .eq("id", article.id)
-      .single();
+    const { data } = await supabase.from("articles").select("*").eq("id", article.id).single();
 
     setFullArticle(data);
     setView("article");
@@ -244,10 +234,8 @@ export default function GuideHub() {
                 <GraduationCap className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold font-display">NZ Guide</h1>
-                <p className="text-muted-foreground">
-                  Your complete guide to living and working in New Zealand
-                </p>
+                <h1 className="text-3xl font-bold font-display">Workie - NZ Guide</h1>
+                <p className="text-muted-foreground">Your complete guide to living and working in New Zealand</p>
               </div>
             </div>
           </div>
@@ -277,9 +265,7 @@ export default function GuideHub() {
             <div className="text-center py-16 bg-card rounded-xl border border-border/50">
               <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h2 className="text-xl font-semibold mb-2">No Guides Yet</h2>
-              <p className="text-muted-foreground">
-                Check back soon for guides on living in New Zealand.
-              </p>
+              <p className="text-muted-foreground">Check back soon for guides on living in New Zealand.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -322,9 +308,7 @@ export default function GuideHub() {
 
           <div className="mb-8 border-b pb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">{selectedJourney.title}</h1>
-            <p className="text-muted-foreground max-w-2xl">
-              {selectedJourney.description}
-            </p>
+            <p className="text-muted-foreground max-w-2xl">{selectedJourney.description}</p>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-8">
@@ -393,9 +377,7 @@ export default function GuideHub() {
                 </div>
               ) : filteredArticles.length === 0 ? (
                 <div className="text-center py-20 border-2 border-dashed border-border rounded-3xl bg-muted/50">
-                  <p className="text-muted-foreground font-medium">
-                    No articles found matching your criteria.
-                  </p>
+                  <p className="text-muted-foreground font-medium">No articles found matching your criteria.</p>
                 </div>
               ) : (
                 filteredArticles.map((article) => {
@@ -461,8 +443,8 @@ export default function GuideHub() {
                 {fullArticle.article_type === "guide"
                   ? "Step-by-Step Guide"
                   : fullArticle.article_type === "checklist"
-                  ? "Checklist"
-                  : "Atomic Answer"}
+                    ? "Checklist"
+                    : "Atomic Answer"}
               </span>
               <div className="w-1 h-1 bg-border rounded-full" />
               <div className="flex items-center text-muted-foreground text-[10px] font-bold uppercase tracking-widest">
@@ -477,12 +459,8 @@ export default function GuideHub() {
             {/* TL;DR Box */}
             {fullArticle.summary && (
               <div className="bg-foreground text-background p-6 md:p-8 rounded-2xl mb-10 shadow-xl">
-                <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">
-                  The short answer
-                </h4>
-                <p className="text-base md:text-lg leading-relaxed font-medium">
-                  {fullArticle.summary}
-                </p>
+                <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">The short answer</h4>
+                <p className="text-base md:text-lg leading-relaxed font-medium">{fullArticle.summary}</p>
               </div>
             )}
 
@@ -524,9 +502,7 @@ export default function GuideHub() {
                       >
                         <div className="flex-shrink-0">💡</div>
                         <div>
-                          <strong className="block text-sm font-bold uppercase tracking-tight mb-1">
-                            Pro Tip
-                          </strong>
+                          <strong className="block text-sm font-bold uppercase tracking-tight mb-1">Pro Tip</strong>
                           <p className="text-sm leading-relaxed">{block.value}</p>
                         </div>
                       </div>
@@ -552,9 +528,7 @@ export default function GuideHub() {
           {/* Related Section Placeholder */}
           <div className="border-t pt-12 mt-16">
             <h3 className="text-xl font-bold text-foreground mb-6">Related Questions</h3>
-            <p className="text-muted-foreground text-sm">
-              More related articles coming soon...
-            </p>
+            <p className="text-muted-foreground text-sm">More related articles coming soon...</p>
           </div>
         </div>
       </div>
