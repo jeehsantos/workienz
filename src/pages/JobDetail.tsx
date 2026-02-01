@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
 import { ApplicationRequirementsDialog } from "@/components/jobs/ApplicationRequirementsDialog";
+import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 
 
 type JobShift = {
@@ -64,6 +65,7 @@ type Job = {
     company_name: string;
     company_description: string | null;
     industry: string | null;
+    avatar_url: string | null;
   } | null;
   shifts: JobShift[];
 };
@@ -130,7 +132,7 @@ export default function JobDetail() {
       // Fetch contractor info
       const { data: contractor } = await supabase
         .from("contractor_profiles")
-        .select("id, company_name, company_description, industry")
+        .select("id, company_name, company_description, industry, avatar_url")
         .eq("id", data.contractor_id)
         .single();
 
@@ -456,9 +458,14 @@ export default function JobDetail() {
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>
               {user ? (
-                <p className="text-muted-foreground mb-4">
-                  {job.contractor?.company_name || "Company"}
-                </p>
+                <div className="flex items-center gap-2 text-muted-foreground mb-4">
+                  <ContractorAvatar 
+                    avatarUrl={job.contractor?.avatar_url}
+                    companyName={job.contractor?.company_name}
+                    size="sm"
+                  />
+                  <span>{job.contractor?.company_name || "Company"}</span>
+                </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-muted-foreground mb-4">
                   <Lock className="w-3.5 h-3.5" />

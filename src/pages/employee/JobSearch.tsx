@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/jobs/EmptyState";
 import { useDebounce } from "@/hooks/useDebounce";
 import { SkeletonJobPosting } from "@/components/ui/skeleton-components";
 import { searchJobs } from "@/lib/fullTextSearch"; // Import FTS utility (Requirement 14.1)
+import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 
 type Job = {
   id: string;
@@ -35,6 +36,7 @@ type Job = {
   created_at: string;
   contractor: {
     company_name: string;
+    avatar_url: string | null;
   } | null;
 };
 
@@ -58,9 +60,14 @@ const JobCard = memo(({ job, user }: { job: Job; user: any }) => {
 
           <h3 className="text-lg font-semibold mb-1 break-words">{job.title}</h3>
           {user ? (
-            <p className="text-sm text-muted-foreground mb-3">
-              {job.contractor?.company_name || "Company"}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+              <ContractorAvatar 
+                avatarUrl={job.contractor?.avatar_url}
+                companyName={job.contractor?.company_name}
+                size="sm"
+              />
+              <span>{job.contractor?.company_name || "Company"}</span>
+            </div>
           ) : (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
               <Lock className="w-3.5 h-3.5 flex-shrink-0" />
@@ -244,7 +251,7 @@ export default function JobSearch() {
           const contractorIds = [...new Set(data?.map((j: any) => j.contractor_id) || [])] as string[];
           const { data: contractors } = await supabase
             .from("contractor_profiles")
-            .select("id, company_name")
+            .select("id, company_name, avatar_url")
             .in("id", contractorIds);
 
           jobsWithContractor = data?.map((job: any) => ({

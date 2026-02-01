@@ -242,6 +242,7 @@ export type Database = {
       }
       contractor_profiles: {
         Row: {
+          avatar_url: string | null
           city: string | null
           company_description: string | null
           company_name: string
@@ -258,6 +259,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          avatar_url?: string | null
           city?: string | null
           company_description?: string | null
           company_name: string
@@ -274,6 +276,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          avatar_url?: string | null
           city?: string | null
           company_description?: string | null
           company_name?: string

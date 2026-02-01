@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
+import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 type Message = {
   id: string;
@@ -77,6 +79,8 @@ type ConversationData = {
     phone: string | null;
   } | null;
   other_party_user_id: string | null;
+  contractor_avatar_url: string | null;
+  contractor_company_name: string | null;
 };
 
 // Memoized Message component to prevent unnecessary re-renders
@@ -228,6 +232,9 @@ export default function Conversation() {
 
       // Also try to get phone from employee or contractor profile
       let phone = profileData?.phone || null;
+      let contractorAvatarUrl: string | null = null;
+      let contractorCompanyName: string | null = null;
+      
       if (!phone) {
         if (convData.contractor_user_id === user?.id) {
           const { data: empProfile } = await supabase
@@ -239,11 +246,22 @@ export default function Conversation() {
         } else {
           const { data: contProfile } = await supabase
             .from("contractor_profiles")
-            .select("phone")
+            .select("phone, avatar_url, company_name")
             .eq("user_id", otherUserId)
             .single();
           phone = contProfile?.phone || null;
+          contractorAvatarUrl = (contProfile as any)?.avatar_url || null;
+          contractorCompanyName = contProfile?.company_name || null;
         }
+      } else if (convData.contractor_user_id !== user?.id) {
+        // If phone was from profile, still fetch contractor info for avatar
+        const { data: contProfile } = await supabase
+          .from("contractor_profiles")
+          .select("avatar_url, company_name")
+          .eq("user_id", otherUserId)
+          .single();
+        contractorAvatarUrl = (contProfile as any)?.avatar_url || null;
+        contractorCompanyName = contProfile?.company_name || null;
       }
 
       setConversation({
@@ -258,6 +276,8 @@ export default function Conversation() {
           : null,
         other_party: profileData ? { ...profileData, phone } : null,
         other_party_user_id: otherUserId,
+        contractor_avatar_url: contractorAvatarUrl,
+        contractor_company_name: contractorCompanyName,
       });
 
       // Fetch messages with pagination (Requirement 9.3: Limit initial load to 50 messages)
@@ -708,13 +728,20 @@ export default function Conversation() {
               </Button>
               
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  {isUserContractor ? (
-                    <User className="w-4 h-4 text-primary" />
-                  ) : (
-                    <Building2 className="w-4 h-4 text-primary" />
-                  )}
-                </div>
+                {isUserContractor ? (
+                  <Avatar className="h-9 w-9 flex-shrink-0">
+                    <AvatarFallback className="bg-primary/10">
+                      <User className="w-4 h-4 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <ContractorAvatar
+                    avatarUrl={conversation.contractor_avatar_url}
+                    companyName={conversation.contractor_company_name || undefined}
+                    size="md"
+                    className="flex-shrink-0"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <h1 className="font-semibold truncate text-sm">
                     {conversation.other_party?.full_name || "User"}
