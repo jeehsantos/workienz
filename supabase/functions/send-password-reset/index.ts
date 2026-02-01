@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import workieLogo from "@/assets/workie-logo.png";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -91,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <tr>
                       <td align="center" style="padding-bottom: 24px;">
                         <div style="display: inline-flex; align-items: center; gap: 8px;">
-                            <img src={workieLogo} alt="Workie" className="h-[25px] w-[195px] object-contain" width={195} height={25} />
+                            <img src="https://workienz.lovable.app/workie-logo.png" alt="Workie" style="height: 25px; width: 195px; object-fit: contain;" width="195" height="25" />
                         </div>
                       </td>
                     </tr>
