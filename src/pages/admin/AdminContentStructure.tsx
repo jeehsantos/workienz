@@ -396,17 +396,9 @@ export default function AdminContentStructure() {
           </Link>
         </Button>
 
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold font-display">Content Structure</h1>
-            <p className="text-muted-foreground">Manage Journeys and Topic Hubs for organizing articles</p>
-          </div>
-          <Button asChild variant="outline">
-            <Link to="/admin/articles">
-              <FileText className="w-4 h-4 mr-2" />
-              View Topics
-            </Link>
-          </Button>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold font-display">Content Structure</h1>
+          <p className="text-muted-foreground">Manage Journeys and Topic Hubs for organizing articles</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
