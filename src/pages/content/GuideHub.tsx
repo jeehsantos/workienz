@@ -234,7 +234,7 @@ export default function GuideHub() {
                 <GraduationCap className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold font-display">Workie - NZ Guide</h1>
+                <h1 className="text-3xl font-bold font-display">NZ Guide</h1>
                 <p className="text-muted-foreground">Your complete guide to living and working in New Zealand</p>
               </div>
             </div>
@@ -340,7 +340,7 @@ export default function GuideHub() {
                   <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
                     <div className="flex items-center gap-2 text-primary font-bold mb-2">
                       <Info className="w-4 h-4" />
-                      <span className="text-xs uppercase tracking-tight">Topics</span>
+                      <span className="text-xs uppercase tracking-tight">Did you know?</span>
                     </div>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       {topics.map((topic) => (
