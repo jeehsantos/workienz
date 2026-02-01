@@ -218,8 +218,28 @@ export default function JobSearch() {
 
         // Only fetch contractor info if user is authenticated
         let jobsWithContractor: Job[] = [];
+        let appliedJobIds: Set<string> = new Set();
         
         if (user) {
+          // Fetch user's employee profile to get applied job IDs
+          const { data: employeeProfile } = await supabase
+            .from("employee_profiles")
+            .select("id")
+            .eq("user_id", user.id)
+            .single();
+
+          if (employeeProfile) {
+            // Fetch all job applications by this employee
+            const { data: applications } = await supabase
+              .from("job_applications")
+              .select("job_id")
+              .eq("employee_id", employeeProfile.id);
+
+            if (applications) {
+              appliedJobIds = new Set(applications.map(app => app.job_id));
+            }
+          }
+
           // Fetch contractor info for authenticated users
           const contractorIds = [...new Set(data?.map((j: any) => j.contractor_id) || [])] as string[];
           const { data: contractors } = await supabase
@@ -243,6 +263,11 @@ export default function JobSearch() {
         let filtered = jobsWithContractor.filter(
           (j) => j.positions_available > j.positions_filled
         );
+
+        // Filter out jobs the user has already applied to
+        if (appliedJobIds.size > 0) {
+          filtered = filtered.filter((j) => !appliedJobIds.has(j.id));
+        }
 
         // Handle null/empty industry values - treat as "Other"
         filtered = filtered.map(job => ({
