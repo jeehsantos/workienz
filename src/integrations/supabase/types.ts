@@ -93,48 +93,84 @@ export type Database = {
       }
       articles: {
         Row: {
+          article_type: string | null
           author_id: string
           category: string | null
           content: string
+          content_blocks: Json | null
           cover_image_url: string | null
           created_at: string
           excerpt: string | null
           id: string
           is_premium: boolean
           is_published: boolean
+          journey_id: string | null
           slug: string
+          summary: string | null
           title: string
+          topic_id: string | null
           updated_at: string
+          user_stage: string | null
+          visa_type: string | null
         }
         Insert: {
+          article_type?: string | null
           author_id: string
           category?: string | null
           content: string
+          content_blocks?: Json | null
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
           id?: string
           is_premium?: boolean
           is_published?: boolean
+          journey_id?: string | null
           slug: string
+          summary?: string | null
           title: string
+          topic_id?: string | null
           updated_at?: string
+          user_stage?: string | null
+          visa_type?: string | null
         }
         Update: {
+          article_type?: string | null
           author_id?: string
           category?: string | null
           content?: string
+          content_blocks?: Json | null
           cover_image_url?: string | null
           created_at?: string
           excerpt?: string | null
           id?: string
           is_premium?: boolean
           is_published?: boolean
+          journey_id?: string | null
           slug?: string
+          summary?: string | null
           title?: string
+          topic_id?: string | null
           updated_at?: string
+          user_stage?: string | null
+          visa_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "articles_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "journeys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "articles_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topic_hubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contractor_entitlements: {
         Row: {
@@ -835,6 +871,42 @@ export type Database = {
           },
         ]
       }
+      journeys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          icon_name: string | null
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -1152,6 +1224,50 @@ export type Database = {
         }
         Relationships: []
       }
+      topic_hubs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          journey_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          journey_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          journey_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_hubs_journey_id_fkey"
+            columns: ["journey_id"]
+            isOneToOne: false
+            referencedRelation: "journeys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1212,9 +1328,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "contractor" | "employee" | "writer"
+      article_type: "qa" | "guide" | "checklist"
       job_status: "draft" | "published" | "closed" | "filled"
       referral_status: "pending" | "verified" | "voided"
       subscription_status: "active" | "cancelled" | "expired" | "pending"
+      user_stage: "before_arrival" | "arrival" | "first_30_days" | "living_here"
+      visa_type: "all" | "student" | "worker" | "whv" | "tourist" | "resident"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1343,9 +1462,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "contractor", "employee", "writer"],
+      article_type: ["qa", "guide", "checklist"],
       job_status: ["draft", "published", "closed", "filled"],
       referral_status: ["pending", "verified", "voided"],
       subscription_status: ["active", "cancelled", "expired", "pending"],
+      user_stage: ["before_arrival", "arrival", "first_30_days", "living_here"],
+      visa_type: ["all", "student", "worker", "whv", "tourist", "resident"],
     },
   },
 } as const

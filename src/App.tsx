@@ -33,12 +33,15 @@ const JobDetail = lazy(() => import("./pages/JobDetail"));
 const NewArticle = lazy(() => import("./pages/writer/NewArticle"));
 const MyArticles = lazy(() => import("./pages/writer/MyArticles"));
 const EditArticle = lazy(() => import("./pages/writer/EditArticle"));
+const NewGuideArticle = lazy(() => import("./pages/writer/NewGuideArticle"));
 const WorkerProfile = lazy(() => import("./pages/WorkerProfile"));
 const Conversation = lazy(() => import("./pages/Conversation"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminPartners = lazy(() => import("./pages/admin/AdminPartners"));
 const AdminArticleManagement = lazy(() => import("./pages/admin/AdminArticleManagement"));
+const AdminContentStructure = lazy(() => import("./pages/admin/AdminContentStructure"));
+const GuideHub = lazy(() => import("./pages/content/GuideHub"));
 const Contact = lazy(() => import("./pages/Contact"));
 const About = lazy(() => import("./pages/About"));
 const Checkout = lazy(() => import("./pages/Checkout"));
@@ -93,13 +96,16 @@ const App = () => (
                 <Route path="/workers/:id" element={<WorkerProfile />} />
                 <Route path="/messages/:id" element={<Conversation />} />
                 <Route path="/writer/new-article" element={<NewArticle />} />
+                <Route path="/writer/new-guide" element={<NewGuideArticle />} />
                 <Route path="/writer/articles" element={<MyArticles />} />
                 <Route path="/writer/articles/:id/edit" element={<EditArticle />} />
+                <Route path="/guide" element={<GuideHub />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
                 <Route path="/admin/partners" element={<AdminPartners />} />
                 <Route path="/admin/articles" element={<AdminArticleManagement />} />
                 <Route path="/admin/categories" element={<AdminArticleManagement />} />
+                <Route path="/admin/content-structure" element={<AdminContentStructure />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/checkout" element={<Checkout />} />
