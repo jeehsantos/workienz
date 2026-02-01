@@ -18,13 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Loader2,
@@ -86,7 +80,7 @@ export default function AdminContentStructure() {
 
   const [activeTab, setActiveTab] = useState("journeys");
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Journeys state
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [isJourneyDialogOpen, setIsJourneyDialogOpen] = useState(false);
@@ -127,21 +121,18 @@ export default function AdminContentStructure() {
 
   const fetchData = async () => {
     setIsLoading(true);
-    
+
     if (activeTab === "journeys") {
       await fetchJourneys();
     } else {
       await fetchTopics();
     }
-    
+
     setIsLoading(false);
   };
 
   const fetchJourneys = async () => {
-    const { data, error } = await supabase
-      .from("journeys")
-      .select("*")
-      .order("display_order", { ascending: true });
+    const { data, error } = await supabase.from("journeys").select("*").order("display_order", { ascending: true });
 
     if (error) {
       console.error("Error fetching journeys:", error);
@@ -158,7 +149,7 @@ export default function AdminContentStructure() {
           .eq("journey_id", journey.id);
 
         return { ...journey, topic_count: count || 0 };
-      })
+      }),
     );
 
     setJourneys(journeysWithCounts);
@@ -175,10 +166,7 @@ export default function AdminContentStructure() {
       setJourneys(journeyData as Journey[]);
     }
 
-    const { data, error } = await supabase
-      .from("topic_hubs")
-      .select("*")
-      .order("display_order", { ascending: true });
+    const { data, error } = await supabase.from("topic_hubs").select("*").order("display_order", { ascending: true });
 
     if (error) {
       console.error("Error fetching topics:", error);
@@ -189,8 +177,8 @@ export default function AdminContentStructure() {
     // Enrich with journey titles and article counts
     const topicsWithData = await Promise.all(
       (data || []).map(async (topic) => {
-        const journey = journeyData?.find(j => j.id === topic.journey_id);
-        
+        const journey = journeyData?.find((j) => j.id === topic.journey_id);
+
         const { count } = await supabase
           .from("articles")
           .select("*", { count: "exact", head: true })
@@ -201,7 +189,7 @@ export default function AdminContentStructure() {
           journey_title: journey?.title || "Unknown",
           article_count: count || 0,
         };
-      })
+      }),
     );
 
     setTopics(topicsWithData);
@@ -255,16 +243,14 @@ export default function AdminContentStructure() {
         if (error) throw error;
         toast({ title: "Success", description: "Journey updated successfully." });
       } else {
-        const { error } = await supabase
-          .from("journeys")
-          .insert({
-            title: journeyForm.title,
-            description: journeyForm.description || null,
-            icon_name: journeyForm.icon_name,
-            display_order: journeyForm.display_order,
-            is_active: journeyForm.is_active,
-            created_by: user?.id,
-          });
+        const { error } = await supabase.from("journeys").insert({
+          title: journeyForm.title,
+          description: journeyForm.description || null,
+          icon_name: journeyForm.icon_name,
+          display_order: journeyForm.display_order,
+          is_active: journeyForm.is_active,
+          created_by: user?.id,
+        });
 
         if (error) throw error;
         toast({ title: "Success", description: "Journey created successfully." });
@@ -344,16 +330,14 @@ export default function AdminContentStructure() {
         if (error) throw error;
         toast({ title: "Success", description: "Topic updated successfully." });
       } else {
-        const { error } = await supabase
-          .from("topic_hubs")
-          .insert({
-            journey_id: topicForm.journey_id,
-            title: topicForm.title,
-            description: topicForm.description || null,
-            display_order: topicForm.display_order,
-            is_active: topicForm.is_active,
-            created_by: user?.id,
-          });
+        const { error } = await supabase.from("topic_hubs").insert({
+          journey_id: topicForm.journey_id,
+          title: topicForm.title,
+          description: topicForm.description || null,
+          display_order: topicForm.display_order,
+          is_active: topicForm.is_active,
+          created_by: user?.id,
+        });
 
         if (error) throw error;
         toast({ title: "Success", description: "Topic created successfully." });
@@ -386,7 +370,7 @@ export default function AdminContentStructure() {
   };
 
   const getIconComponent = (iconName: string) => {
-    const iconOption = ICON_OPTIONS.find(opt => opt.value === iconName);
+    const iconOption = ICON_OPTIONS.find((opt) => opt.value === iconName);
     if (iconOption) {
       const IconComp = iconOption.icon;
       return <IconComp className="w-5 h-5" />;
@@ -414,9 +398,7 @@ export default function AdminContentStructure() {
 
         <div className="mb-8">
           <h1 className="text-3xl font-bold font-display">Content Structure</h1>
-          <p className="text-muted-foreground">
-            Manage Journeys and Topic Hubs for organizing articles
-          </p>
+          <p className="text-muted-foreground">Manage Journeys and Topic Hubs for organizing articles</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -434,9 +416,7 @@ export default function AdminContentStructure() {
           {/* Journeys Tab */}
           <TabsContent value="journeys" className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                Journeys are the main stages of a user's NZ experience
-              </p>
+              <p className="text-sm text-muted-foreground">Journeys are the main stages of a user's NZ experience</p>
               <Button onClick={() => openJourneyDialog()}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Journey
@@ -469,9 +449,7 @@ export default function AdminContentStructure() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold">{journey.title}</h3>
-                            {!journey.is_active && (
-                              <Badge variant="secondary">Inactive</Badge>
-                            )}
+                            {!journey.is_active && <Badge variant="secondary">Inactive</Badge>}
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {journey.description || "No description"}
@@ -499,9 +477,7 @@ export default function AdminContentStructure() {
           {/* Topics Tab */}
           <TabsContent value="topics" className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">
-                Topic Hubs group articles within a journey
-              </p>
+              <p className="text-sm text-muted-foreground">Topic Hubs group articles within a journey</p>
               <Button onClick={() => openTopicDialog()} disabled={journeys.length === 0}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Topic
@@ -544,13 +520,9 @@ export default function AdminContentStructure() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold">{topic.title}</h3>
-                            {!topic.is_active && (
-                              <Badge variant="secondary">Inactive</Badge>
-                            )}
+                            {!topic.is_active && <Badge variant="secondary">Inactive</Badge>}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {topic.journey_title}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{topic.journey_title}</p>
                           <p className="text-xs text-muted-foreground mt-1">
                             {topic.article_count} article{topic.article_count !== 1 ? "s" : ""}
                           </p>
@@ -698,7 +670,7 @@ export default function AdminContentStructure() {
                   id="topic-title"
                   value={topicForm.title}
                   onChange={(e) => setTopicForm({ ...topicForm, title: e.target.value })}
-                  placeholder="e.g., Visas & Legal"
+                  placeholder="e.g., Most Working Holiday Visas allow you to study for up to 6 months."
                 />
               </div>
 
