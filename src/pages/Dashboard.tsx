@@ -2,9 +2,9 @@ import { useEffect, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, User, Briefcase, FileText, Settings, Users, MessageCircle, BarChart3, CreditCard, FolderEdit } from "lucide-react";
+import { Loader2, User, Briefcase, FileText, Users, MessageCircle, BarChart3, CreditCard, FolderEdit } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
-import { ReferralDashboard } from "@/components/referrals/ReferralDashboard";
+import { SettingsCard } from "@/components/dashboard/SettingsCard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -217,7 +217,7 @@ export default function Dashboard() {
               className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
             >
               <div className="w-12 h-12 rounded-lg bg-destructive/10 flex items-center justify-center mb-4 group-hover:bg-destructive/20 transition-colors">
-                <Settings className="w-6 h-6 text-destructive" />
+                <Briefcase className="w-6 h-6 text-destructive" />
               </div>
               <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">Admin Dashboard</h3>
               <p className="text-muted-foreground text-sm mb-4">
@@ -303,6 +303,11 @@ export default function Dashboard() {
               <Link to="/subscription">Manage Subscription</Link>
             </Button>
           </div>
+
+          {/* Settings Card - for employees and contractors */}
+          {(showEmployeeCards || showContractorCards) && (
+            <SettingsCard showReferralProgram={showReferralDashboard} />
+          )}
         </div>
 
         {/* My Conversations Section - for employees and contractors */}
@@ -315,13 +320,6 @@ export default function Dashboard() {
               </div>
               <MyConversations userId={user.id} />
             </div>
-          </div>
-        )}
-
-        {/* Referral Program Section - for free tier employees only */}
-        {showReferralDashboard && (
-          <div className="mt-8">
-            <ReferralDashboard />
           </div>
         )}
       </div>
