@@ -85,6 +85,7 @@ export default function JobDetail() {
   const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
   const [applicationError, setApplicationError] = useState<string | null>(null);
   const [showRequirementsDialog, setShowRequirementsDialog] = useState(false);
+  const [cooldownInfo, setCooldownInfo] = useState<{ onCooldown: boolean; daysRemaining: number } | null>(null);
 
   useEffect(() => {
     async function fetchJob() {
@@ -161,10 +162,10 @@ export default function JobDetail() {
     async function checkApplication() {
       if (!user || !id || !isEmployee()) return;
 
-      // Get employee profile
+      // Get employee profile with last_application_at for cooldown check
       const { data: profile } = await supabase
         .from("employee_profiles")
-        .select("id, experience_years, industry")
+        .select("id, experience_years, industry, last_application_at")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -186,6 +187,71 @@ export default function JobDetail() {
           setApplicationStatus(application.status);
         }
 
+        // Check cooldown status for free tier users
+        // Fetch subscription status
+        const { data: subscription } = await supabase
+          .from("subscriptions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .maybeSingle();
+
+        const isSubscribed = !!subscription;
+
+        if (!isSubscribed) {
+          // Get active applications count
+          const { count: activeAppsCount } = await supabase
+            .from("job_applications")
+            .select("id", { count: "exact", head: true })
+            .eq("employee_id", profile.id)
+            .in("status", ["pending", "shortlisted"]);
+
+          const activeApplications = activeAppsCount || 0;
+
+          // Get referral credits
+          const { data: referralCredits } = await supabase
+            .from("employee_referral_credits")
+            .select("bonus_credits_balance, bonus_credits_used, is_shadow_banned")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          let referralCreditsRemaining = 0;
+          if (referralCredits && !referralCredits.is_shadow_banned) {
+            referralCreditsRemaining = referralCredits.bonus_credits_balance - referralCredits.bonus_credits_used;
+          }
+
+          const BASE_FREE_TIER_APPLICATIONS = 1;
+
+          // Cooldown only applies if user has exhausted base slot AND has no referral credits
+          const shouldApplyCooldown = activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0;
+
+          if (shouldApplyCooldown && profile.last_application_at) {
+            // Get cooldown days from platform settings
+            const { data: settings } = await supabase
+              .from("platform_settings")
+              .select("setting_value")
+              .eq("setting_key", "free_tier_cooldown_days")
+              .maybeSingle();
+
+            const freeTierCooldownDays = settings ? parseInt(settings.setting_value) || 3 : 3;
+
+            const lastAppDate = new Date(profile.last_application_at);
+            const now = new Date();
+            const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            if (daysSinceLastApp < freeTierCooldownDays) {
+              const remaining = freeTierCooldownDays - daysSinceLastApp;
+              setCooldownInfo({ onCooldown: true, daysRemaining: remaining });
+            } else {
+              setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
+            }
+          } else {
+            setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
+          }
+        } else {
+          // Subscribed users - no cooldown warning needed here (backend handles their cooldown)
+          setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
+        }
       }
     }
 
@@ -570,6 +636,25 @@ export default function JobDetail() {
                           <Link to="/employee/profile">Update Profile</Link>
                         </Button>
                       )}
+                    </div>
+                  </div>
+                ) : cooldownInfo?.onCooldown ? (
+                  <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
+                    <Clock className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Application Cooldown Active</p>
+                      <p className="text-sm text-muted-foreground">
+                        You must wait {cooldownInfo.daysRemaining} more day{cooldownInfo.daysRemaining > 1 ? 's' : ''} before applying to another job. 
+                        This cooldown applies because you've used your free application slot and have no remaining referral credits.
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <Button asChild size="sm">
+                          <Link to="/pricing">Upgrade to Premium</Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                          <Link to="/dashboard?tab=settings">Invite Friends</Link>
+                        </Button>
+                      </div>
                     </div>
                   </div>
 ) : (
