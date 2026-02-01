@@ -18,8 +18,7 @@ import {
   CheckCircle2, 
   Clock, 
   Crown,
-  Sparkles,
-  Link as LinkIcon
+  Sparkles
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -36,16 +35,6 @@ export function ReferralDashboard() {
   const getReferralCode = useGetReferralCode();
   const [shareOpen, setShareOpen] = useState(false);
 
-  const handleCopyCode = () => {
-    if (stats?.referral_code) {
-      navigator.clipboard.writeText(stats.referral_code);
-      toast({
-        title: "Code Copied!",
-        description: "Your referral code has been copied to clipboard.",
-      });
-    }
-  };
-
   const handleCopyLink = () => {
     if (stats?.referral_code) {
       const referralLink = `${window.location.origin}/auth?mode=signup&ref=${stats.referral_code}`;
@@ -59,7 +48,7 @@ export function ReferralDashboard() {
 
   const handleShareTwitter = () => {
     if (stats?.referral_code) {
-      const text = encodeURIComponent("Join me on Workie and find your next job! Use my referral code for exclusive bonuses:");
+      const text = encodeURIComponent("Join me on Workie and find your next job! Sign up using my link for exclusive bonuses:");
       const url = encodeURIComponent(`${window.location.origin}/auth?mode=signup&ref=${stats.referral_code}`);
       window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=550,height=420');
     }
@@ -72,7 +61,7 @@ export function ReferralDashboard() {
     }
   };
 
-  const handleGenerateCode = async () => {
+  const handleGenerateLink = async () => {
     await getReferralCode.mutateAsync();
   };
 
@@ -125,36 +114,32 @@ export function ReferralDashboard() {
       </CardHeader>
 
       <CardContent className="p-6 space-y-6">
-        {/* Referral Code Section */}
+        {/* Referral Link Section */}
         {!stats?.has_referral_code ? (
           <div className="text-center py-6">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-2">Start Referring Friends</h3>
             <p className="text-muted-foreground mb-4">
-              Generate your unique referral code and start earning bonus application credits!
+              Get your unique referral link and start earning bonus application credits!
             </p>
-            <Button onClick={handleGenerateCode} disabled={getReferralCode.isPending}>
-              {getReferralCode.isPending ? "Generating..." : "Get My Referral Code"}
+            <Button onClick={handleGenerateLink} disabled={getReferralCode.isPending}>
+              {getReferralCode.isPending ? "Generating..." : "Get My Referral Link"}
             </Button>
           </div>
         ) : (
           <>
             {/* Share Section */}
             <div className="bg-muted/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium">Your Referral Code</span>
-                <Badge variant="secondary" className="font-mono text-lg px-3 py-1">
-                  {stats.referral_code}
-                </Badge>
+              <div className="mb-3">
+                <span className="text-sm font-medium">Your Referral Link</span>
+                <div className="mt-2 p-2 bg-background rounded border text-sm break-all text-muted-foreground">
+                  {`${window.location.origin}/auth?mode=signup&ref=${stats.referral_code}`}
+                </div>
               </div>
               
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopyCode}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Code
-                </Button>
                 <Button variant="outline" size="sm" onClick={handleCopyLink}>
-                  <LinkIcon className="h-4 w-4 mr-2" />
+                  <Copy className="h-4 w-4 mr-2" />
                   Copy Link
                 </Button>
                 <Popover open={shareOpen} onOpenChange={setShareOpen}>
