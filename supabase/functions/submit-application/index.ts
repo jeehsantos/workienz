@@ -179,8 +179,29 @@ Deno.serve(async (req) => {
     // 9. Calculate total available applications for free tier
     const totalFreeApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
 
-    // 10. Check application slots FIRST (before cooldown)
-    // This ensures users see the correct error message based on their situation
+    // 10. Calculate cooldown - only applies to paid users OR free users who have exhausted their credits
+    // Free tier users with available referral credits can apply without cooldown
+    const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
+    
+    // For free tier: cooldown only applies if they're trying to use the base application again
+    // (i.e., they have no referral credits remaining and have already used their base slot)
+    const shouldApplyCooldown = isSubscribed || (activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0);
+
+    if (shouldApplyCooldown && employeeProfile.last_application_at) {
+      const lastAppDate = new Date(employeeProfile.last_application_at);
+      const now = new Date();
+      const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceLastApp < cooldownDays) {
+        const remaining = cooldownDays - daysSinceLastApp;
+        return new Response(
+          JSON.stringify({ error: `You must wait ${remaining} more day${remaining > 1 ? 's' : ''} before applying to another job.` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // 11. Check application slots with queue system
     if (isSubscribed) {
       if (activeApplications >= paidTierMaxActiveApps) {
         return new Response(
@@ -224,33 +245,6 @@ Deno.serve(async (req) => {
             remaining_credits: referralCreditsRemaining,
             active_applications: activeApplications,
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // 11. Calculate cooldown - only applies AFTER we've verified user has available slots
-    // Cooldown applies when a user is trying to reuse a slot that was previously used
-    // For paid users: cooldown between each application
-    // For free users: cooldown only when reusing the base slot (no referral credits, slot freed up)
-    const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
-    
-    // Cooldown only applies if:
-    // - Paid user: always (between applications)
-    // - Free user: when they have no referral credits AND are trying to reuse their base slot
-    //   (i.e., they had an application before that is no longer active)
-    const shouldApplyCooldown = isSubscribed || 
-      (referralCreditsRemaining <= 0 && activeApplications < BASE_FREE_TIER_APPLICATIONS && employeeProfile.last_application_at);
-
-    if (shouldApplyCooldown && employeeProfile.last_application_at) {
-      const lastAppDate = new Date(employeeProfile.last_application_at);
-      const now = new Date();
-      const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysSinceLastApp < cooldownDays) {
-        const remaining = cooldownDays - daysSinceLastApp;
-        return new Response(
-          JSON.stringify({ error: `You must wait ${remaining} more day${remaining > 1 ? 's' : ''} before applying to another job.` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
