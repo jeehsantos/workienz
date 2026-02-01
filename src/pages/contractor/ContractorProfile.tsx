@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { ContractorLogoUpload } from "@/components/contractor/ContractorLogoUpload";
+import { useContractorUploadPermission } from "@/hooks/useContractorUploadPermission";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -33,10 +35,12 @@ export default function ContractorProfile() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isContractor } = useAuthContext();
   const { toast } = useToast();
+  const uploadPermission = useContractorUploadPermission(user?.id);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [existingProfile, setExistingProfile] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     company_name: "",
@@ -69,6 +73,7 @@ export default function ContractorProfile() {
         console.error("Error fetching profile:", error);
       } else if (data) {
         setExistingProfile(data.id);
+        setAvatarUrl((data as any).avatar_url || null);
         setFormData({
           company_name: data.company_name || "",
           company_description: data.company_description || "",
@@ -192,6 +197,19 @@ export default function ContractorProfile() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+          {/* Company Logo Section */}
+          <div className="bg-card rounded-xl p-6 border border-border/50">
+            <h2 className="text-lg font-semibold mb-4">Company Logo</h2>
+            <ContractorLogoUpload
+              userId={user?.id || ""}
+              currentAvatarUrl={avatarUrl}
+              companyName={formData.company_name}
+              onUploadComplete={(url) => setAvatarUrl(url)}
+              canUpload={uploadPermission.canUpload}
+              isPartner={uploadPermission.isPartner}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="company_name">Company Name *</Label>
             <Input
