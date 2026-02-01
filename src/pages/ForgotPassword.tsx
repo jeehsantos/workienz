@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Mail, CheckCircle } from "lucide-react";
 import { z } from "zod";
+import workieLogo from "@/assets/workie-logo.png";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 
