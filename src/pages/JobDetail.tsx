@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
 import {
   Loader2,
   ArrowLeft,
@@ -69,6 +70,17 @@ type Job = {
   } | null;
   shifts: JobShift[];
 };
+
+// Inline component to use the hook properly (hooks can't be called conditionally)
+function UpgradeButtonInline({ size = "sm", className = "" }: { size?: "sm" | "default" | "lg"; className?: string }) {
+  const { showUpgrade, upgradeText, upgradeLink } = useUpgradeButtonVisibility();
+  if (!showUpgrade) return null;
+  return (
+    <Button asChild size={size} className={className}>
+      <Link to={upgradeLink}>{upgradeText}</Link>
+    </Button>
+  );
+}
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -634,9 +646,7 @@ export default function JobDetail() {
                         {eligibility.reason}
                       </p>
                       {eligibility.reason?.includes("Premium") && (
-                        <Button asChild size="sm" className="mt-2">
-                          <Link to="/pricing">Upgrade to Premium</Link>
-                        </Button>
+                        <UpgradeButtonInline size="sm" className="mt-2" />
                       )}
                       {eligibility.reason?.includes("experience") && (
                         <Button asChild size="sm" variant="outline" className="mt-2">
@@ -655,9 +665,7 @@ export default function JobDetail() {
                         This cooldown applies because you've used your free application slot and have no remaining referral credits.
                       </p>
                       <div className="flex gap-2 mt-3">
-                        <Button asChild size="sm">
-                          <Link to="/pricing">Upgrade to Premium</Link>
-                        </Button>
+                        <UpgradeButtonInline />
                         <Button asChild size="sm" variant="outline">
                           <Link to="/dashboard?tab=settings">Invite Friends</Link>
                         </Button>

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Lock, FileText } from "lucide-react";
+import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
 
 type Article = {
   id: string;
@@ -19,10 +20,14 @@ interface HighlightsSectionProps {
 export function HighlightsSection({ articles, hasSubscription }: HighlightsSectionProps) {
   const featuredArticle = articles[0];
   const sideArticles = articles.slice(1, 3);
+  const { showUpgrade, upgradeLink } = useUpgradeButtonVisibility();
 
   if (!featuredArticle) {
     return null;
   }
+
+  // Helper to determine the link destination for locked articles
+  const getLockedArticleLink = () => showUpgrade ? upgradeLink : "#";
 
   return (
     <section className="mb-12">
@@ -63,7 +68,7 @@ export function HighlightsSection({ articles, hasSubscription }: HighlightsSecti
             )}
 
             <Link 
-              to={featuredArticle.is_premium && !hasSubscription ? "/pricing" : `/articles/${featuredArticle.slug}`}
+              to={featuredArticle.is_premium && !hasSubscription ? getLockedArticleLink() : `/articles/${featuredArticle.slug}`}
               className="text-primary hover:underline font-medium inline-flex items-center gap-1"
             >
               Read more
@@ -93,7 +98,7 @@ export function HighlightsSection({ articles, hasSubscription }: HighlightsSecti
                 )}
 
                 <Link 
-                  to={isLocked ? "/pricing" : `/articles/${article.slug}`}
+                  to={isLocked ? getLockedArticleLink() : `/articles/${article.slug}`}
                   className="text-primary hover:underline text-sm font-medium inline-flex items-center gap-1"
                 >
                   Read more
