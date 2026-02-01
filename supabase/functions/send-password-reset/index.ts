@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import workieLogo from "@/assets/workie-logo.png";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -23,10 +24,10 @@ const handler = async (req: Request): Promise<Response> => {
     const { email }: PasswordResetRequest = await req.json();
 
     if (!email) {
-      return new Response(
-        JSON.stringify({ error: "Email is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Email is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Processing password reset for:", email);
@@ -35,7 +36,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
+      { auth: { autoRefreshToken: false, persistSession: false } },
     );
 
     // Generate password reset link using Supabase
@@ -43,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
       type: "recovery",
       email: email,
       options: {
-        redirectTo: `${req.headers.get("origin") || Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '.lovableproject.com')}/reset-password`,
+        redirectTo: `${req.headers.get("origin") || Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", ".lovableproject.com")}/reset-password`,
       },
     });
 
@@ -52,7 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't reveal if user exists or not for security
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset email has been sent." }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -62,7 +63,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("No action link generated");
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset email has been sent." }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -70,9 +71,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email via Resend
     const emailResponse = await resend.emails.send({
-      from: "Kiwi Hunters <onboarding@resend.dev>",
+      from: "Workie <onboarding@resend.dev>",
       to: [email],
-      subject: "Reset Your Password - Kiwi Hunters",
+      subject: "Reset Your Password - Workie",
       html: `
         <!DOCTYPE html>
         <html>
@@ -90,10 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <tr>
                       <td align="center" style="padding-bottom: 24px;">
                         <div style="display: inline-flex; align-items: center; gap: 8px;">
-                          <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span style="color: white; font-weight: bold; font-size: 18px;">K</span>
-                          </div>
-                          <span style="font-size: 20px; font-weight: bold; color: #18181b;">Kiwi Hunters</span>
+                            <img src={workieLogo} alt="Workie" className="h-[25px] w-[195px] object-contain" width={195} height={25} />
                         </div>
                       </td>
                     </tr>
@@ -129,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <tr>
                       <td style="padding-top: 24px; text-align: center;">
                         <p style="margin: 0; font-size: 13px; color: #a1a1aa;">
-                          © 2026 Kiwi Hunters. All rights reserved.
+                          © 2026 Workie. All rights reserved.
                         </p>
                       </td>
                     </tr>
@@ -144,16 +142,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully:", emailResponse);
 
-    return new Response(
-      JSON.stringify({ success: true, message: "Password reset email sent successfully" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, message: "Password reset email sent successfully" }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error: any) {
     console.error("Error in send-password-reset function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "An error occurred" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message || "An error occurred" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 };
 

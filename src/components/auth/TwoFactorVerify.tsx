@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Shield, KeyRound } from "lucide-react";
+import workieLogo from "@/assets/workie-logo.png";
 
 interface TwoFactorVerifyProps {
   userId: string;
@@ -73,11 +74,8 @@ export function TwoFactorVerify({ userId, onSuccess, onCancel }: TwoFactorVerify
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg font-display">K</span>
-          </div>
-          <span className="text-xl font-bold font-display">Kiwi Hunters</span>
+        <div className="flex items-center justify-center mb-6">
+          <img src={workieLogo} alt="Workie" className="h-[25px] w-[195px] object-contain" width={195} height={25} />
         </div>
 
         <div className="text-center mb-6">
@@ -86,18 +84,13 @@ export function TwoFactorVerify({ userId, onSuccess, onCancel }: TwoFactorVerify
           </div>
           <h1 className="text-2xl font-bold mb-2 font-display">Two-Factor Authentication</h1>
           <p className="text-muted-foreground">
-            {useBackupCode 
-              ? "Enter one of your backup codes"
-              : "Enter the 6-digit code from your authenticator app"
-            }
+            {useBackupCode ? "Enter one of your backup codes" : "Enter the 6-digit code from your authenticator app"}
           </p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="code">
-              {useBackupCode ? "Backup Code" : "Authentication Code"}
-            </Label>
+            <Label htmlFor="code">{useBackupCode ? "Backup Code" : "Authentication Code"}</Label>
             <Input
               id="code"
               type="text"
@@ -106,20 +99,16 @@ export function TwoFactorVerify({ userId, onSuccess, onCancel }: TwoFactorVerify
               maxLength={useBackupCode ? 9 : 6}
               placeholder={useBackupCode ? "XXXX-XXXX" : "000000"}
               value={code}
-              onChange={(e) => setCode(useBackupCode ? e.target.value.toUpperCase() : e.target.value.replace(/\D/g, ""))}
+              onChange={(e) =>
+                setCode(useBackupCode ? e.target.value.toUpperCase() : e.target.value.replace(/\D/g, ""))
+              }
               onKeyDown={handleKeyDown}
               className="mt-1.5 text-center text-lg tracking-widest font-mono"
               autoFocus
             />
           </div>
 
-          <Button 
-            onClick={handleVerify} 
-            disabled={isLoading}
-            className="w-full"
-            variant="hero"
-            size="lg"
-          >
+          <Button onClick={handleVerify} disabled={isLoading} className="w-full" variant="hero" size="lg">
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -143,11 +132,7 @@ export function TwoFactorVerify({ userId, onSuccess, onCancel }: TwoFactorVerify
               {useBackupCode ? "Use authenticator app instead" : "Use a backup code"}
             </button>
 
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
+            <button type="button" onClick={onCancel} className="text-sm text-muted-foreground hover:text-foreground">
               Cancel and sign in with a different account
             </button>
           </div>

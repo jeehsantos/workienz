@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Lock, Check, X, CheckCircle } from "lucide-react";
 import { z } from "zod";
+import workieLogo from "@/assets/workie-logo.png";
 
 // Enhanced password validation with complexity requirements
-const passwordSchema = z.string()
+const passwordSchema = z
+  .string()
   .min(8, "Password must be at least 8 characters")
   .max(72, "Password must be less than 72 characters")
   .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
@@ -23,14 +25,17 @@ const passwordRequirements = [
   { label: "One uppercase letter (A-Z)", test: (pwd: string) => /[A-Z]/.test(pwd) },
   { label: "One lowercase letter (a-z)", test: (pwd: string) => /[a-z]/.test(pwd) },
   { label: "One number (0-9)", test: (pwd: string) => /[0-9]/.test(pwd) },
-  { label: "One special character (!@#$%...)", test: (pwd: string) => /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\]/.test(pwd) },
+  {
+    label: "One special character (!@#$%...)",
+    test: (pwd: string) => /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?\/\\]/.test(pwd),
+  },
 ];
 
 // Password strength indicator component
 function PasswordStrengthIndicator({ password }: { password: string }) {
-  const metRequirements = passwordRequirements.filter(req => req.test(password)).length;
+  const metRequirements = passwordRequirements.filter((req) => req.test(password)).length;
   const strengthPercentage = (metRequirements / passwordRequirements.length) * 100;
-  
+
   const getStrengthLabel = () => {
     if (metRequirements === 0) return { label: "", color: "bg-muted" };
     if (metRequirements <= 2) return { label: "Weak", color: "bg-destructive" };
@@ -48,16 +53,22 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
       <div className="space-y-1.5">
         <div className="flex justify-between text-xs">
           <span className="text-muted-foreground">Password strength</span>
-          <span className={`font-medium ${
-            strength.label === "Weak" ? "text-destructive" : 
-            strength.label === "Medium" ? "text-warning" : 
-            strength.label === "Strong" ? "text-success" : ""
-          }`}>
+          <span
+            className={`font-medium ${
+              strength.label === "Weak"
+                ? "text-destructive"
+                : strength.label === "Medium"
+                  ? "text-warning"
+                  : strength.label === "Strong"
+                    ? "text-success"
+                    : ""
+            }`}
+          >
             {strength.label}
           </span>
         </div>
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-          <div 
+          <div
             className={`h-full transition-all duration-300 ${strength.color}`}
             style={{ width: `${strengthPercentage}%` }}
           />
@@ -69,17 +80,13 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
         {passwordRequirements.map((req, index) => {
           const isMet = req.test(password);
           return (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className={`flex items-center gap-2 text-xs transition-colors ${
                 isMet ? "text-success" : "text-muted-foreground"
               }`}
             >
-              {isMet ? (
-                <Check className="w-3.5 h-3.5" />
-              ) : (
-                <X className="w-3.5 h-3.5" />
-              )}
+              {isMet ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
               <span>{req.label}</span>
             </div>
           );
@@ -105,11 +112,13 @@ export default function ResetPassword() {
     let mounted = true;
 
     // Set up auth state listener FIRST to catch PASSWORD_RECOVERY event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
-      
+
       console.log("Auth event:", event, "Session:", !!session);
-      
+
       if (event === "PASSWORD_RECOVERY" && session) {
         setIsValidSession(true);
         setIsChecking(false);
@@ -123,16 +132,19 @@ export default function ResetPassword() {
     // THEN check for existing session
     const checkSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
         if (!mounted) return;
-        
+
         if (error) {
           console.error("Session check error:", error);
           setIsChecking(false);
           return;
         }
-        
+
         // If there's already a valid session, allow password reset
         if (session) {
           setIsValidSession(true);
@@ -272,11 +284,8 @@ export default function ResetPassword() {
 
         <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
           {/* Logo */}
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg font-display">K</span>
-            </div>
-            <span className="text-xl font-bold font-display">Kiwi Hunters</span>
+          <div className="flex items-center justify-center mb-6">
+            <img src={workieLogo} alt="Workie" className="h-[25px] w-[195px] object-contain" width={195} height={25} />
           </div>
 
           {isSuccess ? (
@@ -299,9 +308,7 @@ export default function ResetPassword() {
                   <Lock className="w-6 h-6 text-primary" />
                 </div>
                 <h1 className="text-2xl font-bold mb-2 font-display">Set new password</h1>
-                <p className="text-muted-foreground">
-                  Create a strong password for your account.
-                </p>
+                <p className="text-muted-foreground">Create a strong password for your account.</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -316,9 +323,7 @@ export default function ResetPassword() {
                     className="mt-1.5"
                     autoComplete="new-password"
                   />
-                  {errors.password && (
-                    <p className="text-sm text-destructive mt-1">{errors.password}</p>
-                  )}
+                  {errors.password && <p className="text-sm text-destructive mt-1">{errors.password}</p>}
                   <PasswordStrengthIndicator password={password} />
                 </div>
 
@@ -331,15 +336,11 @@ export default function ResetPassword() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`mt-1.5 ${
-                      confirmPassword && !passwordsMatch 
-                        ? "border-destructive focus-visible:ring-destructive" 
-                        : ""
+                      confirmPassword && !passwordsMatch ? "border-destructive focus-visible:ring-destructive" : ""
                     }`}
                     autoComplete="new-password"
                   />
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive mt-1">{errors.confirmPassword}</p>
-                  )}
+                  {errors.confirmPassword && <p className="text-sm text-destructive mt-1">{errors.confirmPassword}</p>}
                   {confirmPassword && !passwordsMatch && !errors.confirmPassword && (
                     <p className="text-sm text-destructive mt-1">Passwords do not match</p>
                   )}
@@ -351,13 +352,7 @@ export default function ResetPassword() {
                   )}
                 </div>
 
-                <Button
-                  type="submit"
-                  variant="hero"
-                  size="lg"
-                  className="w-full mt-6"
-                  disabled={isLoading}
-                >
+                <Button type="submit" variant="hero" size="lg" className="w-full mt-6" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
