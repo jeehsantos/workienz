@@ -77,11 +77,8 @@ export default function ForgotPassword() {
 
         <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50">
           {/* Logo */}
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg font-display">K</span>
-            </div>
-            <span className="text-xl font-bold font-display">Kiwi Hunters</span>
+          <div className="flex items-center justify-center mb-6">
+            <img src={workieLogo} alt="Workie" className="h-[25px] w-[195px] object-contain" width={195} height={25} />
           </div>
 
           {isEmailSent ? (
@@ -92,15 +89,13 @@ export default function ForgotPassword() {
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">Check your email</h1>
               <p className="text-muted-foreground mb-6">
-                We've sent a password reset link to<br />
+                We've sent a password reset link to
+                <br />
                 <span className="font-medium text-foreground">{email}</span>
               </p>
               <p className="text-sm text-muted-foreground mb-6">
                 Didn't receive the email? Check your spam folder or{" "}
-                <button
-                  onClick={() => setIsEmailSent(false)}
-                  className="text-primary hover:underline font-medium"
-                >
+                <button onClick={() => setIsEmailSent(false)} className="text-primary hover:underline font-medium">
                   try again
                 </button>
               </p>
@@ -116,9 +111,7 @@ export default function ForgotPassword() {
                   <Mail className="w-6 h-6 text-primary" />
                 </div>
                 <h1 className="text-2xl font-bold mb-2 font-display">Forgot password?</h1>
-                <p className="text-muted-foreground">
-                  No worries, we'll send you reset instructions.
-                </p>
+                <p className="text-muted-foreground">No worries, we'll send you reset instructions.</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -133,18 +126,10 @@ export default function ForgotPassword() {
                     className="mt-1.5"
                     autoComplete="email"
                   />
-                  {emailError && (
-                    <p className="text-sm text-destructive mt-1">{emailError}</p>
-                  )}
+                  {emailError && <p className="text-sm text-destructive mt-1">{emailError}</p>}
                 </div>
 
-                <Button
-                  type="submit"
-                  variant="hero"
-                  size="lg"
-                  className="w-full"
-                  disabled={isLoading}
-                >
+                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
