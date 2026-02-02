@@ -79,7 +79,7 @@ const VISA_FILTERS = [
 ];
 
 export default function GuideHub() {
-  const { user, isEmployee, isLoading: authLoading } = useAuthContext();
+  const { user, isEmployee, isLoading: authLoading, isAdmin, isWriter } = useAuthContext();
   const [view, setView] = useState<"hub" | "topic" | "article">("hub");
   const [selectedJourney, setSelectedJourney] = useState<Journey | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -108,13 +108,18 @@ export default function GuideHub() {
     const loadArticleFromLink = async () => {
       setIsLoading(true);
 
-      const { data: articleData } = await supabase
+      let articleQuery = supabase
         .from("articles")
         .select(
-          "id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id, content, content_blocks"
+          "id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id, content, content_blocks, is_published"
         )
-        .eq("id", articleId)
-        .maybeSingle();
+        .eq("id", articleId);
+
+      if (!isAdmin() && !isWriter()) {
+        articleQuery = articleQuery.eq("is_published", true);
+      }
+
+      const { data: articleData } = await articleQuery.maybeSingle();
 
       if (!articleData) {
         setIsLoading(false);
