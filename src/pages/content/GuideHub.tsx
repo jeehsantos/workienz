@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReportProblemDialog } from "@/components/articles/ReportProblemDialog";
+import { ShareArticle } from "@/components/articles/ShareArticle";
 import {
   Search,
   ChevronRight,
@@ -73,7 +75,7 @@ const VISA_FILTERS = [
 ];
 
 export default function GuideHub() {
-  const { user, isLoading: authLoading } = useAuthContext();
+  const { user, isEmployee, isLoading: authLoading } = useAuthContext();
   const [view, setView] = useState<"hub" | "topic" | "article">("hub");
   const [selectedJourney, setSelectedJourney] = useState<Journey | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -529,6 +531,37 @@ export default function GuideHub() {
           <div className="border-t pt-12 mt-16">
             <h3 className="text-xl font-bold text-foreground mb-6">Related Questions</h3>
             <p className="text-muted-foreground text-sm">More related articles coming soon...</p>
+          </div>
+
+          <div className="mt-12 space-y-6">
+            <ShareArticle title={fullArticle.title} url={`/articles/${fullArticle.slug ?? fullArticle.id}`} />
+
+            <div className="border-t pt-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium">Enjoyed this guide?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Check out more content{" "}
+                    <button
+                      type="button"
+                      onClick={handleBackToTopic}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      Go back to the previous step
+                    </button>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {user && isEmployee() && (
+                    <ReportProblemDialog
+                      articleId={fullArticle.id}
+                      userId={user.id}
+                      articleTitle={fullArticle.title}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

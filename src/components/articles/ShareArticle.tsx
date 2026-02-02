@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Share2, Twitter, Linkedin, Facebook, Link as LinkIcon } from "lucide-react";
+import { Share2, MessageCircle, Instagram, Facebook, Link as LinkIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ShareArticleProps {
@@ -19,14 +19,14 @@ export function ShareArticle({ title, url }: ShareArticleProps) {
     });
   };
 
-  const shareOnTwitter = () => {
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(fullUrl)}`;
-    window.open(twitterUrl, '_blank', 'width=550,height=420');
+  const shareOnWhatsApp = () => {
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${title} ${fullUrl}`)}`;
+    window.open(whatsappUrl, "_blank", "width=550,height=420");
   };
 
-  const shareOnLinkedIn = () => {
-    const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(fullUrl)}`;
-    window.open(linkedInUrl, '_blank', 'width=550,height=420');
+  const shareOnInstagram = () => {
+    const instagramUrl = `https://www.instagram.com/?url=${encodeURIComponent(fullUrl)}`;
+    window.open(instagramUrl, "_blank", "width=550,height=420");
   };
 
   const shareOnFacebook = () => {
@@ -45,21 +45,21 @@ export function ShareArticle({ title, url }: ShareArticleProps) {
         <Button
           variant="outline"
           size="sm"
-          onClick={shareOnTwitter}
+          onClick={shareOnWhatsApp}
           className="flex items-center gap-2"
         >
-          <Twitter className="w-4 h-4" />
-          Twitter
+          <MessageCircle className="w-4 h-4" />
+          WhatsApp
         </Button>
         
         <Button
           variant="outline"
           size="sm"
-          onClick={shareOnLinkedIn}
+          onClick={shareOnInstagram}
           className="flex items-center gap-2"
         >
-          <Linkedin className="w-4 h-4" />
-          LinkedIn
+          <Instagram className="w-4 h-4" />
+          Instagram
         </Button>
         
         <Button
