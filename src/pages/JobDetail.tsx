@@ -470,12 +470,7 @@ export default function JobDetail() {
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>
               {user ? (
-                <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                  <ContractorAvatar 
-                    avatarUrl={job.contractor?.avatar_url}
-                    companyName={job.contractor?.company_name}
-                    size="sm"
-                  />
+                <div className="text-muted-foreground mb-4">
                   <span>{job.contractor?.company_name || "Company"}</span>
                 </div>
               ) : (
@@ -724,11 +719,18 @@ export default function JobDetail() {
                   <Building2 className="w-5 h-5" />
                   About the Company
                 </h3>
-                <p className="font-medium text-lg mb-2">
-                  {job.contractor?.company_name || "Company"}
-                </p>
+                <div className="flex flex-col items-start gap-4">
+                  <ContractorAvatar
+                    avatarUrl={job.contractor?.avatar_url}
+                    companyName={job.contractor?.company_name}
+                    size="xl"
+                  />
+                  <p className="font-medium text-lg">
+                    {job.contractor?.company_name || "Company"}
+                  </p>
+                </div>
                 {job.contractor?.company_description && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mt-3">
                     {job.contractor.company_description}
                   </p>
                 )}
