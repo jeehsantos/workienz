@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import {
   PlusCircle,
   Trash2,
-  GripVertical,
   Type,
   Heading2,
   AlertTriangle,
@@ -13,6 +11,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { TextBlockToolbar } from "./TextBlockToolbar";
 
 export type ContentBlock = {
   id: string;
@@ -144,19 +143,27 @@ export function ContentBlockEditor({ blocks, onChange }: ContentBlockEditorProps
                   className="text-lg font-bold border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
                 />
               ) : (
-                <Textarea
-                  value={block.value}
-                  onChange={(e) => updateBlock(block.id, e.target.value)}
-                  placeholder={
-                    block.type === "warning"
-                      ? "Important warning or legal requirement..."
-                      : block.type === "tip"
-                      ? "Helpful tip or pro advice..."
-                      : "Paragraph content..."
-                  }
-                  className="border-0 bg-transparent p-0 min-h-[80px] resize-none focus-visible:ring-0"
-                  rows={block.type === "text" ? 4 : 2}
-                />
+                <div className="space-y-0">
+                  <TextBlockToolbar
+                    textareaId={`block-${block.id}`}
+                    value={block.value}
+                    onChange={(val) => updateBlock(block.id, val)}
+                  />
+                  <Textarea
+                    id={`block-${block.id}`}
+                    value={block.value}
+                    onChange={(e) => updateBlock(block.id, e.target.value)}
+                    placeholder={
+                      block.type === "warning"
+                        ? "Important warning or legal requirement..."
+                        : block.type === "tip"
+                        ? "Helpful tip or pro advice..."
+                        : "Paragraph content..."
+                    }
+                    className="border-t-0 rounded-t-none bg-transparent min-h-[80px] resize-none focus-visible:ring-1"
+                    rows={block.type === "text" ? 4 : 2}
+                  />
+                </div>
               )}
             </div>
           ))}

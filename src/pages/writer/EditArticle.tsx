@@ -184,7 +184,10 @@ export default function EditArticle() {
           ? [{ id: generateId(), type: "text", value: data.content }]
           : []);
 
-      setArticle(data as ArticleData);
+      setArticle({
+        ...data,
+        content_blocks: existingBlocks,
+      } as ArticleData);
       setFormData({
         journey_id: data.journey_id || "",
         topic_id: data.topic_id || "",
