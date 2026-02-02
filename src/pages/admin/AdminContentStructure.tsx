@@ -28,7 +28,6 @@ import {
   ArrowLeft,
   Map,
   FolderTree,
-  GripVertical,
   Plane,
   MapPin,
   Home,
@@ -37,6 +36,8 @@ import {
   Users,
   Settings,
   FileText,
+  ExternalLink,
+  Crown,
 } from "lucide-react";
 
 type Journey = {
@@ -60,6 +61,24 @@ type TopicHub = {
   created_at: string;
   journey_title?: string;
   article_count?: number;
+};
+
+type GuideArticle = {
+  id: string;
+  title: string;
+  summary: string | null;
+  is_published: boolean;
+  is_premium: boolean;
+  created_at: string;
+  updated_at: string;
+  journey_id: string | null;
+  topic_id: string | null;
+  journeys?: {
+    title: string;
+  } | null;
+  topic_hubs?: {
+    title: string;
+  } | null;
 };
 
 const ICON_OPTIONS = [
@@ -106,6 +125,7 @@ export default function AdminContentStructure() {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [guideArticles, setGuideArticles] = useState<GuideArticle[]>([]);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin())) {
@@ -126,6 +146,8 @@ export default function AdminContentStructure() {
       await fetchJourneys();
     } else if (activeTab === "topics") {
       await fetchTopics();
+    } else if (activeTab === "guide-topics") {
+      await fetchGuideArticles();
     }
 
     setIsLoading(false);
@@ -193,6 +215,25 @@ export default function AdminContentStructure() {
     );
 
     setTopics(topicsWithData);
+  };
+
+  const fetchGuideArticles = async () => {
+    const { data, error } = await supabase
+      .from("articles")
+      .select(
+        "id, title, summary, is_published, is_premium, created_at, updated_at, journey_id, topic_id, journeys(title), topic_hubs(title)"
+      )
+      .eq("article_type", "guide")
+      .eq("is_published", true)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching guide articles:", error);
+      toast({ title: "Error", description: "Failed to load guide topics.", variant: "destructive" });
+      return;
+    }
+
+    setGuideArticles(data || []);
   };
 
   // Journey CRUD
@@ -386,6 +427,23 @@ export default function AdminContentStructure() {
     );
   }
 
+  const groupedGuideArticles = guideArticles.reduce(
+    (acc, article) => {
+      const journeyTitle = article.journeys?.title || "Unassigned Journey";
+      const topicTitle = article.topic_hubs?.title || "Unassigned Topic";
+
+      if (!acc[journeyTitle]) {
+        acc[journeyTitle] = {};
+      }
+      if (!acc[journeyTitle][topicTitle]) {
+        acc[journeyTitle][topicTitle] = [];
+      }
+      acc[journeyTitle][topicTitle].push(article);
+      return acc;
+    },
+    {} as Record<string, Record<string, GuideArticle[]>>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
@@ -549,23 +607,112 @@ export default function AdminContentStructure() {
 
           {/* Guide Topics Tab */}
           <TabsContent value="guide-topics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Guide Topics</CardTitle>
-                <CardDescription>
-                  Review, edit, or remove guide topics created by writers.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold">Published Guide Topics</h2>
                 <p className="text-sm text-muted-foreground">
-                  Guide topics are managed in the writer workflow. Use the button below to open the shared guide
-                  topic manager and make updates.
+                  All published guide articles across writers, grouped for quick management.
                 </p>
-                <Button asChild className="w-fit">
-                  <Link to="/writer/articles">Open Guide Topics</Link>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline">
+                  <Link to="/writer/new-guide">New Guide Topic</Link>
                 </Button>
-              </CardContent>
-            </Card>
+                <Button asChild>
+                  <Link to="/writer/articles">Open Guide Topics Manager</Link>
+                </Button>
+              </div>
+            </div>
+
+            {guideArticles.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">No Published Guide Topics</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Published guide articles will appear here for easy review.
+                  </p>
+                  <Button asChild>
+                    <Link to="/writer/new-guide">Create First Topic</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-8">
+                {Object.entries(groupedGuideArticles).map(([journeyTitle, topicGroups]) => (
+                  <Card key={journeyTitle} className="border-border/60">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Map className="w-4 h-4" />
+                        <span>Journey</span>
+                      </div>
+                      <CardTitle className="text-lg">{journeyTitle}</CardTitle>
+                      <CardDescription>
+                        {Object.values(topicGroups).reduce((count, items) => count + items.length, 0)} published
+                        topic{Object.values(topicGroups).reduce((count, items) => count + items.length, 0) !== 1 ? "s" : ""}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {Object.entries(topicGroups).map(([topicTitle, topicArticles]) => (
+                        <div key={`${journeyTitle}-${topicTitle}`} className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                            <FolderTree className="w-4 h-4" />
+                            <span>{topicTitle}</span>
+                            <Badge variant="secondary">
+                              {topicArticles.length} topic{topicArticles.length !== 1 ? "s" : ""}
+                            </Badge>
+                          </div>
+
+                          <div className="grid gap-4">
+                            {topicArticles.map((article) => (
+                              <Card key={article.id} className="border-border/60">
+                                <CardContent className="py-4">
+                                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="space-y-2">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-base font-semibold">{article.title}</h3>
+                                        {article.is_premium && (
+                                          <Badge variant="secondary" className="flex items-center gap-1">
+                                            <Crown className="w-3 h-3" />
+                                            Premium
+                                          </Badge>
+                                        )}
+                                        <Badge>Published</Badge>
+                                      </div>
+                                      {article.summary && (
+                                        <p className="text-sm text-muted-foreground line-clamp-2">{article.summary}</p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground">
+                                        Updated {new Date(article.updated_at).toLocaleDateString()} • Created{" "}
+                                        {new Date(article.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Button variant="ghost" size="sm" asChild>
+                                        <Link to={`/guide?article=${article.id}`}>
+                                          <ExternalLink className="w-4 h-4 mr-1" />
+                                          View
+                                        </Link>
+                                      </Button>
+                                      <Button variant="outline" size="sm" asChild>
+                                        <Link to={`/writer/articles/${article.id}/edit`}>
+                                          <Pencil className="w-4 h-4 mr-1" />
+                                          Edit
+                                        </Link>
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
