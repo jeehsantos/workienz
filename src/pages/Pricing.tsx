@@ -207,6 +207,24 @@ const seekerPlanMeta: Record<string, {
     period: "/quarter"
   }
 };
+// Features list for each tab
+const hireFeatures = [
+  "Post job listings",
+  "View applicant profiles",
+  "Direct messaging with candidates",
+  "48-Hour Hiring Flow",
+  "One-to-one hiring slots"
+];
+
+const workFeatures = [
+  "Browse all jobs",
+  "Apply to positions",
+  "Direct chat with employers",
+  "Workie CV Maker",
+  "Job alerts",
+  "Workie NZ Guide articles"
+];
+
 const industries = [{
   icon: Tractor,
   label: "Farm"
@@ -598,128 +616,66 @@ export default function Pricing() {
 
             {/* Contractor Pricing */}
             <TabsContent value="hire" className="mt-0">
-              {/* Industry Icons */}
-              <div className="flex justify-center gap-8 mb-8">
-                {industries.map(industry => <div key={industry.label} className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <industry.icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">{industry.label}</span>
-                  </div>)}
-              </div>
-
-              {/* Contractor Plans Grid */}
-              <div className="mx-auto flex flex-wrap justify-center gap-6 max-w-6xl">
-                {contractorPlans.map(plan => {
-                  const planPrice = getPlanPrice(plan.planId);
-                  const action = getPlanAction(plan.planId, planPrice);
-                  const isCurrentPlan = action === "current";
-                  const features = contractorFeatureMatrix[plan.planId] || {};
-                  const buttonConfig = getPlanButtonConfig(plan.planId, planPrice, plan.cta);
-                  return (
-                    <div 
-                      key={plan.name} 
-                      className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)] min-w-[260px] max-w-[320px] ${isCurrentPlan ? "border-green-500 ring-2 ring-green-500/20" : plan.highlighted ? "border-primary ring-2 ring-primary/20 scale-[1.02]" : "border-border/50"}`}
-                    >
-                      {/* Current Plan Badge */}
-                      {isCurrentPlan && (
-                        <div className="absolute -top-3 right-4">
-                          <span className="bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                            Your Plan
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Regular Badge */}
-                      {plan.badge && !isCurrentPlan && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className={`text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap ${plan.badge === "Most Popular" ? "gradient-primary text-primary-foreground" : plan.badge === "Best Value" ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"}`}>
-                            {plan.badge}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="mb-4 pt-2">
-                        <h3 className="text-lg font-bold font-display">{plan.name}</h3>
-                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+              <div className="max-w-4xl mx-auto animate-fade-in">
+                {/* Sector Icons */}
+                <div className="flex flex-wrap justify-center gap-8 md:gap-12 mb-10">
+                  {industries.map(industry => (
+                    <div key={industry.label} className="flex flex-col items-center gap-2 group">
+                      <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                        <industry.icon size={24} />
                       </div>
-
-                      <div className="mb-5">
-                        {plan.comingSoon ? (
-                          <span className="text-xl font-bold font-display text-primary">COMING SOON</span>
-                        ) : (
-                          <>
-                            <span className="text-3xl font-bold font-display">{plan.price}</span>
-                            <span className="text-sm text-muted-foreground ml-1">{plan.gst}</span>
-                            {plan.period && <span className="text-muted-foreground text-sm">{plan.period}</span>}
-                          </>
-                        )}
-                      </div>
-
-                      <ul className="space-y-2 mb-6">
-                        {contractorFeatures.map(feature => (
-                          <FeatureItem key={feature} included={features[feature] ?? false} label={feature} />
-                        ))}
-                      </ul>
-
-                      <Button 
-                        variant={plan.comingSoon ? "secondary" : buttonConfig.variant} 
-                        className={`w-full ${plan.comingSoon ? "opacity-70 cursor-not-allowed" : action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`} 
-                        onClick={() => !plan.comingSoon && handleSelectPlan(plan.planId, plan.name)} 
-                        disabled={plan.comingSoon || buttonConfig.disabled}
-                      >
-                        {plan.comingSoon ? "Coming Soon" : (
-                          <>
-                            {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
-                            {buttonConfig.label}
-                          </>
-                        )}
-                      </Button>
+                      <span className="text-sm font-medium text-muted-foreground">{industry.label}</span>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Platform Benefits - Clarified Section */}
-              <div className="mt-14 max-w-4xl mx-auto">
-                <div className="text-center mb-6">
-                  <span className="inline-block text-xs font-medium uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1 rounded-full mb-2">
-                    Platform Benefits
-                  </span>
-                  <h3 className="text-lg font-semibold font-display text-foreground">
-                    Why employers choose Workie
-                  </h3>
+                  ))}
                 </div>
-                
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Database className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">Database Access</h4>
-                      <p className="text-sm text-muted-foreground">Browse job seekers directly</p>
-                    </div>
+
+                {/* Early Access Info */}
+                <div className="text-center max-w-lg mx-auto mb-8">
+                  <div className="inline-block bg-primary/10 px-6 py-2 rounded-full mb-4 border border-primary/20 animate-pulse">
+                    <h3 className="text-lg font-bold text-primary">Workie is currently free</h3>
                   </div>
-                  
-                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <MessageSquare className="w-6 h-6 text-primary" />
+                  <p className="text-muted-foreground mb-4 leading-relaxed">
+                    Workie is free during early access.<br />
+                    In the future, we may introduce paid plans or features. If we do, pricing and terms will always be shown clearly before you're charged.
+                  </p>
+                </div>
+
+                {/* Free Tier Card */}
+                <div className="flex justify-center mt-8">
+                  <div className="bg-card rounded-2xl shadow-lg border border-border/50 p-8 w-full max-w-sm relative overflow-hidden transition-all hover:shadow-xl">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-muted text-muted-foreground text-xs font-bold px-3 py-1 rounded-b-lg">
+                      Free
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">Direct Messaging</h4>
-                      <p className="text-sm text-muted-foreground">Chat with candidates instantly</p>
+
+                    <div className="mt-4">
+                      <h2 className="text-2xl font-bold font-display">Free Tier</h2>
+                      <p className="text-muted-foreground text-sm mt-1">
+                        Start hiring for free with basic features
+                      </p>
                     </div>
-                  </div>
-                  
-                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Zap className="w-6 h-6 text-primary" />
+
+                    <div className="mt-6 mb-6">
+                      <span className="text-5xl font-extrabold font-display">$0</span>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">Fast Hiring</h4>
-                      <p className="text-sm text-muted-foreground">Fill positions quickly</p>
-                    </div>
+
+                    <ul className="space-y-4 mb-8">
+                      {hireFeatures.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center mt-0.5">
+                            <Check size={12} className="text-primary" strokeWidth={3} />
+                          </div>
+                          <span className="text-muted-foreground text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+                      onClick={() => handleSelectPlan("free_contractor", "Free Tier")}
+                    >
+                      Start Free
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -727,173 +683,67 @@ export default function Pricing() {
 
             {/* Job Seeker Pricing */}
             <TabsContent value="work" className="mt-0">
-              {/* Priority Badge Preview */}
-              <div className="flex justify-center mb-8">
-                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500/10 to-teal-500/10 border border-amber-500/20 rounded-full px-5 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <Crown className="w-5 h-5 text-amber-500" />
-                    <span className="font-semibold text-foreground">Priority Badge</span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    Stand out to employers with a premium profile badge
-                  </span>
-                </div>
-              </div>
-
-              {/* Seeker Plans Grid */}
-              <div className="mx-auto flex flex-wrap justify-center gap-6 max-w-6xl">
-                {seekerPlans.map(plan => {
-                  const planPrice = getPlanPrice(plan.planId);
-                  const action = getPlanAction(plan.planId, planPrice);
-                  const isCurrentPlan = action === "current";
-                  const features = seekerFeatureMatrix[plan.planId] || {};
-                  const buttonConfig = getPlanButtonConfig(plan.planId, planPrice, plan.cta);
-                  return (
-                    <div 
-                      key={plan.name} 
-                      className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)] min-w-[260px] max-w-[320px] ${isCurrentPlan ? "border-green-500 ring-2 ring-green-500/20" : plan.highlighted ? "border-primary ring-2 ring-primary/20 scale-[1.02]" : "border-border/50"}`}
-                    >
-                      {/* Current Plan Badge */}
-                      {isCurrentPlan && (
-                        <div className="absolute -top-3 right-4">
-                          <span className="bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                            Your Plan
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Regular Badge */}
-                      {plan.badge && !isCurrentPlan && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className="gradient-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
-                            {plan.badge}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="mb-4 pt-2">
-                        <h3 className="text-lg font-bold font-display">{plan.name}</h3>
-                        <p className="text-sm text-muted-foreground">{plan.description}</p>
+              <div className="max-w-4xl mx-auto animate-fade-in">
+                {/* Sector Icons */}
+                <div className="flex flex-wrap justify-center gap-8 md:gap-12 mb-10">
+                  {industries.map(industry => (
+                    <div key={industry.label} className="flex flex-col items-center gap-2 group">
+                      <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                        <industry.icon size={24} />
                       </div>
-
-                      <div className="mb-5">
-                        {plan.comingSoon ? (
-                          <span className="text-xl font-bold font-display text-primary">COMING SOON</span>
-                        ) : (
-                          <>
-                            <span className="text-3xl font-bold font-display">{plan.price}</span>
-                            {plan.period && <span className="text-muted-foreground text-sm">{plan.period}</span>}
-                          </>
-                        )}
-                      </div>
-
-                      <ul className="space-y-2 mb-6">
-                        {seekerFeatures.map(feature => (
-                          <FeatureItem key={feature} included={features[feature] ?? false} label={feature} />
-                        ))}
-                      </ul>
-
-                      <Button 
-                        variant={plan.comingSoon ? "secondary" : buttonConfig.variant} 
-                        className={`w-full ${plan.comingSoon ? "opacity-70 cursor-not-allowed" : action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`} 
-                        onClick={() => !plan.comingSoon && handleSelectPlan(plan.planId, plan.name)} 
-                        disabled={plan.comingSoon || buttonConfig.disabled}
-                      >
-                        {plan.comingSoon ? "Coming Soon" : (
-                          <>
-                            {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
-                            {buttonConfig.label}
-                          </>
-                        )}
-                      </Button>
+                      <span className="text-sm font-medium text-muted-foreground">{industry.label}</span>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Platform Benefits - Job Seeker Section */}
-              <div className="mt-14 max-w-4xl mx-auto">
-                <div className="text-center mb-6">
-                  <span className="inline-block text-xs font-medium uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1 rounded-full mb-2">
-                    Premium Benefits
-                  </span>
-                  <h3 className="text-lg font-semibold font-display text-foreground">
-                    Why job seekers go Premium
-                  </h3>
-                </div>
-                
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <BookOpen className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">Full Article Library</h4>
-                      <p className="text-sm text-muted-foreground">Career tips & industry insights</p>
-                    </div>
-                  </div>
-                  
-                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Star className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">Enhanced Visibility</h4>
-                      <p className="text-sm text-muted-foreground">Appear at top of searches</p>
-                    </div>
-                  </div>
-                  
-                  <div className="group flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 hover:border-primary/20 transition-all duration-300">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Clock className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">More Applications</h4>
-                      <p className="text-sm text-muted-foreground">Apply to more jobs faster</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Coming Soon Features - Improved */}
-              <div className="mt-14 max-w-3xl mx-auto">
-                <div className="text-center mb-6">
-                  <span className="inline-block text-xs font-medium uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1 rounded-full mb-2">
-                    On Our Roadmap
-                  </span>
-                  <div className="inline-flex items-center gap-2 justify-center">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-semibold font-display text-foreground">
-                      Coming Soon for Premium Members
-                    </h3>
-                  </div>
+                  ))}
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  {comingSoonFeatures.map(feature => <div key={feature.title} className="group relative overflow-hidden bg-card/80 backdrop-blur-sm rounded-2xl p-6 border border-border/50 hover:border-primary/30 transition-all duration-300 shadow-sm">
-                      {/* Pulse Animation */}
-                      <div className="absolute top-4 right-4">
-                        <span className="relative flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/60 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                        </span>
-                      </div>
+                {/* Early Access Info */}
+                <div className="text-center max-w-lg mx-auto mb-8">
+                  <div className="inline-block bg-primary/10 px-6 py-2 rounded-full mb-4 border border-primary/20 animate-pulse">
+                    <h3 className="text-lg font-bold text-primary">Workie is currently free</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-4 leading-relaxed">
+                    Workie is free during early access.<br />
+                    In the future, we may introduce paid plans or features. If we do, pricing and terms will always be shown clearly before you're charged.
+                  </p>
+                </div>
 
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
-                          <feature.icon className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <h4 className="font-semibold text-foreground">{feature.title}</h4>
-                            <span className="text-[10px] font-semibold uppercase bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                              Coming Soon
-                            </span>
+                {/* Free Tier Card */}
+                <div className="flex justify-center mt-8">
+                  <div className="bg-card rounded-2xl shadow-lg border border-border/50 p-8 w-full max-w-sm relative overflow-hidden transition-all hover:shadow-xl">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-muted text-muted-foreground text-xs font-bold px-3 py-1 rounded-b-lg">
+                      Free
+                    </div>
+
+                    <div className="mt-4">
+                      <h2 className="text-2xl font-bold font-display">Free Tier</h2>
+                      <p className="text-muted-foreground text-sm mt-1">
+                        Basic job seeker access
+                      </p>
+                    </div>
+
+                    <div className="mt-6 mb-6">
+                      <span className="text-5xl font-extrabold font-display">$0</span>
+                    </div>
+
+                    <ul className="space-y-4 mb-8">
+                      {workFeatures.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center mt-0.5">
+                            <Check size={12} className="text-primary" strokeWidth={3} />
                           </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
-                        </div>
-                      </div>
-                    </div>)}
+                          <span className="text-muted-foreground text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+                      onClick={() => handleSelectPlan("free_seeker", "Free Tier")}
+                    >
+                      Get Started Free
+                    </Button>
+                  </div>
                 </div>
               </div>
             </TabsContent>
