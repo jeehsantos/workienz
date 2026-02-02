@@ -613,7 +613,7 @@ export default function Pricing() {
               </div>
 
               {/* Contractor Plans Grid */}
-              <div className="grid max-w-6xl grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center mx-auto">
+              <div className="mx-auto grid max-w-6xl gap-6 justify-items-center\n            grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
                 {contractorPlans.map(plan => {
                 const planPrice = getPlanPrice(plan.planId);
                 const action = getPlanAction(plan.planId, planPrice);
