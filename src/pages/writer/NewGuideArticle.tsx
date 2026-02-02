@@ -238,10 +238,36 @@ export default function NewGuideArticle() {
       navigate("/writer/articles");
     } catch (error: unknown) {
       console.error("Error saving article:", error);
-      const message = error instanceof Error ? error.message : "Failed to save article.";
+      
+      // Parse Supabase error for better messaging
+      let errorTitle = "Error";
+      let errorMessage = "Failed to save article.";
+      
+      if (error && typeof error === 'object') {
+        const supabaseError = error as { code?: string; message?: string; details?: string };
+        
+        if (supabaseError.code === "42501") {
+          // RLS policy violation
+          errorTitle = "Permission Denied";
+          errorMessage = "You don't have permission to create articles. Please ensure you have the Writer or Admin role assigned to your account.";
+        } else if (supabaseError.code === "23505") {
+          // Unique constraint violation
+          errorTitle = "Duplicate Article";
+          errorMessage = "An article with this title or slug already exists. Please choose a different title.";
+        } else if (supabaseError.code === "23503") {
+          // Foreign key violation
+          errorTitle = "Invalid Reference";
+          errorMessage = "The selected journey or topic no longer exists. Please refresh and try again.";
+        } else if (supabaseError.message) {
+          errorMessage = supabaseError.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
