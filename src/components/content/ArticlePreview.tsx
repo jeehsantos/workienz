@@ -9,6 +9,67 @@ interface ArticlePreviewProps {
   previewMode: "desktop" | "mobile";
 }
 
+// Format markdown text to HTML with line breaks preserved
+const formatMarkdownText = (text: string): string => {
+  if (!text) return "";
+  
+  let formatted = text;
+  
+  // Bold: **text** or __text__
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  formatted = formatted.replace(/__(.*?)__/g, '<strong>$1</strong>');
+  
+  // Italic: *text* or _text_
+  formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/_([^_]+)_/g, '<em>$1</em>');
+  
+  // Underline: ~~text~~
+  formatted = formatted.replace(/~~(.*?)~~/g, '<u>$1</u>');
+  
+  // Process bullet points (lines starting with • or -)
+  const lines = formatted.split('\n');
+  const processedLines: string[] = [];
+  let inList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isBullet = line.match(/^[•\-]\s+(.*)$/);
+    
+    if (isBullet) {
+      if (!inList) {
+        processedLines.push('<ul class="list-disc list-inside my-2 space-y-1">');
+        inList = true;
+      }
+      processedLines.push(`<li>${isBullet[1]}</li>`);
+    } else {
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      // Preserve empty lines and regular text with line breaks
+      if (line.trim() === '') {
+        processedLines.push('<br />');
+      } else {
+        processedLines.push(line);
+      }
+    }
+  }
+  
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+  
+  // Join with line breaks for non-list items
+  formatted = processedLines.join('<br />');
+  
+  // Clean up excessive breaks around lists
+  formatted = formatted.replace(/<br \/><ul/g, '<ul');
+  formatted = formatted.replace(/<\/ul><br \/>/g, '</ul>');
+  formatted = formatted.replace(/(<br \/>){3,}/g, '<br /><br />');
+  
+  return formatted;
+};
+
 export function ArticlePreview({
   title,
   summary,
@@ -17,6 +78,8 @@ export function ArticlePreview({
   previewMode,
 }: ArticlePreviewProps) {
   const renderBlock = (block: ContentBlock, index: number) => {
+    const formattedContent = formatMarkdownText(block.value);
+    
     switch (block.type) {
       case "heading":
         return (
@@ -38,9 +101,10 @@ export function ArticlePreview({
               <strong className="block text-xs font-bold uppercase tracking-tight mb-1">
                 Legal Requirement
               </strong>
-              <p className="text-sm leading-relaxed">
-                {block.value || "Warning text..."}
-              </p>
+              <div 
+                className="text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formattedContent || "Warning text..." }}
+              />
             </div>
           </div>
         );
@@ -55,20 +119,20 @@ export function ArticlePreview({
               <strong className="block text-xs font-bold uppercase tracking-tight mb-1">
                 Pro Tip
               </strong>
-              <p className="text-sm leading-relaxed">
-                {block.value || "Tip text..."}
-              </p>
+              <div 
+                className="text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formattedContent || "Tip text..." }}
+              />
             </div>
           </div>
         );
       default:
         return (
-          <p
+          <div
             key={block.id || index}
             className="text-base leading-relaxed text-muted-foreground"
-          >
-            {block.value || "Content text goes here..."}
-          </p>
+            dangerouslySetInnerHTML={{ __html: formattedContent || "Content text goes here..." }}
+          />
         );
     }
   };
