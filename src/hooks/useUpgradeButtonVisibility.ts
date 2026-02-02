@@ -7,6 +7,7 @@ interface UseUpgradeButtonVisibilityResult {
   upgradeText: string;
   upgradeLink: string;
   isLoading: boolean;
+  hideUpgradeButtons: boolean;
 }
 
 /**
@@ -57,6 +58,7 @@ export function useUpgradeButtonVisibility(): UseUpgradeButtonVisibilityResult {
         upgradeText: "",
         upgradeLink: "",
         isLoading,
+        hideUpgradeButtons,
       };
     }
     
@@ -67,6 +69,7 @@ export function useUpgradeButtonVisibility(): UseUpgradeButtonVisibilityResult {
         upgradeText: "Become a Partner",
         upgradeLink: "/contact",
         isLoading,
+        hideUpgradeButtons,
       };
     }
   }
@@ -78,6 +81,7 @@ export function useUpgradeButtonVisibility(): UseUpgradeButtonVisibilityResult {
       upgradeText: "Upgrade Your Plan",
       upgradeLink: "/pricing",
       isLoading,
+      hideUpgradeButtons: hideUpgradeButtons ?? false,
     };
   }
 
@@ -87,5 +91,6 @@ export function useUpgradeButtonVisibility(): UseUpgradeButtonVisibilityResult {
     upgradeText: "Upgrade to Premium",
     upgradeLink: "/pricing",
     isLoading,
+    hideUpgradeButtons: hideUpgradeButtons ?? false,
   };
 }
