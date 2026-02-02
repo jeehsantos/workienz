@@ -221,7 +221,7 @@ export default function AdminContentStructure() {
     const { data, error } = await supabase
       .from("articles")
       .select(
-        "id, title, summary, is_published, is_premium, created_at, updated_at, journey_id, topic_id, journeys(title), topic_hubs(title)"
+        "id, title, summary, is_published, is_premium, created_at, updated_at, journey_id, topic_id, journeys!left(title), topic_hubs!left(title)"
       )
       .eq("article_type", "guide")
       .eq("is_published", true)
