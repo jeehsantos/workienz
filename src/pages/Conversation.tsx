@@ -690,7 +690,7 @@ export default function Conversation() {
   }
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-5rem)] bg-background flex flex-col overflow-hidden">
       {/* Hired Conversation Banner - 48h archive countdown */}
       {hiredCountdown.isHiredChat && hiredCountdown.hoursLeft > 0 && (
         <div className="bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-200 dark:border-emerald-800 px-4 py-2 flex-shrink-0">
@@ -1030,4 +1030,3 @@ export default function Conversation() {
     </div>
   );
 }
-
