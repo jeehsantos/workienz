@@ -741,27 +741,35 @@ export default function Pricing() {
               </div>
 
               {/* Seeker Plans Grid */}
-              <div className="mx-auto grid max-w-6xl grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 justify-center">
+              <div className="mx-auto flex flex-wrap justify-center gap-6 max-w-6xl">
                 {seekerPlans.map(plan => {
-                const planPrice = getPlanPrice(plan.planId);
-                const action = getPlanAction(plan.planId, planPrice);
-                const isCurrentPlan = action === "current";
-                const features = seekerFeatureMatrix[plan.planId] || {};
-                const buttonConfig = getPlanButtonConfig(plan.planId, planPrice, plan.cta);
-                return <div key={plan.name} className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium ${isCurrentPlan ? "border-green-500 ring-2 ring-green-500/20" : plan.highlighted ? "border-primary ring-2 ring-primary/20 scale-[1.02]" : "border-border/50"}`}>
+                  const planPrice = getPlanPrice(plan.planId);
+                  const action = getPlanAction(plan.planId, planPrice);
+                  const isCurrentPlan = action === "current";
+                  const features = seekerFeatureMatrix[plan.planId] || {};
+                  const buttonConfig = getPlanButtonConfig(plan.planId, planPrice, plan.cta);
+                  return (
+                    <div 
+                      key={plan.name} 
+                      className={`relative bg-card rounded-2xl p-6 shadow-soft border transition-all duration-300 hover:shadow-medium w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-18px)] min-w-[260px] max-w-[320px] ${isCurrentPlan ? "border-green-500 ring-2 ring-green-500/20" : plan.highlighted ? "border-primary ring-2 ring-primary/20 scale-[1.02]" : "border-border/50"}`}
+                    >
                       {/* Current Plan Badge */}
-                      {isCurrentPlan && <div className="absolute -top-3 right-4">
+                      {isCurrentPlan && (
+                        <div className="absolute -top-3 right-4">
                           <span className="bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
                             Your Plan
                           </span>
-                        </div>}
+                        </div>
+                      )}
                       
                       {/* Regular Badge */}
-                      {plan.badge && !isCurrentPlan && <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      {plan.badge && !isCurrentPlan && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                           <span className="gradient-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">
                             {plan.badge}
                           </span>
-                        </div>}
+                        </div>
+                      )}
 
                       <div className="mb-4 pt-2">
                         <h3 className="text-lg font-bold font-display">{plan.name}</h3>
@@ -769,24 +777,38 @@ export default function Pricing() {
                       </div>
 
                       <div className="mb-5">
-                        {plan.comingSoon ? <span className="text-xl font-bold font-display text-primary">COMING SOON</span> : <>
+                        {plan.comingSoon ? (
+                          <span className="text-xl font-bold font-display text-primary">COMING SOON</span>
+                        ) : (
+                          <>
                             <span className="text-3xl font-bold font-display">{plan.price}</span>
                             {plan.period && <span className="text-muted-foreground text-sm">{plan.period}</span>}
-                          </>}
+                          </>
+                        )}
                       </div>
 
                       <ul className="space-y-2 mb-6">
-                        {seekerFeatures.map(feature => <FeatureItem key={feature} included={features[feature] ?? false} label={feature} />)}
+                        {seekerFeatures.map(feature => (
+                          <FeatureItem key={feature} included={features[feature] ?? false} label={feature} />
+                        ))}
                       </ul>
 
-                      <Button variant={plan.comingSoon ? "secondary" : buttonConfig.variant} className={`w-full ${plan.comingSoon ? "opacity-70 cursor-not-allowed" : action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`} onClick={() => !plan.comingSoon && handleSelectPlan(plan.planId, plan.name)} disabled={plan.comingSoon || buttonConfig.disabled}>
-                        {plan.comingSoon ? "Coming Soon" : <>
+                      <Button 
+                        variant={plan.comingSoon ? "secondary" : buttonConfig.variant} 
+                        className={`w-full ${plan.comingSoon ? "opacity-70 cursor-not-allowed" : action === "upgrade" ? "" : action === "downgrade" ? "border-amber-500 text-amber-600 hover:bg-amber-50" : ""}`} 
+                        onClick={() => !plan.comingSoon && handleSelectPlan(plan.planId, plan.name)} 
+                        disabled={plan.comingSoon || buttonConfig.disabled}
+                      >
+                        {plan.comingSoon ? "Coming Soon" : (
+                          <>
                             {buttonConfig.icon && <buttonConfig.icon className="w-4 h-4 mr-1.5" />}
                             {buttonConfig.label}
-                          </>}
+                          </>
+                        )}
                       </Button>
-                    </div>;
-              })}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Platform Benefits - Job Seeker Section */}
