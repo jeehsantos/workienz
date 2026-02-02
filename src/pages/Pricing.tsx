@@ -8,6 +8,7 @@ import { Check, X, Briefcase, Users, Sparkles, Clock, Database, Crown, Star, Boo
 import { Footer } from "@/components/landing/Footer";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { PlanChangeModal } from "@/components/subscription/PlanChangeModal";
+import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
 interface ContractorEntitlement {
   id: string;
   plan_type: string;
@@ -306,6 +307,10 @@ export default function Pricing() {
     isContractor,
     isEmployee
   } = useAuthContext();
+  const {
+    hideUpgradeButtons,
+    isLoading: isHideUpgradeLoading
+  } = useUpgradeButtonVisibility();
 
   // Determine initial tab based on user role
   const getInitialTab = () => {
@@ -751,43 +756,42 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-16 lg:py-20 bg-muted/30">
-        <div className="container-tight">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <HelpCircle className="w-5 h-5 text-primary" />
+      {!hideUpgradeButtons && !isHideUpgradeLoading && <section className="py-16 lg:py-20 bg-muted/30">
+          <div className="container-tight">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-2xl lg:text-3xl font-bold font-display">
+                  Frequently Asked Questions
+                </h2>
               </div>
-              <h2 className="text-2xl lg:text-3xl font-bold font-display">
-                Frequently Asked Questions
-              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                Got questions? We've got answers. If you can't find what you're looking for, feel free to contact us.
+              </p>
             </div>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Got questions? We've got answers. If you can't find what you're looking for, feel free to contact us.
-            </p>
-          </div>
 
-          <div className="max-w-3xl mx-auto space-y-8">
-            {faqItems.map(category => <div key={category.category}>
-                <h3 className="text-lg font-semibold font-display text-foreground mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary"></span>
-                  {category.category}
-                </h3>
-                <Accordion type="single" collapsible className="bg-card rounded-xl border border-border/50 shadow-soft overflow-hidden">
-                  {category.questions.map((item, index) => <AccordionItem key={index} value={`${category.category}-${index}`} className="border-b border-border/50 last:border-b-0">
-                      <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 text-left font-medium">
-                        {item.question}
-                      </AccordionTrigger>
-                      <AccordionContent className="px-5 pb-4 text-muted-foreground">
-                        {item.answer}
-                      </AccordionContent>
-                    </AccordionItem>)}
-                </Accordion>
-              </div>)}
+            <div className="max-w-3xl mx-auto space-y-8">
+              {faqItems.map(category => <div key={category.category}>
+                  <h3 className="text-lg font-semibold font-display text-foreground mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary"></span>
+                    {category.category}
+                  </h3>
+                  <Accordion type="single" collapsible className="bg-card rounded-xl border border-border/50 shadow-soft overflow-hidden">
+                    {category.questions.map((item, index) => <AccordionItem key={index} value={`${category.category}-${index}`} className="border-b border-border/50 last:border-b-0">
+                        <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 text-left font-medium">
+                          {item.question}
+                        </AccordionTrigger>
+                        <AccordionContent className="px-5 pb-4 text-muted-foreground">
+                          {item.answer}
+                        </AccordionContent>
+                      </AccordionItem>)}
+                  </Accordion>
+                </div>)}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>}
 
       {/* CTA Section */}
       <section className="py-16">
