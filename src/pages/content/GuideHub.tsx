@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportProblemDialog } from "@/components/articles/ReportProblemDialog";
 import { ShareArticle } from "@/components/articles/ShareArticle";
+import { formatMarkdownText } from "@/lib/formatMarkdownText";
 import {
   Search,
   ChevronRight,
@@ -541,6 +542,7 @@ export default function GuideHub() {
             <div className="space-y-6">
               {contentBlocks.length > 0 ? (
                 contentBlocks.map((block: any, idx: number) => {
+                  const formattedContent = formatMarkdownText(block.value || "");
                   if (block.type === "heading") {
                     return (
                       <h2
@@ -562,7 +564,10 @@ export default function GuideHub() {
                           <strong className="block text-sm font-bold uppercase tracking-tight mb-1">
                             Legal Requirement
                           </strong>
-                          <p className="text-sm leading-relaxed">{block.value}</p>
+                          <div
+                            className="text-sm leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: formattedContent }}
+                          />
                         </div>
                       </div>
                     );
@@ -576,15 +581,20 @@ export default function GuideHub() {
                         <div className="flex-shrink-0">💡</div>
                         <div>
                           <strong className="block text-sm font-bold uppercase tracking-tight mb-1">Pro Tip</strong>
-                          <p className="text-sm leading-relaxed">{block.value}</p>
+                          <div
+                            className="text-sm leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: formattedContent }}
+                          />
                         </div>
                       </div>
                     );
                   }
                   return (
-                    <p key={idx} className="text-base md:text-lg text-muted-foreground leading-relaxed">
-                      {block.value}
-                    </p>
+                    <div
+                      key={idx}
+                      className="text-base md:text-lg text-muted-foreground leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: formattedContent }}
+                    />
                   );
                 })
               ) : fullArticle.content ? (

@@ -160,7 +160,7 @@ export function ContentBlockEditor({ blocks, onChange }: ContentBlockEditorProps
                         ? "Helpful tip or pro advice..."
                         : "Paragraph content..."
                     }
-                    className="border-t-0 rounded-t-none bg-transparent min-h-[80px] resize-none focus-visible:ring-1"
+                    className="border-t-0 rounded-t-none bg-transparent min-h-[120px] resize-y focus-visible:ring-1"
                     rows={block.type === "text" ? 4 : 2}
                   />
                 </div>
