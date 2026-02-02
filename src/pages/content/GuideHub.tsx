@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,10 @@ type Article = {
   article_type: string | null;
   is_premium: boolean;
   created_at: string;
+  journey_id?: string | null;
+  topic_id?: string | null;
+  content?: string | null;
+  content_blocks?: any;
 };
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -75,7 +79,7 @@ const VISA_FILTERS = [
 ];
 
 export default function GuideHub() {
-  const { user, isEmployee, isLoading: authLoading } = useAuthContext();
+  const { user, isEmployee, isLoading: authLoading, isAdmin, isWriter } = useAuthContext();
   const [view, setView] = useState<"hub" | "topic" | "article">("hub");
   const [selectedJourney, setSelectedJourney] = useState<Journey | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -89,11 +93,78 @@ export default function GuideHub() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [visaFilter, setVisaFilter] = useState("all");
+  const location = useLocation();
 
   useEffect(() => {
     fetchJourneys();
     checkSubscription();
   }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const articleId = params.get("article");
+    if (!articleId) return;
+
+    const loadArticleFromLink = async () => {
+      setIsLoading(true);
+
+      let articleQuery = supabase
+        .from("articles")
+        .select(
+          "id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id, content, content_blocks, is_published"
+        )
+        .eq("id", articleId);
+
+      if (!isAdmin() && !isWriter()) {
+        articleQuery = articleQuery.eq("is_published", true);
+      }
+
+      const { data: articleData } = await articleQuery.maybeSingle();
+
+      if (!articleData) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (articleData.journey_id) {
+        const { data: journeyData } = await supabase
+          .from("journeys")
+          .select("id, title, description, icon_name")
+          .eq("id", articleData.journey_id)
+          .maybeSingle();
+
+        if (journeyData) {
+          setSelectedJourney(journeyData);
+        }
+
+        const { data: topicData } = await supabase
+          .from("topic_hubs")
+          .select("id, journey_id, title, description")
+          .eq("journey_id", articleData.journey_id)
+          .eq("is_active", true)
+          .order("display_order", { ascending: true });
+
+        setTopics(topicData || []);
+
+        const { data: articleListData } = await supabase
+          .from("articles")
+          .select("id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at")
+          .eq("journey_id", articleData.journey_id)
+          .eq("is_published", true)
+          .order("created_at", { ascending: false });
+
+        setArticles(articleListData || []);
+      }
+
+      setSelectedArticle(articleData);
+      setFullArticle(articleData);
+      setView("article");
+      setIsLoading(false);
+      window.scrollTo(0, 0);
+    };
+
+    loadArticleFromLink();
+  }, [location.search]);
 
   const fetchJourneys = async () => {
     setIsLoading(true);
