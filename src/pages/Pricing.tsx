@@ -620,7 +620,7 @@ export default function Pricing() {
               </div>
 
               {/* Contractor Plans Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+              <div className="grid w-fit max-w-6xl grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center mx-auto">
                 {contractorPlans.map((plan) => {
                   const planPrice = getPlanPrice(plan.planId);
                   const action = getPlanAction(plan.planId, planPrice);
@@ -773,7 +773,7 @@ export default function Pricing() {
               </div>
 
               {/* Seeker Plans Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+              <div className="grid w-fit max-w-6xl grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center mx-auto">
                 {seekerPlans.map((plan) => {
                   const planPrice = getPlanPrice(plan.planId);
                   const action = getPlanAction(plan.planId, planPrice);
