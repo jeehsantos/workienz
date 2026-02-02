@@ -1,12 +1,29 @@
 import { Briefcase, User, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import workersTeam from "@/assets/workers-team.jpg";
-import hiringManager from "@/assets/hiring-manager.jpg";
+
+// Import rotating images
+import farmManagers from "@/assets/landing/FarmManagers.png";
+import weddingManagers from "@/assets/landing/WeddingManagers.png";
+import warehouseWorkers from "@/assets/landing/WarehouseWorkers.jpg";
+import cherryWorkers from "@/assets/landing/CherryWorkers.png";
+
+// Image arrays for each role
+const hiringImages = [farmManagers, weddingManagers];
+const workImages = [warehouseWorkers, cherryWorkers];
+
+// Helper function to get daily image index
+const getDailyImageIndex = (imageCount: number): number => {
+  const today = new Date();
+  const dayOfYear = Math.floor(
+    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return dayOfYear % imageCount;
+};
 
 const roles = [
   {
-    image: hiringManager,
+    images: hiringImages,
     icon: Briefcase,
     title: "I'm Hiring",
     subtitle: "For Contractors & Employers",
@@ -22,7 +39,7 @@ const roles = [
     variant: "hero" as const,
   },
   {
-    image: workersTeam,
+    images: workImages,
     icon: User,
     title: "I'm Looking for Work",
     subtitle: "For Employees & Job Seekers",
@@ -63,55 +80,61 @@ export function RolesSection() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-10">
-          {roles.map((role) => (
-            <div
-              key={role.title}
-              className="group bg-card rounded-3xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-500 border border-border/50"
-            >
-              {/* Image Section */}
-              <div className="relative h-48 lg:h-56 overflow-hidden">
-                <img 
-                  src={role.image} 
-                  alt={role.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-                <div className="absolute bottom-4 left-6">
-                  <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
-                    <role.icon className="w-6 h-6 text-primary-foreground" />
+          {roles.map((role) => {
+            // Calculate which image to show based on day of year
+            const dailyIndex = getDailyImageIndex(role.images.length);
+            const currentImage = role.images[dailyIndex];
+
+            return (
+              <div
+                key={role.title}
+                className="group bg-card rounded-3xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-500 border border-border/50"
+              >
+                {/* Image Section */}
+                <div className="relative h-48 lg:h-56 overflow-hidden">
+                  <img 
+                    src={currentImage} 
+                    alt={role.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
+                  <div className="absolute bottom-4 left-6">
+                    <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
+                      <role.icon className="w-6 h-6 text-primary-foreground" />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Content Section */}
-              <div className="p-6 lg:p-8">
-                <div className="mb-4">
-                  <h3 className="text-2xl font-bold font-display mb-1">{role.title}</h3>
-                  <p className="text-muted-foreground text-sm">{role.subtitle}</p>
+                {/* Content Section */}
+                <div className="p-6 lg:p-8">
+                  <div className="mb-4">
+                    <h3 className="text-2xl font-bold font-display mb-1">{role.title}</h3>
+                    <p className="text-muted-foreground text-sm">{role.subtitle}</p>
+                  </div>
+
+                  <p className="text-foreground/80 mb-6 leading-relaxed">
+                    {role.description}
+                  </p>
+
+                  <ul className="space-y-3 mb-8">
+                    {role.features.map((feature) => (
+                      <li key={feature} className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+                        <span className="text-foreground/80">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button variant={role.variant} size="lg" className="w-full group/btn" asChild>
+                    <Link to={role.ctaLink}>
+                      {role.cta}
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
                 </div>
-
-                <p className="text-foreground/80 mb-6 leading-relaxed">
-                  {role.description}
-                </p>
-
-                <ul className="space-y-3 mb-8">
-                  {role.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                      <span className="text-foreground/80">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button variant={role.variant} size="lg" className="w-full group/btn" asChild>
-                  <Link to={role.ctaLink}>
-                    {role.cta}
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
