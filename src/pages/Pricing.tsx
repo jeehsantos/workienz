@@ -72,15 +72,11 @@ interface PlanProductFromDB {
 // Feature matrix for contractor plans
 const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
   free_contractor: {
-    "1 job listing": true,
-    "Unlimited job posts": false,
-    "30-day access": true,
-    "View applicant profiles": true,
-    "Direct messaging": true,
-    "Browse job seeker database": false,
-    "Priority support": false,
-    "Advanced analytics": false,
-    "Featured employer badge": false,
+    "Slot-Based Hiring": true,
+    "Direct Employer–Candidate Messaging": true,
+    "48-Hour Hiring Flow": true,
+    "Candidate Profile Access": true,
+    "Nationwide Coverage": true,
   },
   single_post: {
     "1 job listing": true,
@@ -131,14 +127,13 @@ const contractorFeatureMatrix: Record<string, Record<string, boolean>> = {
 // Feature matrix for seeker plans
 const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
   free_seeker: {
-    "1 application / 3 days": true,
-    "3 applications / 3 days": false,
-    "Free community articles": true,
-    "Full article library": false,
-    "Basic profile": true,
-    "Priority Badge": false,
-    "Enhanced visibility": false,
-    "Job alerts": true,
+    "Apply through 1-to-1 hiring slots": true,
+    "Direct chat with employers": true,
+    "48-hour hiring flow": true,
+    "Workie NZ Guide": true,
+    "Create your CV - Workie Template"
+    "Browse job opportunities": true,
+    "Nationwide job access": true,
   },
   weekly_seeker: {
     "1 application / 3 days": false,
