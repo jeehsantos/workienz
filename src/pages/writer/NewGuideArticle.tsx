@@ -77,7 +77,7 @@ export default function NewGuideArticle() {
   const [formData, setFormData] = useState({
     journey_id: "",
     topic_id: "",
-    article_type: "qa",
+    article_type: "guide",
     title: "",
     slug: "",
     summary: "",
@@ -85,6 +85,7 @@ export default function NewGuideArticle() {
     visa_type: "all",
     user_stage: "before_arrival",
     is_published: false,
+    is_premium: true,
   });
 
   useEffect(() => {
@@ -223,7 +224,7 @@ export default function NewGuideArticle() {
         visa_type: formData.visa_type,
         user_stage: formData.user_stage,
         is_published: publish,
-        is_premium: true,
+        is_premium: formData.is_premium,
       });
 
       if (error) throw error;
@@ -562,6 +563,37 @@ export default function NewGuideArticle() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Auto-generated from title
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t">
+                  <Label>Content Access</Label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, is_premium: false })}
+                      className={`flex-1 py-3 px-4 rounded-xl border font-bold text-sm transition-all ${
+                        !formData.is_premium
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      🆓 Free Content
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, is_premium: true })}
+                      className={`flex-1 py-3 px-4 rounded-xl border font-bold text-sm transition-all ${
+                        formData.is_premium
+                          ? "border-amber-500 bg-amber-500/10 text-amber-600"
+                          : "border-border text-muted-foreground hover:border-amber-500/50"
+                      }`}
+                    >
+                      👑 Premium Content
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Premium content requires a subscription or referral credits to access.
                   </p>
                 </div>
               </div>
