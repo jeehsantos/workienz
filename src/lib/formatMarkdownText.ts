@@ -38,8 +38,28 @@ export const formatMarkdownText = (text: string): string => {
   let paragraphLines: string[] = [];
   let inUnorderedList = false;
   let inOrderedList = false;
+  let orderedListStart: number | null = null;
   let inCodeBlock = false;
   let codeLines: string[] = [];
+
+  const formatLineWithIndentation = (line: string) => {
+    const match = line.match(/^[\t ]+/);
+    const leading = match ? match[0] : "";
+    const content = line.slice(leading.length);
+    const indent = leading.replace(/\t/g, "    ").replace(/ /g, "&nbsp;");
+    return `${indent}${formatInlineMarkdown(content)}`;
+  };
+
+  const parseTableRow = (row: string) =>
+    row
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => formatInlineMarkdown(cell.trim()));
+
+  const isTableSeparator = (row: string) =>
+    /^\s*\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?\s*$/.test(row);
 
   const closeLists = () => {
     if (inUnorderedList) {
@@ -49,13 +69,14 @@ export const formatMarkdownText = (text: string): string => {
     if (inOrderedList) {
       htmlParts.push("</ol>");
       inOrderedList = false;
+      orderedListStart = null;
     }
   };
 
   const flushParagraph = () => {
     if (paragraphLines.length === 0) return;
-    const content = paragraphLines.map(formatInlineMarkdown).join("<br />");
-    htmlParts.push(`<p>${content}</p>`);
+    const content = paragraphLines.map(formatLineWithIndentation).join("<br />");
+    htmlParts.push(`<p class="mb-4 last:mb-0 whitespace-pre-wrap">${content}</p>`);
     paragraphLines = [];
   };
 
@@ -70,7 +91,8 @@ export const formatMarkdownText = (text: string): string => {
     inCodeBlock = false;
   };
 
-  lines.forEach((line) => {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     const trimmed = line.trim();
 
     if (trimmed.startsWith("```")) {
@@ -81,12 +103,48 @@ export const formatMarkdownText = (text: string): string => {
       } else {
         inCodeBlock = true;
       }
-      return;
+      continue;
     }
 
     if (inCodeBlock) {
       codeLines.push(line);
-      return;
+      continue;
+    }
+
+    if (
+      trimmed.includes("|") &&
+      index + 1 < lines.length &&
+      isTableSeparator(lines[index + 1])
+    ) {
+      flushParagraph();
+      closeLists();
+
+      const headerCells = parseTableRow(trimmed);
+      const bodyRows: string[][] = [];
+      index += 1;
+
+      while (index + 1 < lines.length) {
+        const nextLine = lines[index + 1];
+        if (!nextLine.trim() || !nextLine.includes("|")) break;
+        bodyRows.push(parseTableRow(nextLine));
+        index += 1;
+      }
+
+      const headerHtml = headerCells
+        .map((cell) => `<th class="px-3 py-2 text-left font-semibold border-b border-border">${cell}</th>`)
+        .join("");
+      const bodyHtml = bodyRows
+        .map(
+          (row) =>
+            `<tr>${row
+              .map((cell) => `<td class="px-3 py-2 border-b border-border">${cell}</td>`)
+              .join("")}</tr>`
+        )
+        .join("");
+      htmlParts.push(
+        `<div class="my-4 overflow-x-auto"><table class="w-full text-sm border border-border"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table></div>`
+      );
+      continue;
     }
 
     const imageMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
@@ -96,28 +154,28 @@ export const formatMarkdownText = (text: string): string => {
       htmlParts.push(
         `<img src="${imageMatch[2]}" alt="${imageMatch[1] || ""}" class="w-full rounded-lg my-6" />`
       );
-      return;
+      continue;
     }
 
     if (trimmed.startsWith("### ")) {
       flushParagraph();
       closeLists();
       htmlParts.push(`<h3>${formatInlineMarkdown(trimmed.replace(/^###\s+/, ""))}</h3>`);
-      return;
+      continue;
     }
 
     if (trimmed.startsWith("## ")) {
       flushParagraph();
       closeLists();
       htmlParts.push(`<h2>${formatInlineMarkdown(trimmed.replace(/^##\s+/, ""))}</h2>`);
-      return;
+      continue;
     }
 
     if (trimmed.startsWith("# ")) {
       flushParagraph();
       closeLists();
       htmlParts.push(`<h1>${formatInlineMarkdown(trimmed.replace(/^#\s+/, ""))}</h1>`);
-      return;
+      continue;
     }
 
     if (trimmed.startsWith("> ")) {
@@ -128,7 +186,7 @@ export const formatMarkdownText = (text: string): string => {
           trimmed.replace(/^>\s+/, "")
         )}</blockquote>`
       );
-      return;
+      continue;
     }
 
     const unorderedMatch = trimmed.match(/^[•\-*]\s+(.*)$/);
@@ -140,30 +198,40 @@ export const formatMarkdownText = (text: string): string => {
         inUnorderedList = true;
       }
       htmlParts.push(`<li>${formatInlineMarkdown(unorderedMatch[1])}</li>`);
-      return;
+      continue;
     }
 
-    const orderedMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+    const orderedMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
     if (orderedMatch) {
       flushParagraph();
       if (!inOrderedList) {
         closeLists();
-        htmlParts.push('<ol class="list-decimal list-inside my-2 space-y-1">');
+        orderedListStart = Number(orderedMatch[1]);
+        htmlParts.push(
+          `<ol class="list-decimal list-inside my-2 space-y-1"${
+            orderedListStart ? ` start="${orderedListStart}"` : ""
+          }>`
+        );
         inOrderedList = true;
       }
-      htmlParts.push(`<li>${formatInlineMarkdown(orderedMatch[1])}</li>`);
-      return;
+      const orderNumber = Number(orderedMatch[1]);
+      htmlParts.push(
+        `<li${Number.isFinite(orderNumber) ? ` value="${orderNumber}"` : ""}>${formatInlineMarkdown(
+          orderedMatch[2]
+        )}</li>`
+      );
+      continue;
     }
 
     if (trimmed === "") {
       flushParagraph();
       closeLists();
-      return;
+      continue;
     }
 
     closeLists();
     paragraphLines.push(line);
-  });
+  }
 
   flushParagraph();
   closeLists();

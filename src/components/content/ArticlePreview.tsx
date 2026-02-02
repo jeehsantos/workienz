@@ -39,7 +39,7 @@ export function ArticlePreview({
             <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-500 mt-0.5" />
             <div>
               <strong className="block text-xs font-bold uppercase tracking-tight mb-1">
-                Legal Requirement
+                {block.title?.trim() || "Legal Requirement"}
               </strong>
               <div 
                 className="text-sm leading-relaxed"
@@ -57,7 +57,7 @@ export function ArticlePreview({
             <Lightbulb className="w-5 h-5 flex-shrink-0 text-emerald-500 mt-0.5" />
             <div>
               <strong className="block text-xs font-bold uppercase tracking-tight mb-1">
-                Pro Tip
+                {block.title?.trim() || "Pro Tip"}
               </strong>
               <div 
                 className="text-sm leading-relaxed"

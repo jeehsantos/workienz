@@ -6,6 +6,8 @@ import {
   List,
   ListOrdered,
   Quote,
+  Link,
+  Table,
 } from "lucide-react";
 import {
   Tooltip,
@@ -21,6 +23,23 @@ interface TextBlockToolbarProps {
 }
 
 export function TextBlockToolbar({ textareaId, value, onChange }: TextBlockToolbarProps) {
+  const replaceSelection = (replacement: string, selectionOffset = 0) => {
+    const textarea = document.getElementById(textareaId) as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = value.substring(0, start) + replacement + value.substring(end);
+
+    onChange(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const cursor = start + replacement.length + selectionOffset;
+      textarea.setSelectionRange(cursor, cursor);
+    }, 0);
+  };
+
   const insertFormat = (before: string, after: string = "") => {
     const textarea = document.getElementById(textareaId) as HTMLTextAreaElement;
     if (!textarea) return;
@@ -119,6 +138,43 @@ export function TextBlockToolbar({ textareaId, value, onChange }: TextBlockToolb
       label: "Quote", 
       action: () => insertAtLineStart("> "),
       shortcut: "> quote"
+    },
+    {
+      icon: Link,
+      label: "Link",
+      action: () => {
+        const textarea = document.getElementById(textareaId) as HTMLTextAreaElement;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = value.substring(start, end);
+        const linkMatch = selectedText.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+
+        const defaultLabel = linkMatch?.[1] ?? (selectedText.startsWith("http") ? "" : selectedText);
+        const defaultUrl =
+          linkMatch?.[2] ??
+          (selectedText.startsWith("http") || selectedText.startsWith("www.")
+            ? selectedText
+            : "");
+
+        const url = window.prompt("Link URL", defaultUrl || "https://");
+        if (!url) return;
+        const label = window.prompt("Link text", defaultLabel || "Link");
+        if (!label) return;
+
+        replaceSelection(`[${label}](${url})`);
+      },
+      shortcut: "[label](url)"
+    },
+    {
+      icon: Table,
+      label: "Table",
+      action: () => {
+        const template = `| Column 1 | Column 2 |\n| --- | --- |\n| Value 1 | Value 2 |`;
+        replaceSelection(template);
+      },
+      shortcut: "| Column | Column |"
     },
   ];
 
