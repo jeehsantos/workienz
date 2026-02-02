@@ -217,8 +217,8 @@ export default function NewGuideArticle() {
         summary: formData.summary,
         content: legacyContent,
         content_blocks: formData.content_blocks,
-        journey_id: formData.journey_id,
-        topic_id: formData.topic_id,
+        journey_id: formData.journey_id || null,
+        topic_id: formData.topic_id || null,
         article_type: formData.article_type,
         visa_type: formData.visa_type,
         user_stage: formData.user_stage,
@@ -258,6 +258,10 @@ export default function NewGuideArticle() {
           // Foreign key violation
           errorTitle = "Invalid Reference";
           errorMessage = "The selected journey or topic no longer exists. Please refresh and try again.";
+        } else if (supabaseError.code === "22P02") {
+          // Invalid UUID syntax
+          errorTitle = "Invalid Selection";
+          errorMessage = "Please ensure you have selected a valid journey and topic before publishing.";
         } else if (supabaseError.message) {
           errorMessage = supabaseError.message;
         }
