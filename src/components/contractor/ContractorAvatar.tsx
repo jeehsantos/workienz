@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 interface ContractorAvatarProps {
   avatarUrl?: string | null;
   companyName?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
@@ -13,12 +13,14 @@ const sizeClasses = {
   sm: "h-8 w-8 text-xs",
   md: "h-10 w-10 text-sm",
   lg: "h-14 w-14 text-base",
+  xl: "h-28 w-28 text-lg",
 };
 
 const iconSizes = {
   sm: "h-4 w-4",
   md: "h-5 w-5",
   lg: "h-6 w-6",
+  xl: "h-10 w-10",
 };
 
 export function ContractorAvatar({
