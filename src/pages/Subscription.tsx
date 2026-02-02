@@ -662,14 +662,16 @@ export default function Subscription() {
                       </div>
 
                       {/* Upgrade CTA */}
-                      <div className="pt-4 border-t border-border/50">
-                        <Button asChild className="w-full sm:w-auto">
-                          <Link to="/pricing">
-                            <Crown className="w-4 h-4 mr-2" />
-                            Upgrade Your Plan
-                          </Link>
-                        </Button>
-                      </div>
+                      {showUpgrade && (
+                        <div className="pt-4 border-t border-border/50">
+                          <Button asChild className="w-full sm:w-auto">
+                            <Link to={upgradeLink}>
+                              <Crown className="w-4 h-4 mr-2" />
+                              {upgradeText}
+                            </Link>
+                          </Button>
+                        </div>
+                      )}
                     </>
                   ) : isEmployee() ? (
                     /* Employee Free Tier Display */

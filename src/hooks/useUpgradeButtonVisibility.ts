@@ -18,7 +18,7 @@ interface UseUpgradeButtonVisibilityResult {
  * | Setting Enabled | User Role  | Button Visible | Button Text          | Link      |
  * |-----------------|------------|----------------|----------------------|-----------|
  * | false           | Employee   | Yes            | Upgrade to Premium   | /pricing  |
- * | false           | Contractor | Yes            | Upgrade Plan         | /pricing  |
+ * | false           | Contractor | Yes            | Upgrade Your Plan    | /pricing  |
  * | true            | Employee   | No             | -                    | -         |
  * | true            | Contractor | Yes            | Become a Partner     | /contact  |
  */
@@ -75,7 +75,7 @@ export function useUpgradeButtonVisibility(): UseUpgradeButtonVisibilityResult {
   if (isContractorUser) {
     return {
       showUpgrade: true,
-      upgradeText: "Upgrade Plan",
+      upgradeText: "Upgrade Your Plan",
       upgradeLink: "/pricing",
       isLoading,
     };
