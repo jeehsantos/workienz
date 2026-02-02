@@ -117,11 +117,17 @@ export async function searchJobs(
 ) {
   const query = buildJobSearchQuery(searchTerm);
   
+  // Join with contractor_profiles to get has_priority for sorting
+  const selectFields = `
+    *,
+    contractor_profiles!inner(has_priority)
+  `;
+  
   if (!query) {
     // If no search term, return filtered results without text search
     let dbQuery = supabase
       .from('jobs')
-      .select('*');
+      .select(selectFields);
     
     if (filters.status) dbQuery = dbQuery.eq('status', filters.status);
     if (filters.location_city) dbQuery = dbQuery.eq('location_city', filters.location_city);
@@ -129,7 +135,9 @@ export async function searchJobs(
     if (filters.industry) dbQuery = dbQuery.eq('industry', filters.industry);
     if (filters.job_type) dbQuery = dbQuery.eq('job_type', filters.job_type);
     
+    // Order by priority first (descending so true comes first), then by created_at
     return dbQuery
+      .order('contractor_profiles(has_priority)', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(limit);
   }
@@ -137,7 +145,7 @@ export async function searchJobs(
   // Use full-text search with filters
   let dbQuery = supabase
     .from('jobs')
-    .select('*')
+    .select(selectFields)
     .textSearch('search_vector', query);
   
   if (filters.status) dbQuery = dbQuery.eq('status', filters.status);
@@ -146,7 +154,11 @@ export async function searchJobs(
   if (filters.industry) dbQuery = dbQuery.eq('industry', filters.industry);
   if (filters.job_type) dbQuery = dbQuery.eq('job_type', filters.job_type);
   
-  return dbQuery.limit(limit);
+  // Order by priority first, then by created_at
+  return dbQuery
+    .order('contractor_profiles(has_priority)', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
 }
 
 /**

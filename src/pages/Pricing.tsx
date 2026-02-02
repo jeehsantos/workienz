@@ -104,7 +104,6 @@ const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
     "Free community articles": true,
     "Full article library": false,
     "Basic profile": true,
-    "Priority Badge": false,
     "Enhanced visibility": false,
     "Job alerts": true
   },
@@ -114,7 +113,6 @@ const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
     "Free community articles": true,
     "Full article library": true,
     "Basic profile": true,
-    "Priority Badge": true,
     "Enhanced visibility": true,
     "Job alerts": true
   },
@@ -124,7 +122,6 @@ const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
     "Free community articles": true,
     "Full article library": true,
     "Basic profile": true,
-    "Priority Badge": true,
     "Enhanced visibility": true,
     "Job alerts": true
   },
@@ -134,7 +131,6 @@ const seekerFeatureMatrix: Record<string, Record<string, boolean>> = {
     "Free community articles": true,
     "Full article library": true,
     "Basic profile": true,
-    "Priority Badge": true,
     "Enhanced visibility": true,
     "Job alerts": true
   }
