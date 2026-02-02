@@ -22,6 +22,7 @@ import {
   Save,
   DollarSign,
   Gift,
+  Zap,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,7 @@ type ContractorProfile = {
   company_name: string;
   is_verified: boolean;
   is_entrepreneur: boolean;
+  has_priority: boolean;
   created_at: string;
   email: string;
   package_name: string | null;
@@ -308,7 +310,7 @@ export default function AdminDashboard() {
   async function fetchContractors() {
     const { data: contractorData } = await supabase
       .from("contractor_profiles")
-      .select("id, user_id, company_name, is_verified, is_entrepreneur, created_at")
+      .select("id, user_id, company_name, is_verified, is_entrepreneur, has_priority, created_at")
       .order("created_at", { ascending: false });
 
     if (!contractorData) {
@@ -354,6 +356,7 @@ export default function AdminDashboard() {
 
         return {
           ...c,
+          has_priority: c.has_priority ?? false,
           email: profile?.email || "",
           package_name: packageName,
           current_plan_type: entitlementData?.plan_type || null,
@@ -454,6 +457,24 @@ export default function AdminDashboard() {
     } else {
       toast({ title: "Success", description: `Entrepreneur status ${!currentValue ? "enabled" : "disabled"}` });
       setContractors(contractors.map(c => c.id === contractorId ? { ...c, is_entrepreneur: !currentValue } : c));
+    }
+
+    setUpdatingId(null);
+  }
+
+  async function togglePriority(contractorId: string, currentValue: boolean) {
+    setUpdatingId(contractorId);
+
+    const { error } = await supabase
+      .from("contractor_profiles")
+      .update({ has_priority: !currentValue })
+      .eq("id", contractorId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update priority status", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `Priority badge ${!currentValue ? "enabled" : "disabled"}` });
+      setContractors(contractors.map(c => c.id === contractorId ? { ...c, has_priority: !currentValue } : c));
     }
 
     setUpdatingId(null);
@@ -830,6 +851,7 @@ export default function AdminDashboard() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Company</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead>Entrepreneur</TableHead>
                         <TableHead>Plan Tier</TableHead>
                         <TableHead>Legacy Package</TableHead>
@@ -843,6 +865,18 @@ export default function AdminDashboard() {
                             <div>
                               <p className="font-medium">{c.company_name}</p>
                               <p className="text-sm text-muted-foreground">{c.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={c.has_priority}
+                                onCheckedChange={() => togglePriority(c.id, c.has_priority)}
+                                disabled={updatingId === c.id}
+                              />
+                              {c.has_priority && (
+                                <Zap className="w-4 h-4 text-amber-500" />
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>

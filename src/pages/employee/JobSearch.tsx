@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
-import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock, Filter, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock, Filter, AlertCircle, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { JOB_TYPE_CONFIG, JobType } from "@/data/jobTypes";
 import { INDUSTRIES, Industry } from "@/data/industries";
@@ -34,6 +34,7 @@ type Job = {
   positions_available: number;
   positions_filled: number;
   created_at: string;
+  has_priority?: boolean;
   contractor: {
     company_name: string;
     avatar_url: string | null;
@@ -48,12 +49,20 @@ const JobCard = memo(({ job, user }: { job: Job; user: any }) => {
   
   return (
     <div
-      className="bg-card rounded-xl p-4 sm:p-6 border border-border/50 shadow-soft hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+      className={`bg-card rounded-xl p-4 sm:p-6 border shadow-soft hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
+        job.has_priority ? "border-amber-400/60 ring-1 ring-amber-200/30" : "border-border/50"
+      }`}
     >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Industry and Job Type Badges */}
+          {/* Industry, Job Type, and Priority Badges */}
           <div className="flex flex-wrap gap-2 mb-3">
+            {job.has_priority && (
+              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1">
+                <Zap className="w-3 h-3" />
+                Priority
+              </Badge>
+            )}
             <JobTypeBadge jobType={job.job_type as JobType} />
             <IndustryBadge industry={job.industry as Industry} />
           </div>
@@ -256,12 +265,14 @@ export default function JobSearch() {
 
           jobsWithContractor = data?.map((job: any) => ({
             ...job,
+            has_priority: job.contractor_profiles?.has_priority || false,
             contractor: contractors?.find((c) => c.id === job.contractor_id) || null,
           })) || [];
         } else {
           // For unauthenticated users, hide company info
           jobsWithContractor = data?.map((job: any) => ({
             ...job,
+            has_priority: job.contractor_profiles?.has_priority || false,
             contractor: null,
           })) || [];
         }

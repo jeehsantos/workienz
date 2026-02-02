@@ -284,6 +284,7 @@ export type Database = {
           company_name: string
           country: string | null
           created_at: string
+          has_priority: boolean
           id: string
           industry: string | null
           is_entrepreneur: boolean | null
@@ -301,6 +302,7 @@ export type Database = {
           company_name: string
           country?: string | null
           created_at?: string
+          has_priority?: boolean
           id?: string
           industry?: string | null
           is_entrepreneur?: boolean | null
@@ -318,6 +320,7 @@ export type Database = {
           company_name?: string
           country?: string | null
           created_at?: string
+          has_priority?: boolean
           id?: string
           industry?: string | null
           is_entrepreneur?: boolean | null
