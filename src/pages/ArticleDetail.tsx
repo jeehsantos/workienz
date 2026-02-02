@@ -379,7 +379,16 @@ export default function ArticleDetail() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <p className="font-medium">Enjoyed this article?</p>
-                  <p className="text-sm text-muted-foreground">Check out more content</p>
+                  <p className="text-sm text-muted-foreground">
+                    Check out more content{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate(-1)}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      Go back to the previous page
+                    </button>
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {user && isEmployee() && (
@@ -389,9 +398,6 @@ export default function ArticleDetail() {
                       articleTitle={article.title} 
                     />
                   )}
-                  <Button asChild>
-                    <Link to="/articles">Browse More Articles</Link>
-                  </Button>
                 </div>
               </div>
             </div>
