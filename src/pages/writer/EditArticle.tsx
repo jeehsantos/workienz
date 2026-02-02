@@ -139,12 +139,12 @@ export default function EditArticle() {
     if (formData.journey_id) {
       const nextTopics = topics.filter((t) => t.journey_id === formData.journey_id);
       setFilteredTopics(nextTopics);
-      if (!nextTopics.some((topic) => topic.id === formData.topic_id)) {
+      if (topics.length > 0 && !nextTopics.some((topic) => topic.id === formData.topic_id)) {
         setFormData((prev) => ({ ...prev, topic_id: "" }));
       }
     } else {
       setFilteredTopics([]);
-      if (formData.topic_id) {
+      if (topics.length > 0 && formData.topic_id) {
         setFormData((prev) => ({ ...prev, topic_id: "" }));
       }
     }

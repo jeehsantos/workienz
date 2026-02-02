@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ export type ContentBlock = {
   id: string;
   type: "text" | "heading" | "warning" | "tip";
   value: string;
+  title?: string;
 };
 
 interface ContentBlockEditorProps {
@@ -28,16 +30,23 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export function ContentBlockEditor({ blocks, onChange }: ContentBlockEditorProps) {
   const addBlock = (type: ContentBlock["type"]) => {
+    const defaultTitle =
+      type === "warning" ? "Legal Requirement" : type === "tip" ? "Pro Tip" : undefined;
     const newBlock: ContentBlock = {
       id: generateId(),
       type,
       value: "",
+      title: defaultTitle,
     };
     onChange([...blocks, newBlock]);
   };
 
   const updateBlock = (id: string, value: string) => {
     onChange(blocks.map((b) => (b.id === id ? { ...b, value } : b)));
+  };
+
+  const updateBlockTitle = (id: string, title: string) => {
+    onChange(blocks.map((b) => (b.id === id ? { ...b, title } : b)));
   };
 
   const removeBlock = (id: string) => {
@@ -76,6 +85,43 @@ export function ContentBlockEditor({ blocks, onChange }: ContentBlockEditorProps
       default:
         return <Type className="w-4 h-4 text-muted-foreground" />;
     }
+  };
+
+  const handleIndentationKey = (event: KeyboardEvent<HTMLTextAreaElement>, blockId: string) => {
+    if (event.key !== "Tab") return;
+    event.preventDefault();
+
+    const textarea = event.currentTarget;
+    const { selectionStart, selectionEnd, value } = textarea;
+    const indent = "  ";
+
+    if (event.shiftKey) {
+      const beforeSelection = value.slice(0, selectionStart);
+      const lineStart = beforeSelection.lastIndexOf("\n") + 1;
+      const hasIndent = value.slice(lineStart, lineStart + indent.length) === indent;
+      if (!hasIndent) return;
+      const newValue =
+        value.slice(0, lineStart) +
+        value.slice(lineStart + indent.length, selectionStart) +
+        value.slice(selectionStart, selectionEnd) +
+        value.slice(selectionEnd);
+      updateBlock(blockId, newValue);
+      setTimeout(() => {
+        const newStart = selectionStart - indent.length;
+        const newEnd = selectionEnd - indent.length;
+        textarea.setSelectionRange(newStart, newEnd);
+      }, 0);
+      return;
+    }
+
+    const newValue =
+      value.slice(0, selectionStart) + indent + value.slice(selectionStart, selectionEnd) + value.slice(selectionEnd);
+    updateBlock(blockId, newValue);
+    setTimeout(() => {
+      const newStart = selectionStart + indent.length;
+      const newEnd = selectionEnd + indent.length;
+      textarea.setSelectionRange(newStart, newEnd);
+    }, 0);
   };
 
   return (
@@ -149,10 +195,22 @@ export function ContentBlockEditor({ blocks, onChange }: ContentBlockEditorProps
                     value={block.value}
                     onChange={(val) => updateBlock(block.id, val)}
                   />
+                  {(block.type === "warning" || block.type === "tip") && (
+                    <Input
+                      value={
+                        block.title ??
+                        (block.type === "warning" ? "Legal Requirement" : "Pro Tip")
+                      }
+                      onChange={(e) => updateBlockTitle(block.id, e.target.value)}
+                      placeholder="Header label..."
+                      className="border-x border-t-0 rounded-none bg-transparent text-xs font-semibold uppercase tracking-wide text-muted-foreground focus-visible:ring-1"
+                    />
+                  )}
                   <Textarea
                     id={`block-${block.id}`}
                     value={block.value}
                     onChange={(e) => updateBlock(block.id, e.target.value)}
+                    onKeyDown={(event) => handleIndentationKey(event, block.id)}
                     placeholder={
                       block.type === "warning"
                         ? "Important warning or legal requirement..."
