@@ -129,6 +129,19 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
         // Inline code
         text = text.replace(/`(.*?)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm">$1</code>');
+        // Markdown links
+        text = text.replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+          '<a href="$2" class="text-primary underline underline-offset-2" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+        // Auto-link URLs
+        text = text.replace(
+          /(^|[\s>])((https?:\/\/|www\.)[^\s<]+)/g,
+          (match, prefix, url) => {
+            const href = url.startsWith("http") ? url : `https://${url}`;
+            return `${prefix}<a href="${href}" class="text-primary underline underline-offset-2" target="_blank" rel="noopener noreferrer">${url}</a>`;
+          }
+        );
         
         return text;
       };

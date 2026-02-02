@@ -54,6 +54,7 @@ export function TextBlockToolbar({ textareaId, value, onChange }: TextBlockToolb
     if (!textarea) return;
 
     const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
     const lines = value.split('\n');
     
     // Find which line the cursor is on
@@ -67,6 +68,7 @@ export function TextBlockToolbar({ textareaId, value, onChange }: TextBlockToolb
       charCount += lines[i].length + 1; // +1 for newline
     }
     
+    const lineStart = charCount;
     // Add prefix to the current line
     lines[lineIndex] = prefix + lines[lineIndex];
     const newText = lines.join('\n');
@@ -75,6 +77,9 @@ export function TextBlockToolbar({ textareaId, value, onChange }: TextBlockToolb
     
     setTimeout(() => {
       textarea.focus();
+      const shift = start >= lineStart ? prefix.length : 0;
+      const endShift = end >= lineStart ? prefix.length : 0;
+      textarea.setSelectionRange(start + shift, end + endShift);
     }, 0);
   };
 
