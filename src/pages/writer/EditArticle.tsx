@@ -1,108 +1,201 @@
-import { useState, useEffect, lazy, Suspense } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Save, Eye, ImagePlus, Upload } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ContentBlockEditor, type ContentBlock } from "@/components/content/ContentBlockEditor";
+import { ArticlePreview } from "@/components/content/ArticlePreview";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Loader2,
+  ArrowLeft,
+  Save,
+  Eye,
+  CheckCircle2,
+  Monitor,
+  Smartphone,
+} from "lucide-react";
 
-// Lazy load the RichTextEditor component
-const RichTextEditor = lazy(() => import("@/components/articles/RichTextEditor").then(module => ({ default: module.RichTextEditor })));
+type Journey = {
+  id: string;
+  title: string;
+};
 
-interface ArticleData {
+type TopicHub = {
+  id: string;
+  journey_id: string;
+  title: string;
+};
+
+type ArticleData = {
   id: string;
   title: string;
   slug: string;
-  excerpt: string;
-  content: string;
-  category: string | null;
-  cover_image_url: string | null;
-  is_premium: boolean;
+  summary: string | null;
+  content: string | null;
+  content_blocks: ContentBlock[] | null;
+  journey_id: string | null;
+  topic_id: string | null;
+  article_type: string | null;
+  visa_type: string | null;
+  user_stage: string | null;
   is_published: boolean;
+  is_premium: boolean;
   author_id: string;
-}
+};
+
+const ARTICLE_TYPES = [
+  { value: "qa", label: "Q&A" },
+  { value: "guide", label: "Guide" },
+  { value: "checklist", label: "Checklist" },
+];
+
+const VISA_TYPES = [
+  { value: "all", label: "All Visas" },
+  { value: "student", label: "Student" },
+  { value: "worker", label: "Worker" },
+  { value: "whv", label: "WHV" },
+  { value: "tourist", label: "Tourist" },
+  { value: "resident", label: "Resident" },
+];
+
+const USER_STAGES = [
+  { value: "before_arrival", label: "Before arrival" },
+  { value: "arrival", label: "Arrival" },
+  { value: "first_30_days", label: "First 30 days" },
+  { value: "living_here", label: "Living here" },
+];
+
+const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export default function EditArticle() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isWriter, isLoading: authLoading } = useAuthContext();
+  const { user, isWriter, isAdmin, isLoading: authLoading } = useAuthContext();
   const { toast } = useToast();
 
+  const [step, setStep] = useState(1);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+
+  const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [topics, setTopics] = useState<TopicHub[]>([]);
+  const [filteredTopics, setFilteredTopics] = useState<TopicHub[]>([]);
   const [article, setArticle] = useState<ArticleData | null>(null);
-  const [categories, setCategories] = useState<Array<{ slug: string; name: string }>>([]);
+
   const [formData, setFormData] = useState({
+    journey_id: "",
+    topic_id: "",
+    article_type: "qa",
     title: "",
     slug: "",
-    excerpt: "",
-    content: "",
-    category: "",
-    cover_image_url: "",
-    is_premium: false,
+    summary: "",
+    content_blocks: [] as ContentBlock[],
+    visa_type: "all",
+    user_stage: "before_arrival",
     is_published: false,
   });
-  const [uploadingCover, setUploadingCover] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && (!user || !isWriter())) {
+    if (!authLoading && (!user || (!isWriter() && !isAdmin()))) {
       navigate("/auth");
     }
-  }, [user, authLoading, isWriter, navigate]);
+  }, [user, authLoading, isWriter, isAdmin, navigate]);
 
   useEffect(() => {
-    // Fetch active categories
-    async function fetchCategories() {
-      const { data, error } = await supabase
-        .from("article_categories")
-        .select("slug, name")
+    async function fetchStructure() {
+      const { data: journeyData } = await supabase
+        .from("journeys")
+        .select("id, title")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
-      if (!error && data) {
-        setCategories(data as Array<{ slug: string; name: string }>);
+      if (journeyData) {
+        setJourneys(journeyData);
+      }
+
+      const { data: topicData } = await supabase
+        .from("topic_hubs")
+        .select("id, journey_id, title")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (topicData) {
+        setTopics(topicData);
       }
     }
 
-    fetchCategories();
+    fetchStructure();
   }, []);
+
+  useEffect(() => {
+    if (formData.journey_id) {
+      const nextTopics = topics.filter((t) => t.journey_id === formData.journey_id);
+      setFilteredTopics(nextTopics);
+      if (!nextTopics.some((topic) => topic.id === formData.topic_id)) {
+        setFormData((prev) => ({ ...prev, topic_id: "" }));
+      }
+    } else {
+      setFilteredTopics([]);
+      if (formData.topic_id) {
+        setFormData((prev) => ({ ...prev, topic_id: "" }));
+      }
+    }
+  }, [formData.journey_id, formData.topic_id, topics]);
 
   useEffect(() => {
     async function fetchArticle() {
       if (!id || !user) return;
 
-      const { data, error } = await supabase
-        .from("articles")
-        .select("*")
-        .eq("id", id)
-        .eq("author_id", user.id)
-        .single();
+      const baseQuery = supabase.from("articles").select("*").eq("id", id);
+      const { data, error } = isAdmin()
+        ? await baseQuery.maybeSingle()
+        : await baseQuery.eq("author_id", user.id).maybeSingle();
 
       if (error || !data) {
         toast({
-          title: "Article not found",
-          description: "You don't have access to edit this article.",
+          title: "Guide topic not found",
+          description: "You don't have access to edit this guide topic.",
           variant: "destructive",
         });
         navigate("/writer/articles");
         return;
       }
 
-      setArticle(data);
+      if (data.article_type !== "guide") {
+        toast({
+          title: "Not a guide topic",
+          description: "This content is not a guide topic.",
+          variant: "destructive",
+        });
+        navigate("/writer/articles");
+        return;
+      }
+
+      const existingBlocks =
+        (data.content_blocks as ContentBlock[] | null) ||
+        (data.content
+          ? [{ id: generateId(), type: "text", value: data.content }]
+          : []);
+
+      setArticle(data as ArticleData);
       setFormData({
-        title: data.title,
-        slug: data.slug,
-        excerpt: data.excerpt || "",
-        content: data.content,
-        category: data.category || "",
-        cover_image_url: data.cover_image_url || "",
-        is_premium: data.is_premium,
-        is_published: data.is_published,
+        journey_id: data.journey_id || "",
+        topic_id: data.topic_id || "",
+        article_type: data.article_type || "guide",
+        title: data.title || "",
+        slug: data.slug || "",
+        summary: data.summary || "",
+        content_blocks: existingBlocks,
+        visa_type: data.visa_type || "all",
+        user_stage: data.user_stage || "before_arrival",
+        is_published: data.is_published || false,
       });
       setIsLoading(false);
     }
@@ -110,142 +203,132 @@ export default function EditArticle() {
     if (user && id) {
       fetchArticle();
     }
-  }, [id, user, navigate, toast]);
+  }, [id, user, navigate, toast, isAdmin]);
 
   const generateSlug = (title: string) => {
     return title
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .trim();
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
   };
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value;
-    setFormData((prev) => ({
-      ...prev,
-      title: newTitle,
-      slug: generateSlug(newTitle),
-    }));
+  const handleTitleChange = (title: string) => {
+    setFormData({
+      ...formData,
+      title,
+      slug: generateSlug(title),
+    });
   };
 
-  const handleCoverImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  const validateStep = (stepNum: number): boolean => {
+    if (stepNum === 1) {
+      if (!formData.journey_id || !formData.topic_id) {
+        toast({
+          title: "Missing Fields",
+          description: "Please select a journey and topic.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    if (stepNum === 2) {
+      if (!formData.title.trim()) {
+        toast({
+          title: "Missing Title",
+          description: "Please enter a question/title.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      if (!formData.summary.trim()) {
+        toast({
+          title: "Missing Summary",
+          description: "Please enter a TL;DR summary.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      if (formData.content_blocks.length === 0) {
+        toast({
+          title: "Missing Content",
+          description: "Please add at least one content block.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    return true;
+  };
 
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a JPEG, PNG, WebP, or GIF image.",
-        variant: "destructive",
-      });
+  const handleNext = () => {
+    if (validateStep(step)) {
+      setStep(step + 1);
+    }
+  };
+
+  const handleSubmit = async (publish?: boolean) => {
+    if (!user || !article) return;
+
+    if (!validateStep(2)) {
+      setStep(2);
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 5MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUploadingCover(true);
+    setIsSubmitting(true);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("article-images")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from("article-images")
-        .getPublicUrl(fileName);
-
-      setFormData((prev) => ({
-        ...prev,
-        cover_image_url: publicUrlData.publicUrl,
-      }));
-
-      toast({
-        title: "Image uploaded",
-        description: "Cover image has been updated.",
-      });
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setUploadingCover(false);
-    }
-  };
-
-  const handleSave = async (publish?: boolean) => {
-    if (!article || !user) return;
-
-    if (!formData.title.trim() || !formData.content.trim()) {
-      toast({
-        title: "Missing required fields",
-        description: "Please fill in the title and content.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const updateData = {
-        title: formData.title,
-        slug: formData.slug,
-        excerpt: formData.excerpt || null,
-        content: formData.content,
-        category: formData.category || null,
-        cover_image_url: formData.cover_image_url || null,
-        is_premium: formData.is_premium,
-        is_published: publish !== undefined ? publish : formData.is_published,
-        updated_at: new Date().toISOString(),
-      };
+      const legacyContent = formData.content_blocks
+        .map((block) => {
+          if (block.type === "heading") return `## ${block.value}`;
+          if (block.type === "warning") return `> ⚠️ ${block.value}`;
+          if (block.type === "tip") return `> 💡 ${block.value}`;
+          return block.value;
+        })
+        .join("\n\n");
 
       const { error } = await supabase
         .from("articles")
-        .update(updateData)
-        .eq("id", article.id)
-        .eq("author_id", user.id);
+        .update({
+          title: formData.title,
+          slug: formData.slug || generateSlug(formData.title),
+          summary: formData.summary,
+          content: legacyContent,
+          content_blocks: formData.content_blocks,
+          journey_id: formData.journey_id,
+          topic_id: formData.topic_id,
+          article_type: formData.article_type,
+          visa_type: formData.visa_type,
+          user_stage: formData.user_stage,
+          is_published: publish !== undefined ? publish : formData.is_published,
+          is_premium: article.is_premium,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", article.id);
 
       if (error) throw error;
 
-      toast({
-        title: publish ? "Article published" : "Changes saved",
-        description: publish
-          ? "Your article is now live."
-          : "Your changes have been saved.",
-      });
+      const nextPublishedState = publish !== undefined ? publish : formData.is_published;
+      setFormData((prev) => ({ ...prev, is_published: nextPublishedState }));
 
-      if (publish !== undefined) {
-        setFormData((prev) => ({ ...prev, is_published: publish }));
-      }
-    } catch (error) {
-      console.error("Error saving article:", error);
       toast({
-        title: "Save failed",
-        description: "Failed to save changes. Please try again.",
+        title: publish === undefined ? "Changes Saved" : nextPublishedState ? "Topic Published" : "Topic Unpublished",
+        description:
+          publish === undefined
+            ? "Your updates have been saved."
+            : nextPublishedState
+              ? "The topic is now live in the guide."
+              : "The topic has been moved to draft.",
+      });
+    } catch (error: unknown) {
+      console.error("Error saving article:", error);
+      const message = error instanceof Error ? error.message : "Failed to save article.";
+      toast({
+        title: "Error",
+        description: message,
         variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -257,231 +340,361 @@ export default function EditArticle() {
     );
   }
 
-  if (!article) {
-    return null;
-  }
+  const cannotProceedFromStep1 = !formData.journey_id || !formData.topic_id;
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container-tight py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
+      <div className="lg:hidden border-b border-border bg-card p-4">
+        <Button variant="ghost" asChild className="mb-4">
+          <Link to="/writer/articles">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Link>
+        </Button>
+        <h1 className="text-xl font-bold">Edit Guide Topic</h1>
+      </div>
+
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-65px)] lg:min-h-screen">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8 lg:max-w-2xl bg-background">
+          <div className="hidden lg:block mb-8">
+            <Button variant="ghost" asChild className="mb-4">
               <Link to="/writer/articles">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
+                Back to Topics
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold font-display">Edit Article</h1>
+            <h1 className="text-2xl font-bold">Edit Guide Topic</h1>
+            <p className="text-muted-foreground">
+              Update the guide topic details and keep it aligned with the hub.
+            </p>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {formData.is_published && (
-              <Button variant="outline" asChild>
-                <Link to={`/articles/${formData.slug}`} target="_blank">
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Live
-                </Link>
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => handleSave()}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+
+          <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => s < step && setStep(s)}
+                  disabled={s > step}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                    step === s
+                      ? "bg-primary text-primary-foreground"
+                      : step > s
+                      ? "bg-emerald-500 text-white cursor-pointer"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {step > s ? <CheckCircle2 className="w-5 h-5" /> : s}
+                </button>
+                <span
+                  className={`text-xs font-bold uppercase tracking-wider hidden sm:inline ${
+                    step === s ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {s === 1 ? "Classification" : s === 2 ? "Content" : "Metadata"}
+                </span>
+                {s < 3 && <div className="w-4 lg:w-8 h-px bg-border mx-1 hidden sm:block" />}
+              </div>
+            ))}
+          </div>
+
+          {step === 1 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+              <h2 className="text-xl font-bold">1. Classification</h2>
+
+              {journeys.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <p className="text-muted-foreground mb-4">
+                      No journeys available. An admin needs to create journeys and topics first.
+                    </p>
+                    {isAdmin() && (
+                      <Button asChild>
+                        <Link to="/admin/content-structure">Manage Content Structure</Link>
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
               ) : (
-                <Save className="w-4 h-4 mr-2" />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Primary Journey *</Label>
+                    <Select
+                      value={formData.journey_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, journey_id: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a Journey..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {journeys.map((j) => (
+                          <SelectItem key={j.id} value={j.id}>
+                            {j.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Topic Hub *</Label>
+                    <Select
+                      value={formData.topic_id}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, topic_id: value })
+                      }
+                      disabled={!formData.journey_id}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a Topic..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredTopics.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.journey_id && filteredTopics.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No topics in this journey yet.{" "}
+                        {isAdmin() && (
+                          <Link to="/admin/content-structure" className="text-primary hover:underline">
+                            Add topics
+                          </Link>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Article Type</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {ARTICLE_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, article_type: type.value })
+                          }
+                          className={`py-3 rounded-xl border font-bold text-sm transition-all ${
+                            formData.article_type === type.value
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               )}
-              Save Draft
-            </Button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+              <h2 className="text-xl font-bold">2. Core Content</h2>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Question Title *</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    placeholder="e.g. How do I get an IRD number?"
+                    className="text-lg font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="summary">Short Answer (TL;DR) *</Label>
+                    <span
+                      className={`text-xs font-bold ${
+                        formData.summary.length > 250
+                          ? "text-amber-500"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {formData.summary.length} / 300
+                    </span>
+                  </div>
+                  <Textarea
+                    id="summary"
+                    value={formData.summary}
+                    onChange={(e) =>
+                      setFormData({ ...formData, summary: e.target.value.slice(0, 300) })
+                    }
+                    placeholder="A concise answer that will appear at the top..."
+                    rows={3}
+                    className="italic"
+                  />
+                </div>
+
+                <div className="space-y-2 pt-4 border-t">
+                  <Label>Content Blocks *</Label>
+                  <ContentBlockEditor
+                    blocks={formData.content_blocks}
+                    onChange={(blocks) =>
+                      setFormData({ ...formData, content_blocks: blocks })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+              <h2 className="text-xl font-bold">3. Metadata & Discovery</h2>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Visa Type</Label>
+                    <Select
+                      value={formData.visa_type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, visa_type: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {VISA_TYPES.map((v) => (
+                          <SelectItem key={v.value} value={v.value}>
+                            {v.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>User Stage</Label>
+                    <Select
+                      value={formData.user_stage}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, user_stage: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {USER_STAGES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slug">URL Slug</Label>
+                  <Input
+                    id="slug"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    placeholder="article-url-slug"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Auto-generated from title
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="sticky bottom-0 bg-background pt-6 pb-4 border-t mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <Button
-              onClick={() => handleSave(!formData.is_published)}
-              disabled={isSaving}
+              variant="ghost"
+              onClick={() => navigate("/writer/articles")}
+              className="text-muted-foreground w-full sm:w-auto"
             >
-              {formData.is_published ? "Unpublish" : "Publish"}
+              Cancel
             </Button>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              {step > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                  className="flex-1 sm:flex-none"
+                >
+                  Previous
+                </Button>
+              )}
+              {step < 3 ? (
+                <Button
+                  onClick={handleNext}
+                  disabled={step === 1 && cannotProceedFromStep1}
+                  className="flex-1 sm:flex-none"
+                >
+                  Next Step
+                </Button>
+              ) : (
+                <div className="flex gap-2 flex-1 sm:flex-none">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSubmit()}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                  <Button
+                    onClick={() => handleSubmit(!formData.is_published)}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {formData.is_published ? "Unpublish" : "Publish"}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={handleTitleChange}
-                placeholder="Article title..."
-                className="text-lg"
-              />
-            </div>
-
-            {/* Slug */}
-            <div className="space-y-2">
-              <Label htmlFor="slug">URL Slug</Label>
-              <Input
-                id="slug"
-                value={formData.slug}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, slug: e.target.value }))
-                }
-                placeholder="article-url-slug"
-              />
-              <p className="text-xs text-muted-foreground">
-                /articles/{formData.slug || "your-slug"}
-              </p>
-            </div>
-
-            {/* Excerpt */}
-            <div className="space-y-2">
-              <Label htmlFor="excerpt">Excerpt (optional)</Label>
-              <Textarea
-                id="excerpt"
-                value={formData.excerpt}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, excerpt: e.target.value }))
-                }
-                placeholder="A brief summary of your article..."
-                rows={3}
-              />
-            </div>
-
-            {/* Category */}
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.slug} value={cat.slug}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Content */}
-            <div className="space-y-2">
-              <Label htmlFor="content">Content</Label>
-              <Suspense fallback={
-                <div className="flex items-center justify-center p-8 border border-border rounded-lg">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-              }>
-                <RichTextEditor
-                  value={formData.content}
-                  onChange={(content) => setFormData((prev) => ({ ...prev, content }))}
-                  placeholder="Write your article content here... Use the formatting toolbar for rich text."
-                />
-              </Suspense>
-            </div>
+        <div className="hidden lg:flex flex-1 bg-muted/50 p-6 flex-col items-center border-l">
+          <div className="flex gap-4 mb-4 bg-card p-1 rounded-lg border shadow-sm">
+            <button
+              onClick={() => setPreviewMode("desktop")}
+              className={`p-2 rounded ${
+                previewMode === "desktop"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Monitor className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPreviewMode("mobile")}
+              className={`p-2 rounded ${
+                previewMode === "mobile"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Cover Image */}
-            <div className="p-4 rounded-xl border border-border bg-card space-y-4">
-              <Label>Cover Image</Label>
-              {formData.cover_image_url ? (
-                <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
-                  <img
-                    src={formData.cover_image_url}
-                    alt="Cover"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverImageUpload}
-                        className="hidden"
-                        disabled={uploadingCover}
-                      />
-                      <Button variant="secondary" size="sm" asChild>
-                        <span>
-                          {uploadingCover ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Upload className="w-4 h-4 mr-2" />
-                              Replace
-                            </>
-                          )}
-                        </span>
-                      </Button>
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleCoverImageUpload}
-                    className="hidden"
-                    disabled={uploadingCover}
-                  />
-                  <div className="aspect-video rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground">
-                    {uploadingCover ? (
-                      <Loader2 className="w-8 h-8 animate-spin" />
-                    ) : (
-                      <>
-                        <ImagePlus className="w-8 h-8" />
-                        <span className="text-sm">Upload cover image</span>
-                      </>
-                    )}
-                  </div>
-                </label>
-              )}
-            </div>
-
-            {/* Settings */}
-            <div className="p-4 rounded-xl border border-border bg-card space-y-4">
-              <Label>Settings</Label>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">Premium Content</p>
-                  <p className="text-xs text-muted-foreground">
-                    Only for subscribers
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.is_premium}
-                  onCheckedChange={(checked) =>
-                    setFormData((prev) => ({ ...prev, is_premium: checked }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">Published</p>
-                  <p className="text-xs text-muted-foreground">
-                    Visible to readers
-                  </p>
-                </div>
-                <Switch
-                  checked={formData.is_published}
-                  onCheckedChange={(checked) =>
-                    setFormData((prev) => ({ ...prev, is_published: checked }))
-                  }
-                />
-              </div>
-            </div>
-          </div>
+          <ArticlePreview
+            title={formData.title}
+            summary={formData.summary}
+            blocks={formData.content_blocks}
+            articleType={formData.article_type}
+            previewMode={previewMode}
+          />
         </div>
       </div>
     </div>

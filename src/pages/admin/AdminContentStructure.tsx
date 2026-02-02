@@ -124,7 +124,7 @@ export default function AdminContentStructure() {
 
     if (activeTab === "journeys") {
       await fetchJourneys();
-    } else {
+    } else if (activeTab === "topics") {
       await fetchTopics();
     }
 
@@ -411,6 +411,10 @@ export default function AdminContentStructure() {
               <FolderTree className="w-4 h-4" />
               Topic Hubs
             </TabsTrigger>
+            <TabsTrigger value="guide-topics" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Guide Topics
+            </TabsTrigger>
           </TabsList>
 
           {/* Journeys Tab */}
@@ -541,6 +545,27 @@ export default function AdminContentStructure() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Guide Topics Tab */}
+          <TabsContent value="guide-topics" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Guide Topics</CardTitle>
+                <CardDescription>
+                  Review, edit, or remove guide topics created by writers.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <p className="text-sm text-muted-foreground">
+                  Guide topics are managed in the writer workflow. Use the button below to open the shared guide
+                  topic manager and make updates.
+                </p>
+                <Button asChild className="w-fit">
+                  <Link to="/writer/articles">Open Guide Topics</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
