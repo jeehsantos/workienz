@@ -24,9 +24,22 @@ export function ShareArticle({ title, url }: ShareArticleProps) {
     window.open(whatsappUrl, "_blank", "width=550,height=420");
   };
 
-  const shareOnInstagram = () => {
-    const instagramUrl = `https://www.instagram.com/?url=${encodeURIComponent(fullUrl)}`;
-    window.open(instagramUrl, "_blank", "width=550,height=420");
+  const shareOnInstagram = async () => {
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      toast({
+        title: "Link Copied!",
+        description: "Paste the link into your Instagram post or story.",
+      });
+    } catch {
+      toast({
+        title: "Copy Failed",
+        description: "Please copy the link manually and paste it into Instagram.",
+        variant: "destructive",
+      });
+    }
+
+    window.open("https://www.instagram.com/", "_blank", "width=550,height=420");
   };
 
   const shareOnFacebook = () => {
