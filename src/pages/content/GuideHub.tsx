@@ -417,9 +417,9 @@ export default function GuideHub() {
                       <span className="text-xs uppercase tracking-tight">Did you know?</span>
                     </div>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      {topics.map((topic) => (
-                        <li key={topic.id}>• {topic.title}</li>
-                      ))}
+                      <span className="text-xs uppercase tracking-tight">
+                        Most Working Holiday Visas allow you to study for up to 6 months.
+                      </span>
                     </ul>
                   </div>
                 )}
@@ -622,12 +622,13 @@ export default function GuideHub() {
                 <div>
                   <p className="font-medium">Enjoyed this guide?</p>
                   <p className="text-sm text-muted-foreground">
+                    Check out more content{" "}
                     <button
                       type="button"
                       onClick={handleBackToTopic}
                       className="text-primary underline underline-offset-4"
                     >
-                      Check out more content
+                      Go back to the previous step
                     </button>
                   </p>
                 </div>
