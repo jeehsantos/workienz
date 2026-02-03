@@ -112,7 +112,7 @@ export default function GuideHub() {
       let articleQuery = supabase
         .from("articles")
         .select(
-          "id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id, content, content_blocks, is_published"
+          "id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id, content, content_blocks, is_published",
         )
         .eq("id", articleId);
 
@@ -622,23 +622,18 @@ export default function GuideHub() {
                 <div>
                   <p className="font-medium">Enjoyed this guide?</p>
                   <p className="text-sm text-muted-foreground">
-                    Check out more content{" "}
                     <button
                       type="button"
                       onClick={handleBackToTopic}
                       className="text-primary underline underline-offset-4"
                     >
-                      Go back to the previous step
+                      Check out more content
                     </button>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {user && isEmployee() && (
-                    <ReportProblemDialog
-                      articleId={fullArticle.id}
-                      userId={user.id}
-                      articleTitle={fullArticle.title}
-                    />
+                    <ReportProblemDialog articleId={fullArticle.id} userId={user.id} articleTitle={fullArticle.title} />
                   )}
                 </div>
               </div>
