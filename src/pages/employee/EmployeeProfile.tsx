@@ -14,9 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Plus, X, FileText, ArrowRight, Save } from "lucide-react";
 import { FormalCVSections } from "@/components/profile/FormalCVSections";
 import type { WorkExperience, Education, CVReference } from "@/types/employeeProfile";
-import { format } from "date-fns";
+import { format, isValid, parse } from "date-fns";
 import { dispatchProfileUpdated } from "@/hooks/useProfileRefresh";
-import { DatePicker } from "@/components/ui/date-picker";
 import { NZ_REGIONS, getCitiesByRegion, getSuburbsByCity } from "@/data/nzRegions";
 import { StepIndicator } from "@/components/jobs/StepIndicator";
 import { SkeletonForm } from "@/components/ui/skeleton-components";
@@ -101,7 +100,7 @@ export default function EmployeeProfile() {
   const [hasCar, setHasCar] = useState(false);
   const [hasIrdNumber, setHasIrdNumber] = useState(false);
 
-  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>();
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [languages, setLanguages] = useState<string[]>([]);
   const [languageInput, setLanguageInput] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
@@ -142,6 +141,15 @@ export default function EmployeeProfile() {
           toast({
             title: "Required Field Missing",
             description: "Please provide your date of birth.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        const parsedDate = parse(dateOfBirth, "dd/MM/yyyy", new Date());
+        if (!isValid(parsedDate)) {
+          toast({
+            title: "Invalid Date of Birth",
+            description: "Please use the format DD/MM/AAAA.",
             variant: "destructive",
           });
           return false;
@@ -277,7 +285,8 @@ export default function EmployeeProfile() {
         setEducation((data as any).education || []);
         setCvReferences((data as any).cv_references || []);
         if ((data as any).date_of_birth) {
-          setDateOfBirth(new Date((data as any).date_of_birth));
+          const dob = new Date((data as any).date_of_birth);
+          setDateOfBirth(isValid(dob) ? format(dob, "dd/MM/yyyy") : "");
         }
       } else if (profileResult.data) {
         setFormData(prev => ({
@@ -352,6 +361,7 @@ export default function EmployeeProfile() {
 
     setIsSaving(true);
 
+    const parsedDateOfBirth = parse(dateOfBirth, "dd/MM/yyyy", new Date());
     const profileData = {
       user_id: user.id,
       headline: formData.headline,
@@ -366,7 +376,7 @@ export default function EmployeeProfile() {
       phone: formData.phone,
       industry: formData.industry,
       languages: languages.length > 0 ? languages : null,
-      date_of_birth: format(dateOfBirth, "yyyy-MM-dd"),
+      date_of_birth: format(parsedDateOfBirth, "yyyy-MM-dd"),
       visa_status: formData.visa_status,
       location_region: formData.location_region || null,
       comfortable_heavy_lifting: comfortableHeavyLifting,
@@ -484,12 +494,17 @@ export default function EmployeeProfile() {
               </div>
 
               <div className="space-y-2">
-                <Label>Date of Birth *</Label>
-                <DatePicker
+                <Label htmlFor="date_of_birth">Date of Birth *</Label>
+                <Input
+                  id="date_of_birth"
                   value={dateOfBirth}
-                  onChange={setDateOfBirth}
-                  placeholder="Select your date of birth"
-                  disabledDates={(date) => date > new Date() || date < new Date("1940-01-01")}
+                  onChange={(e) =>
+                    setDateOfBirth(e.target.value.replace(/[^\d/]/g, ""))
+                  }
+                  placeholder="DD/MM/AAAA"
+                  inputMode="numeric"
+                  pattern="\\d{2}/\\d{2}/\\d{4}"
+                  required
                 />
               </div>
             </div>
