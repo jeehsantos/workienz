@@ -1,88 +1,194 @@
 
-# Daily Rotating Images for RolesSection
+# Email Confirmation Implementation Plan
 
 ## Overview
-Update the RolesSection component to display rotating images that change daily. Each role card will have 2 images that alternate based on the current day.
+Implement a complete email verification flow that requires users to confirm their email address before accessing the platform. This will be a backend-first approach using a custom Edge Function to send branded emails via Resend.
 
-## Image Assignment
+## Current State Analysis
+- **No email verification exists** - Users are immediately logged in after signup
+- **Resend is already configured** - Password reset emails use it with branded templates
+- **Logo already hosted** - Available at `https://workienz.lovable.app/workie-logo.png`
+- **Referral verification** - The `verify-referral` function expects email confirmation to trigger
 
-| Card | Image Set |
-|------|-----------|
-| "I'm Hiring" (left) | FarmManagers.png, WeddingManagers.png |
-| "I'm Looking for Work" (right) | WarehouseWorkers.jpg, CherryWorkers.png |
+---
 
-## Implementation Steps
+## Implementation Components
 
-### 1. Copy Images to Project
-Copy the 4 uploaded images to `src/assets/landing/`:
-- `src/assets/landing/FarmManagers.png`
-- `src/assets/landing/WeddingManagers.png`
-- `src/assets/landing/WarehouseWorkers.jpg`
-- `src/assets/landing/CherryWorkers.png`
+### 1. Backend: Edge Function for Confirmation Email
+**File:** `supabase/functions/send-confirmation-email/index.ts`
 
-### 2. Update RolesSection Component
+Create a new Edge Function that:
+- Accepts user email and generates a secure confirmation link using Supabase Admin API
+- Sends a beautifully branded HTML email via Resend
+- Uses the same design language as the password reset email (green gradient CTA, Workie logo, clean card layout)
 
-**Changes to `src/components/landing/RolesSection.tsx`:**
+**Email Design Elements:**
+- Workie logo header
+- Welcome message with user's first name
+- Clear call-to-action button with green gradient
+- Security notice about link expiration
+- Footer with copyright
 
-```typescript
-// New imports for all 4 images
-import farmManagers from "@/assets/landing/FarmManagers.png";
-import weddingManagers from "@/assets/landing/WeddingManagers.png";
-import warehouseWorkers from "@/assets/landing/WarehouseWorkers.jpg";
-import cherryWorkers from "@/assets/landing/CherryWorkers.png";
+### 2. Configuration: Edge Function JWT Setting
+**File:** `supabase/config.toml`
 
-// Image arrays for each role
-const hiringImages = [farmManagers, weddingManagers];
-const workImages = [warehouseWorkers, cherryWorkers];
-
-// Helper function to get daily image index
-const getDailyImageIndex = (imageCount: number): number => {
-  const today = new Date();
-  const dayOfYear = Math.floor(
-    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) 
-    / (1000 * 60 * 60 * 24)
-  );
-  return dayOfYear % imageCount;
-};
+Add configuration entry:
+```toml
+[functions.send-confirmation-email]
+verify_jwt = false
 ```
 
-**Update roles data structure:**
-- Change `image` property to `images` array
-- "I'm Hiring" card: `images: hiringImages`
-- "I'm Looking for Work" card: `images: workImages`
+### 3. Frontend: Update Signup Flow
+**File:** `src/hooks/useAuth.ts`
 
-**Update image rendering:**
-```typescript
-// Inside the component, calculate which image to show
-const dailyIndex = getDailyImageIndex(role.images.length);
-const currentImage = role.images[dailyIndex];
+Modify the `signUp` function to:
+- After successful signup, call the confirmation email Edge Function
+- Return data indicating whether confirmation is needed
+
+### 4. Frontend: Confirmation Pending UI
+**File:** `src/pages/Auth.tsx`
+
+Add a new state and UI component:
+- `emailConfirmationPending` state
+- Display a "Check Your Email" screen instead of redirecting
+- Show the registered email address
+- Provide a "Resend Email" button
+- Include instructions to check spam folder
+
+### 5. Frontend: Email Verification Handler Route
+**File:** `src/pages/VerifyEmail.tsx` (new file)
+
+Create a new page that:
+- Handles the redirect from the confirmation email
+- Processes the token automatically (Supabase handles this)
+- Triggers the referral verification if applicable
+- Shows success message and redirects to dashboard
+
+### 6. Routing: Add Verification Route
+**File:** `src/App.tsx`
+
+Add the new route:
+```tsx
+<Route path="/verify-email" element={<VerifyEmail />} />
 ```
+
+---
+
+## User Flow
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                         SIGNUP FLOW                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. User fills signup form                                      │
+│              │                                                  │
+│              ▼                                                  │
+│  2. Frontend calls signUp()                                     │
+│              │                                                  │
+│              ▼                                                  │
+│  3. Edge Function sends branded confirmation email              │
+│              │                                                  │
+│              ▼                                                  │
+│  4. Show "Check Your Email" screen (no dashboard access)        │
+│              │                                                  │
+│              ▼                                                  │
+│  5. User clicks email link                                      │
+│              │                                                  │
+│              ▼                                                  │
+│  6. /verify-email page processes confirmation                   │
+│              │                                                  │
+│              ▼                                                  │
+│  7. Trigger referral verification (if applicable)               │
+│              │                                                  │
+│              ▼                                                  │
+│  8. Redirect to Dashboard with success message                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Technical Details
 
-### Daily Rotation Logic
-- Uses the day of the year (1-365/366) modulo the number of images
-- This ensures consistent rotation across all users viewing the site on the same day
-- No backend required - calculation happens client-side based on current date
-- Images will change at midnight local time
+### Confirmation Email Template
+The email will match the existing password reset design:
+- **Header:** Workie logo centered
+- **Card:** White background with rounded corners and shadow
+- **Title:** "Activate Your Account"
+- **Body:** Personalized welcome message
+- **CTA:** Green gradient button "Activate Account"
+- **Expiry notice:** 24-hour link validity
+- **Footer:** Copyright notice
 
-### Performance Considerations
-- Images are imported as ES6 modules for proper bundling and optimization
-- Using Vite's asset handling for optimal loading
-- Images stored in `src/assets` for type safety and better tree-shaking
+### Security Considerations
+- Uses Supabase Admin API `generateLink` with type "signup"
+- Link expires after 24 hours
+- Email confirmation required before accessing protected routes
+- Frontend checks `user.email_confirmed_at` to determine access
 
-## File Changes Summary
+### Sign-In Behavior Update
+For users who try to sign in without confirming:
+- Supabase returns `Email not confirmed` error
+- Display helpful message with option to resend confirmation email
 
-| File | Action |
-|------|--------|
-| `src/assets/landing/FarmManagers.png` | Create (copy from upload) |
-| `src/assets/landing/WeddingManagers.png` | Create (copy from upload) |
-| `src/assets/landing/WarehouseWorkers.jpg` | Create (copy from upload) |
-| `src/assets/landing/CherryWorkers.png` | Create (copy from upload) |
-| `src/components/landing/RolesSection.tsx` | Modify |
+---
 
-## Expected Result
-- Each day, visitors will see a different image on each card
-- Day 1: FarmManagers + WarehouseWorkers
-- Day 2: WeddingManagers + CherryWorkers
-- Day 3: FarmManagers + WarehouseWorkers (cycle repeats)
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/functions/send-confirmation-email/index.ts` | Create | Backend email sending with branded template |
+| `supabase/config.toml` | Modify | Add function JWT config |
+| `src/pages/VerifyEmail.tsx` | Create | Handle email confirmation callback |
+| `src/pages/Auth.tsx` | Modify | Add confirmation pending state and UI |
+| `src/hooks/useAuth.ts` | Modify | Integrate confirmation email sending |
+| `src/App.tsx` | Modify | Add /verify-email route |
+
+---
+
+## Branded Email Preview
+
+The confirmation email will look like this:
+
+```
+┌──────────────────────────────────────────┐
+│                                          │
+│            [Workie Logo]                 │
+│                                          │
+│  ┌────────────────────────────────────┐  │
+│  │                                    │  │
+│  │    Activate Your Account           │  │
+│  │                                    │  │
+│  │    Hi [First Name],                │  │
+│  │                                    │  │
+│  │    Welcome to Workie! Click the    │  │
+│  │    button below to verify your     │  │
+│  │    email and start your journey.   │  │
+│  │                                    │  │
+│  │    ┌────────────────────────┐      │  │
+│  │    │  Activate Account      │      │  │
+│  │    └────────────────────────┘      │  │
+│  │                                    │  │
+│  │    This link expires in 24 hours   │  │
+│  │                                    │  │
+│  │    ─────────────────────────────   │  │
+│  │    If you didn't create an         │  │
+│  │    account, ignore this email.     │  │
+│  │                                    │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│       © 2026 Workie. All rights reserved │
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+---
+
+## Expected Outcome
+After implementation:
+1. Users must verify email before accessing the platform
+2. Branded, professional confirmation emails matching Workie's design
+3. Clear UX with "Check Your Email" screen and resend option
+4. Automatic referral verification upon email confirmation
+5. Secure, backend-driven email delivery via Resend
