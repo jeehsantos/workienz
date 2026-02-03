@@ -4,10 +4,18 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, ArrowLeft, Briefcase, Eye, Edit, Trash2, Users } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Briefcase, Eye, Edit, Trash2, Users, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { JobDeletionDialog } from "@/components/jobs/JobDeletionDialog";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 type Job = {
   id: string;
   title: string;
@@ -28,6 +36,12 @@ export default function MyJobs() {
   const [isLoading, setIsLoading] = useState(true);
   const [contractorProfileId, setContractorProfileId] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<Job | null>(null);
+  const [isValidatingDeletion, setIsValidatingDeletion] = useState(false);
+  const [activeApplicationsWarning, setActiveApplicationsWarning] = useState<{
+    show: boolean;
+    message: string;
+    count: number;
+  }>({ show: false, message: "", count: 0 });
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
@@ -78,6 +92,64 @@ export default function MyJobs() {
       fetchJobs();
     }
   }, [user, isContractor, toast]);
+
+  // Validate deletion before showing the dialog
+  const handleDeleteClick = async (job: Job) => {
+    setIsValidatingDeletion(true);
+    
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) {
+        toast({
+          title: "Error",
+          description: "Please log in to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke("validate-job-deletion", {
+        body: { job_id: job.id },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const result = response.data;
+
+      if (!result.can_delete) {
+        if (result.error_code === "ERR_ACTIVE_APPLICATIONS") {
+          setActiveApplicationsWarning({
+            show: true,
+            message: result.message,
+            count: result.active_applications_count,
+          });
+        } else {
+          toast({
+            title: "Cannot Delete",
+            description: result.message || "Unable to delete this job.",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
+      // Validation passed, show deletion dialog
+      setDeletingJob(job);
+    } catch (error) {
+      console.error("Error validating deletion:", error);
+      toast({
+        title: "Error",
+        description: "Failed to validate deletion. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingDeletion(false);
+    }
+  };
 
   const handleDelete = async (reason: string, customReason?: string) => {
     if (!deletingJob || !user) return;
@@ -227,9 +299,14 @@ export default function MyJobs() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setDeletingJob(job)}
+                      onClick={() => handleDeleteClick(job)}
+                      disabled={isValidatingDeletion}
                     >
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                      {isValidatingDeletion ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -238,6 +315,31 @@ export default function MyJobs() {
           </div>
         )}
       </div>
+
+      {/* Active Applications Warning Dialog */}
+      <AlertDialog 
+        open={activeApplicationsWarning.show} 
+        onOpenChange={(open) => !open && setActiveApplicationsWarning({ show: false, message: "", count: 0 })}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <AlertDialogTitle>Cannot Delete Job</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="pt-3">
+              {activeApplicationsWarning.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setActiveApplicationsWarning({ show: false, message: "", count: 0 })}>
+              Understood
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Job Deletion Dialog */}
       <JobDeletionDialog
