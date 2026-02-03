@@ -149,6 +149,14 @@ export function ApplicationRequirementsDialog({
     onOpenChange(false);
   };
 
+  // Auto-proceed when no requirements - must be declared before any early returns
+  useEffect(() => {
+    if (!isLoading && requirements.length === 0 && !blockedReason && open) {
+      onProceed();
+      onOpenChange(false);
+    }
+  }, [isLoading, requirements.length, blockedReason, open, onProceed, onOpenChange]);
+
   if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -162,17 +170,8 @@ export function ApplicationRequirementsDialog({
     );
   }
 
-  // No requirements to check - proceed directly
-  // Use useEffect to properly handle this case and avoid calling during render
-  useEffect(() => {
-    if (!isLoading && requirements.length === 0 && !blockedReason && open) {
-      onProceed();
-      onOpenChange(false);
-    }
-  }, [isLoading, requirements.length, blockedReason, open, onProceed, onOpenChange]);
-
-  // Return null while we're auto-proceeding
-  if (!isLoading && requirements.length === 0 && !blockedReason) {
+  // Return null while we're auto-proceeding (no requirements case)
+  if (requirements.length === 0 && !blockedReason) {
     return null;
   }
 
