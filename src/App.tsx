@@ -50,6 +50,7 @@ const Subscription = lazy(() => import("./pages/Subscription"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -114,6 +115,7 @@ const App = () => (
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<CookiePolicy />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, User, ArrowLeft, Loader2, Check, X } from "lucide-react";
+import { Briefcase, User, ArrowLeft, Loader2, Check, X, Mail, RefreshCw } from "lucide-react";
 import { z } from "zod";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
 import workieLogo from "@/assets/workie-logo.png";
@@ -127,6 +127,11 @@ export default function Auth() {
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
   const [pending2FAUserId, setPending2FAUserId] = useState<string | null>(null);
+
+  // Email confirmation state
+  const [emailConfirmationPending, setEmailConfirmationPending] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [resendingEmail, setResendingEmail] = useState(false);
 
   // Store pending plan in localStorage
   useEffect(() => {
@@ -276,24 +281,50 @@ export default function Auth() {
           }
           return;
         }
-        toast({
-          title: "Account created!",
-          description: "Welcome to Workie. Let's set up your profile.",
-        });
-        
-        // Check for pending plan after signup
-        const pendingPlan = localStorage.getItem("pendingPlan");
-        if (pendingPlan) {
-          localStorage.removeItem("pendingPlan");
-          navigate(`/checkout?plan=${pendingPlan}`);
-        } else {
-          navigate("/dashboard");
+
+        // Send confirmation email via edge function
+        try {
+          const { error: emailError } = await supabase.functions.invoke("send-confirmation-email", {
+            body: { email, firstName },
+          });
+
+          if (emailError) {
+            console.error("Error sending confirmation email:", emailError);
+            toast({
+              title: "Account created",
+              description: "Please check your email for a confirmation link (email may take a moment to arrive).",
+            });
+          }
+        } catch (emailErr) {
+          console.error("Failed to send confirmation email:", emailErr);
         }
+
+        // Sign out immediately - user must confirm email first
+        await supabase.auth.signOut();
+        
+        // Show confirmation pending screen
+        setPendingEmail(email);
+        setEmailConfirmationPending(true);
+        
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to activate your account.",
+        });
       } else {
         // For sign in, first sign in normally
         const { data, error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes("Invalid login")) {
+          if (error.message.includes("Email not confirmed")) {
+            // User hasn't confirmed their email yet
+            toast({
+              title: "Email not confirmed",
+              description: "Please check your email for the confirmation link, or resend it below.",
+              variant: "destructive",
+            });
+            setPendingEmail(email);
+            setEmailConfirmationPending(true);
+            return;
+          } else if (error.message.includes("Invalid login")) {
             toast({
               title: "Invalid credentials",
               description: "Please check your email and password.",
@@ -352,6 +383,39 @@ export default function Auth() {
     }
   }, [validateForm, isSignUp, userType, signUp, email, password, firstName, lastName, toast, navigate, signIn]);
 
+  // Handle resend confirmation email
+  const handleResendEmail = useCallback(async () => {
+    if (!pendingEmail) return;
+    
+    setResendingEmail(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-confirmation-email", {
+        body: { email: pendingEmail, firstName: firstName || "" },
+      });
+
+      if (error) {
+        toast({
+          title: "Failed to resend",
+          description: "Please try again in a moment.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email sent!",
+          description: "Please check your inbox for the confirmation link.",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to resend confirmation email.",
+        variant: "destructive",
+      });
+    } finally {
+      setResendingEmail(false);
+    }
+  }, [pendingEmail, firstName, toast]);
+
   // Show loading while checking auth
   if (authLoading) {
     return (
@@ -364,6 +428,78 @@ export default function Auth() {
   // Don't render form if already logged in
   if (user) {
     return null;
+  }
+
+  // Show email confirmation pending screen
+  if (emailConfirmationPending && pendingEmail) {
+    return (
+      <main className="min-h-screen gradient-hero flex items-center justify-center p-4 py-12">
+        <div className="w-full max-w-md mx-auto">
+          <div className="bg-card rounded-2xl shadow-medium p-8 border border-border/50 text-center">
+            {/* Logo */}
+            <div className="flex items-center justify-center mb-6">
+              <img 
+                src={workieLogo} 
+                alt="Workie" 
+                className="h-[25px] w-[195px] object-contain"
+                width={195}
+                height={25}
+              />
+            </div>
+
+            {/* Email icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Mail className="w-8 h-8 text-primary" />
+              </div>
+            </div>
+
+            <h1 className="text-2xl font-bold mb-2 font-display">Check Your Email</h1>
+            <p className="text-muted-foreground mb-2">
+              We've sent a confirmation link to:
+            </p>
+            <p className="font-medium text-foreground mb-6">
+              {pendingEmail}
+            </p>
+
+            <p className="text-sm text-muted-foreground mb-6">
+              Click the link in the email to activate your account. If you don't see it, check your spam folder.
+            </p>
+
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleResendEmail}
+                disabled={resendingEmail}
+              >
+                {resendingEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Resend Email
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setEmailConfirmationPending(false);
+                  setPendingEmail("");
+                }}
+              >
+                Use a different email
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   // Show 2FA verification screen

@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.get-active-partners]
 verify_jwt = false
+
+[functions.send-confirmation-email]
+verify_jwt = false
