@@ -143,11 +143,26 @@ export default function PostJob() {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
+  const containsContactDetails = (value: string) => {
+    const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+    const phoneRegex = /(\+?\d[\d\s().-]{7,}\d)/;
+
+    return emailRegex.test(value) || phoneRegex.test(value);
+  };
+
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
         if (!formData.title || !formData.description || !formData.industry) {
           toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
+          return false;
+        }
+        if (containsContactDetails(formData.description)) {
+          toast({
+            title: "Contact details not allowed",
+            description: "It is not allowed to share contact details in the job post.",
+            variant: "destructive",
+          });
           return false;
         }
         const positions = parseInt(formData.positions_available);
