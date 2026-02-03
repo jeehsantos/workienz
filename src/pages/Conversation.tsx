@@ -815,17 +815,19 @@ export default function Conversation() {
                     Share Contact
                   </Button>
 
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-destructive hover:text-destructive h-9"
-                    onClick={() => setShowCloseDialog(true)}
-                    disabled={!!isHiredConversation}
-                    title={isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined}
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Close
-                  </Button>
+                  {isUserContractor && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-destructive hover:text-destructive h-9"
+                      onClick={() => setShowCloseDialog(true)}
+                      disabled={!!isHiredConversation}
+                      title={isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Close
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -879,22 +881,26 @@ export default function Conversation() {
                         </DropdownMenuItem>
                       )}
 
-                      <DropdownMenuSeparator />
-                      
-                      {!isHiredConversation && (
-                        <DropdownMenuItem 
-                          onClick={() => setShowCloseDialog(true)}
-                          className="h-11 text-destructive focus:text-destructive"
-                        >
-                          <X className="w-4 h-4 mr-3" />
-                          Close Conversation
-                        </DropdownMenuItem>
-                      )}
-                      {isHiredConversation && (
-                        <DropdownMenuItem disabled className="h-11 text-muted-foreground">
-                          <Clock className="w-4 h-4 mr-3" />
-                          Auto-archives in {hiredCountdown.hoursLeft}h
-                        </DropdownMenuItem>
+                      {isUserContractor && (
+                        <>
+                          <DropdownMenuSeparator />
+                          
+                          {!isHiredConversation && (
+                            <DropdownMenuItem 
+                              onClick={() => setShowCloseDialog(true)}
+                              className="h-11 text-destructive focus:text-destructive"
+                            >
+                              <X className="w-4 h-4 mr-3" />
+                              Close Conversation
+                            </DropdownMenuItem>
+                          )}
+                          {isHiredConversation && (
+                            <DropdownMenuItem disabled className="h-11 text-muted-foreground">
+                              <Clock className="w-4 h-4 mr-3" />
+                              Auto-archives in {hiredCountdown.hoursLeft}h
+                            </DropdownMenuItem>
+                          )}
+                        </>
                       )}
                     </>
                   )}
