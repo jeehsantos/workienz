@@ -311,6 +311,7 @@ export default function Pricing() {
     hideUpgradeButtons,
     isLoading: isHideUpgradeLoading
   } = useUpgradeButtonVisibility();
+  const shouldShowFaq = !hideUpgradeButtons && !isHideUpgradeLoading;
 
   // Determine initial tab based on user role
   const getInitialTab = () => {
@@ -756,7 +757,7 @@ export default function Pricing() {
         </div>
       </section>
 
-      {!hideUpgradeButtons && !isHideUpgradeLoading && <section className="py-16 lg:py-20 bg-muted/30">
+      {shouldShowFaq && <section className="py-16 lg:py-20 bg-muted/30">
           <div className="container-tight">
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-4">
