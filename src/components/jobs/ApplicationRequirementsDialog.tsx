@@ -163,9 +163,16 @@ export function ApplicationRequirementsDialog({
   }
 
   // No requirements to check - proceed directly
-  if (requirements.length === 0 && !blockedReason) {
-    onProceed();
-    onOpenChange(false);
+  // Use useEffect to properly handle this case and avoid calling during render
+  useEffect(() => {
+    if (!isLoading && requirements.length === 0 && !blockedReason && open) {
+      onProceed();
+      onOpenChange(false);
+    }
+  }, [isLoading, requirements.length, blockedReason, open, onProceed, onOpenChange]);
+
+  // Return null while we're auto-proceeding
+  if (!isLoading && requirements.length === 0 && !blockedReason) {
     return null;
   }
 
