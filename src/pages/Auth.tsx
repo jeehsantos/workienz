@@ -110,6 +110,7 @@ export default function Auth() {
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingSignup, setIsProcessingSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -147,9 +148,9 @@ export default function Auth() {
     }
   }, [referralCodeFromUrl]);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (but not during signup processing)
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && !isProcessingSignup && !emailConfirmationPending) {
       // Check for pending plan
       const pendingPlan = localStorage.getItem("pendingPlan");
       if (pendingPlan) {
@@ -159,7 +160,7 @@ export default function Auth() {
         navigate("/dashboard");
       }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, isProcessingSignup, emailConfirmationPending]);
 
   // Check if passwords match (for real-time feedback)
   const passwordsMatch = useMemo(() => {
@@ -264,6 +265,9 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
+        // Set flag to prevent redirect during signup processing
+        setIsProcessingSignup(true);
+        
         const { error } = await signUp(email, password, firstName, lastName, userType!);
         if (error) {
           if (error.message.includes("already registered")) {
