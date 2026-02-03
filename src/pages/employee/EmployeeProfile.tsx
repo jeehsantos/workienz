@@ -111,6 +111,17 @@ export default function EmployeeProfile() {
   const [education, setEducation] = useState<Education[]>([]);
   const [cvReferences, setCvReferences] = useState<CVReference[]>([]);
 
+  const formatDateOfBirthInput = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, "").slice(0, 8);
+    if (digitsOnly.length <= 2) {
+      return digitsOnly;
+    }
+    if (digitsOnly.length <= 4) {
+      return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+    }
+    return `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4)}`;
+  };
+
   // Memoize expensive location computations
   const availableCities = useMemo(() => {
     return formData.location_region ? getCitiesByRegion(formData.location_region) : [];
@@ -498,12 +509,11 @@ export default function EmployeeProfile() {
                 <Input
                   id="date_of_birth"
                   value={dateOfBirth}
-                  onChange={(e) =>
-                    setDateOfBirth(e.target.value.replace(/[^\d/]/g, ""))
-                  }
+                  onChange={(e) => setDateOfBirth(formatDateOfBirthInput(e.target.value))}
                   placeholder="DD/MM/AAAA"
                   inputMode="numeric"
                   pattern="\\d{2}/\\d{2}/\\d{4}"
+                  maxLength={10}
                   required
                 />
               </div>
