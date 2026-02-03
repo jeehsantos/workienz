@@ -1,4 +1,3 @@
-import { Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { memo } from "react";
 
@@ -14,7 +13,11 @@ interface EmptyStateProps {
 export const EmptyState = memo(({ hasActiveFilters, onClearFilters }: EmptyStateProps) => {
   return (
     <div className="text-center py-16 bg-card rounded-xl border border-border/50">
-      <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+      <img
+        src="/comeBack.png"
+        alt="Come back soon"
+        className="w-16 h-16 mx-auto mb-4"
+      />
       <h2 className="text-xl font-semibold mb-2">No Jobs Found</h2>
       <p className="text-muted-foreground max-w-md mx-auto mb-4">
         {hasActiveFilters 
