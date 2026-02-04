@@ -278,7 +278,7 @@ export default function GuideHub() {
                     {getIcon(journey.icon_name)}
                   </div>
                   <h3 className="font-bold text-foreground mb-2">{journey.title}</h3>
-                  <p className="text-xs text-muted-foreground mb-4 line-clamp-2">
+                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2 whitespace-break-spaces pb-[16px]">
                     {journey.description || "Explore this topic"}
                   </p>
                   <div className="flex items-center text-sm font-bold text-primary group-hover:translate-x-1 transition-transform">
