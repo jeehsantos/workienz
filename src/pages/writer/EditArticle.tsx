@@ -169,15 +169,7 @@ export default function EditArticle() {
         return;
       }
 
-      if (data.article_type !== "guide") {
-        toast({
-          title: "Not a guide topic",
-          description: "This content is not a guide topic.",
-          variant: "destructive",
-        });
-        navigate("/writer/articles");
-        return;
-      }
+      // Allow editing all article types - no type restriction
 
       const existingBlocks =
         (data.content_blocks as ContentBlock[] | null) ||
