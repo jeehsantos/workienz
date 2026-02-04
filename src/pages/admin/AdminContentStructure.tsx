@@ -73,6 +73,7 @@ type GuideArticle = {
   updated_at: string;
   journey_id: string | null;
   topic_id: string | null;
+  article_type: string | null;
   journeys?: {
     title: string;
   } | null;
@@ -218,13 +219,12 @@ export default function AdminContentStructure() {
   };
 
   const fetchGuideArticles = async () => {
+    // Fetch ALL articles for admin view (not filtered by article_type or is_published)
     const { data, error } = await supabase
       .from("articles")
       .select(
-        "id, title, summary, is_published, is_premium, created_at, updated_at, journey_id, topic_id, journeys!left(title), topic_hubs!left(title)"
+        "id, title, summary, is_published, is_premium, created_at, updated_at, journey_id, topic_id, article_type, journeys!left(title), topic_hubs!left(title)"
       )
-      .eq("article_type", "guide")
-      .eq("is_published", true)
       .order("updated_at", { ascending: false });
 
     if (error) {
@@ -648,8 +648,7 @@ export default function AdminContentStructure() {
                       </div>
                       <CardTitle className="text-lg">{journeyTitle}</CardTitle>
                       <CardDescription>
-                        {Object.values(topicGroups).reduce((count, items) => count + items.length, 0)} published
-                        topic{Object.values(topicGroups).reduce((count, items) => count + items.length, 0) !== 1 ? "s" : ""}
+                        {Object.values(topicGroups).reduce((count, items) => count + items.length, 0)} article{Object.values(topicGroups).reduce((count, items) => count + items.length, 0) !== 1 ? "s" : ""}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -671,13 +670,18 @@ export default function AdminContentStructure() {
                                     <div className="space-y-2">
                                       <div className="flex flex-wrap items-center gap-2">
                                         <h3 className="text-base font-semibold">{article.title}</h3>
+                                        <Badge variant="outline" className="text-xs capitalize">
+                                          {article.article_type || "unknown"}
+                                        </Badge>
                                         {article.is_premium && (
                                           <Badge variant="secondary" className="flex items-center gap-1">
                                             <Crown className="w-3 h-3" />
                                             Premium
                                           </Badge>
                                         )}
-                                        <Badge>Published</Badge>
+                                        <Badge variant={article.is_published ? "default" : "outline"}>
+                                          {article.is_published ? "Published" : "Draft"}
+                                        </Badge>
                                       </div>
                                       {article.summary && (
                                         <p className="text-sm text-muted-foreground line-clamp-2">{article.summary}</p>
