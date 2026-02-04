@@ -15,50 +15,32 @@ const workImages = [warehouseWorkers, cherryWorkers];
 // Helper function to get daily image index
 const getDailyImageIndex = (imageCount: number): number => {
   const today = new Date();
-  const dayOfYear = Math.floor(
-    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
   return dayOfYear % imageCount;
 };
-
-const roles = [
-  {
-    images: hiringImages,
-    icon: Briefcase,
-    title: "I'm Hiring",
-    subtitle: "For Contractors & Employers",
-    description: "Post jobs, search through verified workers, and fill positions quickly. Access our database of skilled temporary workers.",
-    features: [
-      "Post unlimited job listings",
-      "Search verified worker profiles",
-      "Direct messaging with candidates",
-      "Hire within hours, not weeks",
-    ],
-    cta: "Start Hiring",
-    ctaLink: "/auth?mode=signup",
-    variant: "hero" as const,
-  },
-  {
-    images: workImages,
-    icon: User,
-    title: "I'm Looking for Work",
-    subtitle: "For Employees & Job Seekers",
-    description: "Create your profile, showcase your skills, and get matched with temporary and short-term opportunities that fit your schedule.",
-    features: [
-      "Create a standout profile",
-      "Get matched to relevant jobs",
-      "Access exclusive career articles",
-      "Build your work history",
-    ],
-    cta: "Find Work",
-    ctaLink: "/auth?mode=signup",
-    variant: "outline" as const,
-  },
-];
-
+const roles = [{
+  images: hiringImages,
+  icon: Briefcase,
+  title: "I'm Hiring",
+  subtitle: "For Contractors & Employers",
+  description: "Post jobs, search through verified workers, and fill positions quickly. Access our database of skilled temporary workers.",
+  features: ["Post unlimited job listings", "Search verified worker profiles", "Direct messaging with candidates", "Hire within hours, not weeks"],
+  cta: "Start Hiring",
+  ctaLink: "/auth?mode=signup",
+  variant: "hero" as const
+}, {
+  images: workImages,
+  icon: User,
+  title: "I'm Looking for Work",
+  subtitle: "For Employees & Job Seekers",
+  description: "Create your profile, showcase your skills, and get matched with temporary and short-term opportunities that fit your schedule.",
+  features: ["Create a standout profile", "Get matched to relevant jobs", "Access exclusive career articles", "Build your work history"],
+  cta: "Find Work",
+  ctaLink: "/auth?mode=signup",
+  variant: "outline" as const
+}];
 export function RolesSection() {
-  return (
-    <section className="py-20 lg:py-28 bg-muted/30 relative overflow-hidden">
+  return <section className="py-20 bg-muted/30 relative overflow-hidden lg:py-[60px]">
       {/* Decorative background - darker for better readability */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2" />
@@ -80,27 +62,14 @@ export function RolesSection() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-10">
-          {roles.map((role) => {
-            // Calculate which image to show based on day of year
-            const dailyIndex = getDailyImageIndex(role.images.length);
-            const currentImage = role.images[dailyIndex];
-
-            return (
-              <div
-                key={role.title}
-                className="group bg-card rounded-3xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-500 border border-border/50"
-              >
+          {roles.map(role => {
+          // Calculate which image to show based on day of year
+          const dailyIndex = getDailyImageIndex(role.images.length);
+          const currentImage = role.images[dailyIndex];
+          return <div key={role.title} className="group bg-card rounded-3xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-500 border border-border/50">
                 {/* Image Section */}
                 <div className="relative h-48 lg:h-56 overflow-hidden">
-                  <img 
-                    src={currentImage} 
-                    alt={role.title}
-                    loading="lazy"
-                    decoding="async"
-                    width={662}
-                    height={336}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  />
+                  <img src={currentImage} alt={role.title} loading="lazy" decoding="async" width={662} height={336} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
                   <div className="absolute bottom-4 left-6">
                     <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
@@ -121,12 +90,10 @@ export function RolesSection() {
                   </p>
 
                   <ul className="space-y-3 mb-8">
-                    {role.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-3">
+                    {role.features.map(feature => <li key={feature} className="flex items-center gap-3">
                         <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
                         <span className="text-foreground/80">{feature}</span>
-                      </li>
-                    ))}
+                      </li>)}
                   </ul>
 
                   <Button variant={role.variant} size="lg" className="w-full group/btn" asChild>
@@ -136,11 +103,9 @@ export function RolesSection() {
                     </Link>
                   </Button>
                 </div>
-              </div>
-            );
-          })}
+              </div>;
+        })}
         </div>
       </div>
-    </section>
-  );
+    </section>;
 }
