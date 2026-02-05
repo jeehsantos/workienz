@@ -104,7 +104,6 @@ export default function GuideHub() {
   const [visaFilter, setVisaFilter] = useState("all");
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const location = useLocation();
-  const activeVisaLabel = VISA_FILTERS.find((filter) => filter.value === visaFilter)?.label ?? "All Visas";
   useEffect(() => {
     fetchJourneys();
     checkSubscription();
@@ -399,30 +398,19 @@ export default function GuideHub() {
                       />
                     </button>
                   </h4>
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsMobileFilterOpen((prev) => !prev)}
-                      className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm font-bold text-primary lg:hidden"
-                      aria-expanded={isMobileFilterOpen}
-                      aria-controls="visa-filter-options"
-                    >
-                      <span>{activeVisaLabel}</span>
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform ${isMobileFilterOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    <div id="visa-filter-options" className={`${isMobileFilterOpen ? "block" : "hidden"} space-y-2 lg:block`}>
-                      {VISA_FILTERS.map((f) => (
-                        <button
-                          key={f.value}
-                          onClick={() => setVisaFilter(f.value)}
-                          className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${visaFilter === f.value ? "bg-primary text-primary-foreground font-bold shadow-md" : "text-muted-foreground hover:bg-muted"}`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
+                  <div
+                    id="visa-filter-options"
+                    className={`${isMobileFilterOpen ? "block" : "hidden"} space-y-2 lg:block`}
+                  >
+                    {VISA_FILTERS.map((f) => (
+                      <button
+                        key={f.value}
+                        onClick={() => setVisaFilter(f.value)}
+                        className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-all ${visaFilter === f.value ? "bg-primary text-primary-foreground font-bold shadow-md" : "text-muted-foreground hover:bg-muted"}`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
