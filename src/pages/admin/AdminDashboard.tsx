@@ -659,23 +659,23 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container-tight py-8">
-        <Button variant="ghost" asChild className="mb-6">
+      <div className="container-tight py-6 sm:py-8 px-4 sm:px-0">
+        <Button variant="ghost" asChild className="mb-4 sm:mb-6">
           <Link to="/dashboard">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Link>
         </Button>
 
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Manage users, contractors, and job postings
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
+          <div className="flex w-full sm:w-auto gap-2">
+            <Button variant="outline" asChild className="w-full sm:w-auto">
               <Link to="/admin/articles">
                 <FileText className="w-4 h-4 mr-2" />
                 Article Management
@@ -684,35 +684,33 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
-            <TabsTrigger value="users" className="flex items-center gap-2">
+          <TabsList className="w-full max-w-4xl flex flex-nowrap gap-2 overflow-x-auto sm:grid sm:grid-cols-7 sm:gap-2">
+            <TabsTrigger value="users" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Users className="w-4 h-4" />
               Users
             </TabsTrigger>
-            <TabsTrigger value="employees" className="flex items-center gap-2">
+            <TabsTrigger value="employees" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <HardHat className="w-4 h-4" />
               Employees
             </TabsTrigger>
-            <TabsTrigger value="contractors" className="flex items-center gap-2">
+            <TabsTrigger value="contractors" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Building className="w-4 h-4" />
               Contractors
             </TabsTrigger>
-            <TabsTrigger value="jobs" className="flex items-center gap-2">
+            <TabsTrigger value="jobs" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Briefcase className="w-4 h-4" />
               Jobs
             </TabsTrigger>
-            <TabsTrigger value="referrals" className="flex items-center gap-2">
+            <TabsTrigger value="referrals" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Gift className="w-4 h-4" />
               Referrals
             </TabsTrigger>
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
+            <TabsTrigger value="pricing" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <DollarSign className="w-4 h-4" />
               Pricing
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
+            <TabsTrigger value="settings" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Settings className="w-4 h-4" />
               Settings
             </TabsTrigger>
@@ -720,7 +718,7 @@ export default function AdminDashboard() {
 
           {/* Search - hide on settings, pricing, and referrals tabs */}
           {activeTab !== "settings" && activeTab !== "pricing" && activeTab !== "referrals" && (
-            <div className="relative max-w-md">
+            <div className="relative max-w-md w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search..."
@@ -744,7 +742,46 @@ export default function AdminDashboard() {
             <>
               {/* Users Tab */}
               <TabsContent value="users" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {filteredUsers.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
+                      No users found
+                    </div>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <div key={u.user_id} className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="font-semibold">{u.full_name || "No name"}</p>
+                          <p className="text-sm text-muted-foreground">{u.email}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles.map((role) => (
+                            <Badge key={role} variant="secondary" className="text-xs capitalize">
+                              {role}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Premium</span>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={u.has_subscription}
+                              onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)}
+                              disabled={updatingId === u.user_id}
+                            />
+                            {u.has_subscription && (
+                              <Crown className="w-4 h-4 text-yellow-500" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Joined {new Date(u.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -796,7 +833,39 @@ export default function AdminDashboard() {
 
               {/* Employees Tab */}
               <TabsContent value="employees" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {filteredEmployees.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
+                      No employees found
+                    </div>
+                  ) : (
+                    filteredEmployees.map((u) => (
+                      <div key={u.user_id} className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="font-semibold">{u.full_name || "No name"}</p>
+                          <p className="text-sm text-muted-foreground">{u.email}</p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Premium</span>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={u.has_subscription}
+                              onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)}
+                              disabled={updatingId === u.user_id}
+                            />
+                            {u.has_subscription && (
+                              <Crown className="w-4 h-4 text-yellow-500" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Joined {new Date(u.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -846,7 +915,92 @@ export default function AdminDashboard() {
 
               {/* Contractors Tab */}
               <TabsContent value="contractors" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {filteredContractors.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
+                      No contractors found
+                    </div>
+                  ) : (
+                    filteredContractors.map((c) => (
+                      <div key={c.id} className="bg-card border border-border/50 rounded-xl p-4 space-y-4">
+                        <div>
+                          <p className="font-semibold">{c.company_name}</p>
+                          <p className="text-sm text-muted-foreground">{c.email}</p>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Priority</span>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={c.has_priority}
+                                onCheckedChange={() => togglePriority(c.id, c.has_priority)}
+                                disabled={updatingId === c.id}
+                              />
+                              {c.has_priority && (
+                                <Zap className="w-4 h-4 text-amber-500" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Entrepreneur</span>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={c.is_entrepreneur}
+                                onCheckedChange={() => toggleEntrepreneur(c.id, c.is_entrepreneur)}
+                                disabled={updatingId === c.id}
+                              />
+                              {c.is_entrepreneur && (
+                                <Star className="w-4 h-4 text-amber-500" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-muted-foreground">Plan Tier</span>
+                          <Select
+                            value={c.current_plan_type || ""}
+                            onValueChange={(value) => updateContractorTier(c, value)}
+                            disabled={updatingId === c.id}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="No plan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {contractorTiers.map((tier) => (
+                                <SelectItem key={tier.plan_id} value={tier.plan_id}>
+                                  {tier.plan_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-muted-foreground">Legacy Package</span>
+                          <Select
+                            value={packages.find(p => p.name === c.package_name)?.id || ""}
+                            onValueChange={(value) => updateContractorPackage(c.id, value)}
+                            disabled={updatingId === c.id}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="No package" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {packages.map((pkg) => (
+                                <SelectItem key={pkg.id} value={pkg.id}>
+                                  {pkg.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Joined {new Date(c.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -939,7 +1093,50 @@ export default function AdminDashboard() {
 
               {/* Jobs Tab */}
               <TabsContent value="jobs" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {filteredJobs.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">
+                      No jobs found
+                    </div>
+                  ) : (
+                    filteredJobs.map((job) => (
+                      <div key={job.id} className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="font-semibold">{job.title}</p>
+                          <p className="text-sm text-muted-foreground">{job.company_name}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-muted-foreground">Status</span>
+                          <Select
+                            value={job.status}
+                            onValueChange={(value: "draft" | "published" | "closed" | "filled") => updateJobStatus(job.id, value)}
+                            disabled={updatingId === job.id}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="published">Published</SelectItem>
+                              <SelectItem value="closed">Closed</SelectItem>
+                              <SelectItem value="filled">Filled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Positions</span>
+                          <span>
+                            {job.positions_filled}/{job.positions_available}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Posted {new Date(job.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
