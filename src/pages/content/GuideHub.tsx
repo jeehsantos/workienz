@@ -612,13 +612,16 @@ export default function GuideHub() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <p className="font-medium">Enjoyed this guide?</p>
-                  <button
-                    type="button"
-                    onClick={handleBackToTopic}
-                    className="text-primary underline underline-offset-4"
-                  >
-                    Go back to the previous step
-                  </button>
+                  <p className="text-sm text-muted-foreground">
+                    Check out more content{" "}
+                    <button
+                      type="button"
+                      onClick={handleBackToTopic}
+                      className="text-primary underline underline-offset-4"
+                    >
+                      Check out more content
+                    </button>
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {user && isEmployee() && (
