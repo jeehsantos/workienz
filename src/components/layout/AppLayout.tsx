@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -109,6 +110,31 @@ export function AppLayout({ children }: AppLayoutProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!navRef.current) return;
+      if (!navRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleScroll = () => {
+      setIsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("touchmove", handleScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("touchmove", handleScroll);
+    };
+  }, [isOpen]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
@@ -124,6 +150,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Navbar */}
       {!isAuthFlowRoute && (
         <nav
+          ref={navRef}
           className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 print:hidden ${
             scrolled
               ? "bg-background/95 backdrop-blur-lg border-b border-border/50 shadow-soft"
