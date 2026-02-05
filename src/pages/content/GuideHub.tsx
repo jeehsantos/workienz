@@ -295,9 +295,6 @@ export default function GuideHub() {
             )}
 
             <div className="gap-3 mb-4 flex items-center justify-center">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-primary" />
-              </div>
               <div>
                 <h1 className="text-3xl font-bold font-display text-center "> How can we help? </h1>
                 <p className="text-muted-foreground">Your complete guide to living and working in New Zealand</p>
@@ -382,7 +379,7 @@ export default function GuideHub() {
               <div className="lg:sticky lg:top-24 space-y-6">
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center">
-                    <Filter className="w-3 h-3 mr-2" /> Filter By
+                    <Filter className="w-3 h-3 mr-2" /> Filter By Visa
                   </h4>
                   <div className="space-y-2">
                     {VISA_FILTERS.map((f) => (
