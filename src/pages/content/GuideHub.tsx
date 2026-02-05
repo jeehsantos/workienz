@@ -34,6 +34,7 @@ type Journey = {
   description: string | null;
   icon_name: string;
   topic_count?: number;
+  topic_preview?: TopicHub[];
 };
 type TopicHub = {
   id: string;
@@ -185,9 +186,19 @@ export default function GuideHub() {
             })
             .eq("journey_id", journey.id)
             .eq("is_active", true);
+          const { data: topicPreview } = await supabase
+            .from("topic_hubs")
+            .select("id, journey_id, title, description")
+            .eq("journey_id", journey.id)
+            .eq("is_active", true)
+            .order("display_order", {
+              ascending: true,
+            })
+            .limit(3);
           return {
             ...journey,
             topic_count: count || 0,
+            topic_preview: topicPreview || [],
           };
         }),
       );
@@ -344,9 +355,17 @@ export default function GuideHub() {
                     {getIcon(journey.icon_name)}
                   </div>
                   <h3 className="font-bold text-foreground mb-2">{journey.title}</h3>
-                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2 whitespace-break-spaces pb-[16px]">
-                    {journey.description || "Explore this topic"}
-                  </p>
+                  {journey.topic_preview && journey.topic_preview.length > 0 ? (
+                    <ul className="text-xs text-muted-foreground mb-2 space-y-1 pb-[16px]">
+                      {journey.topic_preview.map((topic) => (
+                        <li key={topic.id} className="truncate">
+                          • {topic.title}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mb-2 pb-[16px]">Coming soon</p>
+                  )}
                   <div className="flex items-center text-sm font-bold text-primary group-hover:translate-x-1 transition-transform">
                     Explore <ChevronRight className="w-4 h-4 ml-1" />
                   </div>
