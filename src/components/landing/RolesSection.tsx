@@ -18,8 +18,14 @@ const getDailyImageIndex = (imageCount: number): number => {
   const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
   return dayOfYear % imageCount;
 };
+
+// Pre-calculate daily indices at module load for consistent rendering
+const hiringDailyIndex = getDailyImageIndex(hiringImages.length);
+const workDailyIndex = getDailyImageIndex(workImages.length);
+
 const roles = [{
   images: hiringImages,
+  dailyIndex: hiringDailyIndex,
   icon: Briefcase,
   title: "I'm Hiring",
   subtitle: "For Contractors & Employers",
@@ -30,6 +36,7 @@ const roles = [{
   variant: "hero" as const
 }, {
   images: workImages,
+  dailyIndex: workDailyIndex,
   icon: User,
   title: "I'm Looking for Work",
   subtitle: "For Employees & Job Seekers",
@@ -62,14 +69,23 @@ export function RolesSection() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-10">
-          {roles.map(role => {
-          // Calculate which image to show based on day of year
-          const dailyIndex = getDailyImageIndex(role.images.length);
-          const currentImage = role.images[dailyIndex];
+          {roles.map((role, index) => {
+          const currentImage = role.images[role.dailyIndex];
+          // First image should load eagerly as it's likely the LCP element
+          const isFirstImage = index === 0;
           return <div key={role.title} className="group bg-card rounded-3xl overflow-hidden shadow-soft hover:shadow-medium transition-all duration-500 border border-border/50">
                 {/* Image Section */}
                 <div className="relative h-48 lg:h-56 overflow-hidden">
-                  <img src={currentImage} alt={role.title} loading="lazy" decoding="async" width={662} height={336} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img 
+                    src={currentImage} 
+                    alt={role.title} 
+                    loading={isFirstImage ? "eager" : "lazy"} 
+                    decoding={isFirstImage ? "sync" : "async"}
+                    fetchPriority={isFirstImage ? "high" : "auto"}
+                    width={662} 
+                    height={336} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
                   <div className="absolute bottom-4 left-6">
                     <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
