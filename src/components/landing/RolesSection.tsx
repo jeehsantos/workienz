@@ -2,11 +2,11 @@ import { Briefcase, User, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
-// Import rotating images
-import farmManagers from "@/assets/landing/FarmManagers.png";
-import weddingManagers from "@/assets/landing/WeddingManagers.png";
-import warehouseWorkers from "@/assets/landing/WarehouseWorkers.jpg";
-import cherryWorkers from "@/assets/landing/CherryWorkers.png";
+// Import optimized WebP images for better performance
+import farmManagers from "@/assets/landing/FarmManagers.webp";
+import weddingManagers from "@/assets/landing/WeddingManagers.webp";
+import warehouseWorkers from "@/assets/landing/WarehouseWorkers.webp";
+import cherryWorkers from "@/assets/landing/CherryWorkers.webp";
 
 // Image arrays for each role
 const hiringImages = [farmManagers, weddingManagers];
