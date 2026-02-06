@@ -185,7 +185,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold mb-2 font-display">Write Topic</h3>
               <p className="text-muted-foreground text-sm mb-4">Create educational content for employees.</p>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/writer/new-article">Write Topic</Link>
+                <Link to="/writer/new-guide">Write Topic</Link>
               </Button>
             </div>
           )}
