@@ -173,7 +173,7 @@ export default function JobDetail() {
     const title = formatJobShareTitle(job.title, job.location_suburb, job.location_city);
     const description = "View this job opportunity and apply on Workie.";
     const image = "https://www.workie.co.nz/social/og.png";
-    const url = `https://www.workie.co.nz/s/jobs/${job.id}`;
+    const url = `https://www.workie.co.nz/jobs/${job.id}`;
 
     const setMeta = (selector: string, attr: "content" | "href", value: string, create?: () => HTMLMetaElement | HTMLLinkElement) => {
       let element = document.head.querySelector(selector) as HTMLMetaElement | HTMLLinkElement | null;
