@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const WORKIE_DOMAIN = "https://www.workie.co.nz";
-const OG_IMAGE_URL = `${WORKIE_DOMAIN}/Social/og.png`;
+const OG_IMAGE_URL = `${WORKIE_DOMAIN}/social/og.png`;
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -90,13 +90,18 @@ function generateTitle(
   suburb: string | null,
   city: string | null
 ): string {
-  if (suburb && city) {
-    return `${jobTitle} Job in ${suburb}, ${city} - Workie`;
+  const normalizedSuburb = suburb?.trim();
+  const normalizedCity = city?.trim();
+
+  if (normalizedSuburb && normalizedCity) {
+    return `${jobTitle} in ${normalizedSuburb}, ${normalizedCity} - Workie`;
   }
-  if (city) {
-    return `${jobTitle} Job in ${city} - Workie`;
+
+  if (normalizedCity) {
+    return `${jobTitle} in ${normalizedCity} - Workie`;
   }
-  return `${jobTitle} Job - Workie`;
+
+  return `${jobTitle} - Workie`;
 }
 
 interface OgData {
