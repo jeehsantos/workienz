@@ -15,6 +15,7 @@ import { formatHourlyRate } from "@/lib/formatters";
 import { ApplicationRequirementsDialog } from "@/components/jobs/ApplicationRequirementsDialog";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 import { ShareJob } from "@/components/jobs/ShareJob";
+import { formatJobShareTitle } from "@/lib/jobShare";
 type JobShift = {
   id: string;
   shift_date: string;
@@ -164,6 +165,83 @@ export default function JobDetail() {
     }
     fetchJob();
   }, [id]);
+
+
+  useEffect(() => {
+    if (!job) return;
+
+    const title = formatJobShareTitle(job.title, job.location_suburb, job.location_city);
+    const description = "View this job opportunity and apply on Workie.";
+    const image = "https://www.workie.co.nz/social/og.png";
+    const url = `https://www.workie.co.nz/s/jobs/${job.id}`;
+
+    const setMeta = (selector: string, attr: "content" | "href", value: string, create?: () => HTMLMetaElement | HTMLLinkElement) => {
+      let element = document.head.querySelector(selector) as HTMLMetaElement | HTMLLinkElement | null;
+
+      if (!element && create) {
+        element = create();
+        document.head.appendChild(element);
+      }
+
+      if (element) {
+        element.setAttribute(attr, value);
+      }
+    };
+
+    document.title = title;
+
+    setMeta('meta[property="og:title"]', "content", title, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "og:title");
+      return meta;
+    });
+    setMeta('meta[name="twitter:title"]', "content", title, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("name", "twitter:title");
+      return meta;
+    });
+    setMeta('meta[property="og:description"]', "content", description, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "og:description");
+      return meta;
+    });
+    setMeta('meta[name="twitter:description"]', "content", description, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("name", "twitter:description");
+      return meta;
+    });
+    setMeta('meta[property="og:image"]', "content", image, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "og:image");
+      return meta;
+    });
+    setMeta('meta[name="twitter:image"]', "content", image, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("name", "twitter:image");
+      return meta;
+    });
+    setMeta('meta[property="og:image:width"]', "content", "1200", () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "og:image:width");
+      return meta;
+    });
+    setMeta('meta[property="og:image:height"]', "content", "630", () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "og:image:height");
+      return meta;
+    });
+    setMeta('meta[property="og:url"]', "content", url, () => {
+      const meta = document.createElement("meta");
+      meta.setAttribute("property", "og:url");
+      return meta;
+    });
+    setMeta('link[rel="canonical"]', "href", url, () => {
+      const link = document.createElement("link");
+      link.setAttribute("rel", "canonical");
+      return link;
+    });
+  }, [job]);
+
   useEffect(() => {
     async function checkApplication() {
       if (!user || !id || !isEmployee()) return;
@@ -655,7 +733,12 @@ export default function JobDetail() {
             </div>
 
             {/* Share Job */}
-            <ShareJob jobId={job.id} jobTitle={job.title} />
+            <ShareJob
+              jobId={job.id}
+              jobTitle={job.title}
+              locationSuburb={job.location_suburb}
+              locationCity={job.location_city}
+            />
           </div>
         </div>
       </div>
