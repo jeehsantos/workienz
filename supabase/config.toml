@@ -1,1 +1,4 @@
 project_id = "dkhcdzxelkkpxhmxazqi"
+
+[functions.share-job]
+verify_jwt = false
