@@ -14,6 +14,7 @@ import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
 import { ApplicationRequirementsDialog } from "@/components/jobs/ApplicationRequirementsDialog";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
+import { ShareJob } from "@/components/jobs/ShareJob";
 type JobShift = {
   id: string;
   shift_date: string;
@@ -652,6 +653,9 @@ export default function JobDetail() {
                 Posted {format(new Date(job.created_at), "MMM d, yyyy")}
               </p>
             </div>
+
+            {/* Share Job */}
+            <ShareJob jobId={job.id} jobTitle={job.title} />
           </div>
         </div>
       </div>
