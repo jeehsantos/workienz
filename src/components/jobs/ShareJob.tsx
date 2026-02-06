@@ -22,7 +22,7 @@ export function ShareJob({
   const { toast } = useToast();
 
   // Canonical public URL users should see and share
-  const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
+  const publicJobUrl = `${WORKIE_DOMAIN}/s/jobs/${jobId}`;
   const shareTitle = formatJobShareTitle(jobTitle, locationSuburb, locationCity);
 
   const copyToClipboard = () => {
