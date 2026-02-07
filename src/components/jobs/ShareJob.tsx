@@ -21,6 +21,12 @@ export function ShareJob({
 }: ShareJobProps) {
   const { toast } = useToast();
 
+  const openShareUrl = (url: string) => {
+    // Avoid relying on return value: some browsers return null when noopener/noreferrer is used
+    // even when the new tab opened successfully.
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   // Canonical public URL users should see (clean, user-friendly)
   const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
     
@@ -39,13 +45,13 @@ export function ShareJob({
   // WhatsApp uses preview route for reliable OG tags on social platforms
   const shareOnWhatsApp = () => {
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${previewJobUrl}`)}`;
-    window.open(whatsappUrl, "_blank", "width=550,height=420");
+    openShareUrl(whatsappUrl);
   };
 
   // Facebook uses preview route for reliable OG tags on social platforms
   const shareOnFacebook = () => {
     const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewJobUrl)}`;
-    window.open(facebookUrl, "_blank", "width=550,height=420");
+    openShareUrl(facebookUrl);
   };
 
   return (
