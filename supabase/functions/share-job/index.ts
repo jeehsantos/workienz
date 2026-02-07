@@ -2,7 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const WORKIE_DOMAIN = "https://www.workie.co.nz";
@@ -19,10 +20,13 @@ Deno.serve(async (req) => {
     const jobId = url.searchParams.get("id");
 
     if (!jobId) {
-      return new Response(generateErrorHtml("Job not found", "No job ID provided."), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
-      });
+      return new Response(
+        generateErrorHtml("Job not found", "No job ID provided."),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+        }
+      );
     }
 
     // Initialize Supabase client with service role
@@ -45,14 +49,14 @@ Deno.serve(async (req) => {
         {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
-        },
+        }
       );
     }
 
     // Generate the title based on location
     const ogTitle = generateTitle(job.title, job.location_suburb, job.location_city);
     const ogDescription = "View this job opportunity and apply on Workie.";
-    const jobUrl = `${WORKIE_DOMAIN}/jobs/${job.id}?p=1`;
+    const jobUrl = `${WORKIE_DOMAIN}/jobs/${job.id}`;
 
     const html = generateHtml({
       title: ogTitle,
@@ -71,14 +75,21 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error("Share job error:", error);
-    return new Response(generateErrorHtml("Error", "An unexpected error occurred."), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
-    });
+    return new Response(
+      generateErrorHtml("Error", "An unexpected error occurred."),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+      }
+    );
   }
 });
 
-function generateTitle(jobTitle: string, suburb: string | null, city: string | null): string {
+function generateTitle(
+  jobTitle: string,
+  suburb: string | null,
+  city: string | null
+): string {
   const normalizedSuburb = suburb?.trim();
   const normalizedCity = city?.trim();
 
