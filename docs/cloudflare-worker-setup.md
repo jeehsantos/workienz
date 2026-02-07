@@ -26,12 +26,15 @@ const LOVABLE_ORIGIN = "https://workienz.lovable.app";
 const CRAWLER_PATTERNS = [
   'facebookexternalhit',
   'Facebot',
+  'meta-externalagent',
+  'meta-externalfetcher',
   'WhatsApp',
   'Twitterbot',
   'LinkedInBot',
   'Slackbot',
   'TelegramBot',
   'Discordbot',
+  'SkypeUriPreview',
   'Pinterest',
   'Googlebot',
   'bingbot'
@@ -105,6 +108,12 @@ Point your domain to Cloudflare:
 - Remove the A record pointing to Lovable (185.158.133.1)
 - Let Cloudflare proxy traffic through the Worker
 
+
+### 5. Validate browser URL sharing
+
+Use the normal browser URL (for example `https://www.workie.co.nz/jobs/{id}`) when sharing.
+Social platforms should fetch that URL as a crawler and be routed by the Worker to `share-job` for OG tags.
+
 ## How It Works
 
 ```
@@ -117,7 +126,7 @@ Point your domain to Cloudflare:
 │                     Cloudflare Worker                           │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │ Is User-Agent a social media crawler?                    │    │
-│  │ (facebookexternalhit, WhatsApp, Twitterbot, etc.)       │    │
+│  │ (facebookexternalhit/meta-externalagent, WhatsApp, Twitterbot, etc.)       │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
           │                                      │
@@ -152,3 +161,18 @@ Steps:
 4. Update DNS to point to Vercel instead of Lovable
 
 The Vercel approach uses the existing `vercel.json` rewrites to route crawlers to the API proxy.
+
+
+## Troubleshooting (when debugger still shows homepage OG tags)
+
+If Facebook Sharing Debugger still shows `https://www.workie.co.nz/` as canonical:
+
+1. Ensure Worker routes include **both**:
+   - `www.workie.co.nz/jobs/*`
+   - `workie.co.nz/jobs/*`
+2. Confirm DNS records for both root and `www` are orange-cloud proxied in Cloudflare.
+3. Verify Worker is attached to the same zone serving `www.workie.co.nz`.
+4. Test the worker path directly with the preview route: `https://www.workie.co.nz/s/jobs/{id}`.
+   - This route bypasses crawler detection and always serves OG HTML from `share-job`.
+5. In Facebook Debugger click **Scrape Again** after each config change (Facebook caches previous results).
+
