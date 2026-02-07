@@ -10,11 +10,9 @@ interface ShareJobProps {
   locationCity?: string | null;
 }
 
-// Public Workie domain used for canonical share links (user-facing)
+// Public Workie domain — Cloudflare Worker intercepts crawlers and proxies
+// to the Edge Function for OG tags, so ALL share URLs use the canonical domain.
 const WORKIE_DOMAIN = import.meta.env.VITE_PUBLIC_APP_URL || "https://www.workie.co.nz";
-
-// Supabase URL for Edge Function (social crawlers hit this for OG tags)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 export function ShareJob({
   jobId,
@@ -24,33 +22,29 @@ export function ShareJob({
 }: ShareJobProps) {
   const { toast } = useToast();
 
-  // Canonical public URL users should see (clean, user-friendly)
-  const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
-  
-  // Edge Function URL for social sharing (crawlers get pre-rendered OG tags)
-  const socialShareUrl = `${SUPABASE_URL}/functions/v1/share-job?id=${jobId}`;
+  // Single canonical URL — Cloudflare Worker handles crawler detection
+  const jobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
   
   const shareTitle = formatJobShareTitle(jobTitle, locationSuburb, locationCity);
 
-  // Copy Link still uses the clean public URL for user convenience
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(publicJobUrl);
+    navigator.clipboard.writeText(jobUrl);
     toast({
       title: "Link Copied!",
       description: "Job link has been copied to clipboard.",
     });
   };
 
-  // WhatsApp uses Edge Function URL so crawlers receive correct OG tags
+  // WhatsApp share — uses canonical URL (Cloudflare Worker serves OG tags to crawlers)
   const shareOnWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${socialShareUrl}`)}`;
-    window.open(whatsappUrl, "_blank", "width=550,height=420");
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${jobUrl}`)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   };
 
-  // Facebook uses Edge Function URL so crawlers receive correct OG tags
+  // Facebook share — uses canonical URL (Cloudflare Worker serves OG tags to crawlers)
   const shareOnFacebook = () => {
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(socialShareUrl)}`;
-    window.open(facebookUrl, "_blank", "width=550,height=420");
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(jobUrl)}`;
+    window.open(facebookUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
