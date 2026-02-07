@@ -13,9 +13,6 @@ interface ShareJobProps {
 // Public Workie domain used for canonical share links (user-facing)
 const WORKIE_DOMAIN = import.meta.env.VITE_PUBLIC_APP_URL || "https://www.workie.co.nz";
 
-// Supabase URL for Edge Function (social crawlers hit this for OG tags)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
 export function ShareJob({
   jobId,
   jobTitle,
@@ -24,15 +21,22 @@ export function ShareJob({
 }: ShareJobProps) {
   const { toast } = useToast();
 
+  const openShareUrl = (url: string) => {
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+
+    // Some embedded browsers/webviews block popups; fall back to top-level navigation.
+    if (!popup) {
+      window.location.assign(url);
+    }
+  };
+
   // Canonical public URL users should see (clean, user-friendly)
   const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
-  
-  // Edge Function URL for social sharing (crawlers get pre-rendered OG tags)
-  const socialShareUrl = `${SUPABASE_URL}/functions/v1/share-job?id=${jobId}`;
-  
+    
   const shareTitle = formatJobShareTitle(jobTitle, locationSuburb, locationCity);
+  const previewJobUrl = `${WORKIE_DOMAIN}/s/jobs/${jobId}`;
 
-  // Copy Link still uses the clean public URL for user convenience
+  // Copy Link uses the canonical browser URL users expect to share
   const copyToClipboard = () => {
     navigator.clipboard.writeText(publicJobUrl);
     toast({
@@ -41,16 +45,16 @@ export function ShareJob({
     });
   };
 
-  // WhatsApp uses Edge Function URL so crawlers receive correct OG tags
+  // WhatsApp uses preview route for reliable OG tags on social platforms
   const shareOnWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${socialShareUrl}`)}`;
-    window.open(whatsappUrl, "_blank", "width=550,height=420");
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${previewJobUrl}`)}`;
+    openShareUrl(whatsappUrl);
   };
 
-  // Facebook uses Edge Function URL so crawlers receive correct OG tags
+  // Facebook uses preview route for reliable OG tags on social platforms
   const shareOnFacebook = () => {
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(socialShareUrl)}`;
-    window.open(facebookUrl, "_blank", "width=550,height=420");
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewJobUrl)}`;
+    openShareUrl(facebookUrl);
   };
 
   return (
