@@ -28,16 +28,18 @@ export function ShareJob({
   const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
   
   // Edge Function URL for social sharing (crawlers get pre-rendered OG tags)
-  const socialShareUrl = `${SUPABASE_URL}/functions/v1/share-job?id=${jobId}`;
+  const socialShareUrl = SUPABASE_URL
+    ? `${SUPABASE_URL}/functions/v1/share-job?id=${jobId}`
+    : publicJobUrl;
   
   const shareTitle = formatJobShareTitle(jobTitle, locationSuburb, locationCity);
 
-  // Copy Link still uses the clean public URL for user convenience
+  // Copy Link uses the share endpoint so previews work even without crawler proxying
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(publicJobUrl);
+    navigator.clipboard.writeText(socialShareUrl);
     toast({
       title: "Link Copied!",
-      description: "Job link has been copied to clipboard.",
+      description: "Preview-ready job link has been copied to clipboard.",
     });
   };
 
