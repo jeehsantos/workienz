@@ -26,12 +26,15 @@ const LOVABLE_ORIGIN = "https://workienz.lovable.app";
 const CRAWLER_PATTERNS = [
   'facebookexternalhit',
   'Facebot',
+  'meta-externalagent',
+  'meta-externalfetcher',
   'WhatsApp',
   'Twitterbot',
   'LinkedInBot',
   'Slackbot',
   'TelegramBot',
   'Discordbot',
+  'SkypeUriPreview',
   'Pinterest',
   'Googlebot',
   'bingbot'
@@ -105,6 +108,12 @@ Point your domain to Cloudflare:
 - Remove the A record pointing to Lovable (185.158.133.1)
 - Let Cloudflare proxy traffic through the Worker
 
+
+### 5. Validate browser URL sharing
+
+Use the normal browser URL (for example `https://www.workie.co.nz/jobs/{id}`) when sharing.
+Social platforms should fetch that URL as a crawler and be routed by the Worker to `share-job` for OG tags.
+
 ## How It Works
 
 ```
@@ -117,7 +126,7 @@ Point your domain to Cloudflare:
 │                     Cloudflare Worker                           │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │ Is User-Agent a social media crawler?                    │    │
-│  │ (facebookexternalhit, WhatsApp, Twitterbot, etc.)       │    │
+│  │ (facebookexternalhit/meta-externalagent, WhatsApp, Twitterbot, etc.)       │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
           │                                      │

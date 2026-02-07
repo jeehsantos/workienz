@@ -13,9 +13,6 @@ interface ShareJobProps {
 // Public Workie domain used for canonical share links (user-facing)
 const WORKIE_DOMAIN = import.meta.env.VITE_PUBLIC_APP_URL || "https://www.workie.co.nz";
 
-// Supabase URL for Edge Function (social crawlers hit this for OG tags)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
 export function ShareJob({
   jobId,
   jobTitle,
@@ -26,32 +23,27 @@ export function ShareJob({
 
   // Canonical public URL users should see (clean, user-friendly)
   const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
-  
-  // Edge Function URL for social sharing (crawlers get pre-rendered OG tags)
-  const socialShareUrl = SUPABASE_URL
-    ? `${SUPABASE_URL}/functions/v1/share-job?id=${jobId}`
-    : publicJobUrl;
-  
+    
   const shareTitle = formatJobShareTitle(jobTitle, locationSuburb, locationCity);
 
-  // Copy Link uses the share endpoint so previews work even without crawler proxying
+  // Copy Link uses the canonical browser URL users expect to share
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(socialShareUrl);
+    navigator.clipboard.writeText(publicJobUrl);
     toast({
       title: "Link Copied!",
-      description: "Preview-ready job link has been copied to clipboard.",
+      description: "Job link has been copied to clipboard.",
     });
   };
 
-  // WhatsApp uses Edge Function URL so crawlers receive correct OG tags
+  // WhatsApp uses browser URL so users share clean, canonical links
   const shareOnWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${socialShareUrl}`)}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${publicJobUrl}`)}`;
     window.open(whatsappUrl, "_blank", "width=550,height=420");
   };
 
-  // Facebook uses Edge Function URL so crawlers receive correct OG tags
+  // Facebook uses browser URL so users share clean, canonical links
   const shareOnFacebook = () => {
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(socialShareUrl)}`;
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicJobUrl)}`;
     window.open(facebookUrl, "_blank", "width=550,height=420");
   };
 
