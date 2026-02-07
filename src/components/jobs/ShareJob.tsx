@@ -13,6 +13,9 @@ interface ShareJobProps {
 // Public Workie domain used for canonical share links (user-facing)
 const WORKIE_DOMAIN = import.meta.env.VITE_PUBLIC_APP_URL || "https://www.workie.co.nz";
 
+// Supabase URL for Edge Function (social crawlers hit this for OG tags)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
 export function ShareJob({
   jobId,
   jobTitle,
@@ -23,11 +26,13 @@ export function ShareJob({
 
   // Canonical public URL users should see (clean, user-friendly)
   const publicJobUrl = `${WORKIE_DOMAIN}/jobs/${jobId}`;
-    
+  
+  // Edge Function URL for social sharing (crawlers get pre-rendered OG tags)
+  const socialShareUrl = `${SUPABASE_URL}/functions/v1/share-job?id=${jobId}`;
+  
   const shareTitle = formatJobShareTitle(jobTitle, locationSuburb, locationCity);
-  const previewJobUrl = `${WORKIE_DOMAIN}/s/jobs/${jobId}`;
 
-  // Copy Link uses the canonical browser URL users expect to share
+  // Copy Link still uses the clean public URL for user convenience
   const copyToClipboard = () => {
     navigator.clipboard.writeText(publicJobUrl);
     toast({
@@ -36,15 +41,15 @@ export function ShareJob({
     });
   };
 
-  // WhatsApp uses preview route for reliable OG tags on social platforms
+  // WhatsApp uses Edge Function URL so crawlers receive correct OG tags
   const shareOnWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${previewJobUrl}`)}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${socialShareUrl}`)}`;
     window.open(whatsappUrl, "_blank", "width=550,height=420");
   };
 
-  // Facebook uses preview route for reliable OG tags on social platforms
+  // Facebook uses Edge Function URL so crawlers receive correct OG tags
   const shareOnFacebook = () => {
-    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewJobUrl)}`;
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(socialShareUrl)}`;
     window.open(facebookUrl, "_blank", "width=550,height=420");
   };
 
