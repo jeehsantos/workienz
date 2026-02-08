@@ -1,194 +1,139 @@
 
-# Email Confirmation Implementation Plan
 
-## Overview
-Implement a complete email verification flow that requires users to confirm their email address before accessing the platform. This will be a backend-first approach using a custom Edge Function to send branded emails via Resend.
+# Fix Free Tier Application Blocking + Chat Expiry
 
-## Current State Analysis
-- **No email verification exists** - Users are immediately logged in after signup
-- **Resend is already configured** - Password reset emails use it with branded templates
-- **Logo already hosted** - Available at `https://workienz.lovable.app/workie-logo.png`
-- **Referral verification** - The `verify-referral` function expects email confirmation to trigger
+## Problem Summary
 
----
+Two interconnected bugs are preventing free-tier user `7idreamzjsm@gmail.com` from applying to new jobs:
 
-## Implementation Components
+1. **Chat expiry not closing applications**: The `process-chat-expiry` function closes inactive conversations but never updates the linked job application status. The old application stays "pending" forever, permanently consuming the user's application slot.
 
-### 1. Backend: Edge Function for Confirmation Email
-**File:** `supabase/functions/send-confirmation-email/index.ts`
+2. **Missing UI guard for free-tier slot limit**: The JobDetail page shows warnings for cooldown and subscriber limits, but has no guard for free-tier users who have hit their application slot limit. Instead, the user sees the "Submit Application" button, clicks it, and gets a raw backend error.
 
-Create a new Edge Function that:
-- Accepts user email and generates a secure confirmation link using Supabase Admin API
-- Sends a beautifully branded HTML email via Resend
-- Uses the same design language as the password reset email (green gradient CTA, Workie logo, clean card layout)
+Additionally, there is no cron job configured to run `process-chat-expiry` automatically, meaning inactive conversations are never processed.
 
-**Email Design Elements:**
-- Workie logo header
-- Welcome message with user's first name
-- Clear call-to-action button with green gradient
-- Security notice about link expiration
-- Footer with copyright
-
-### 2. Configuration: Edge Function JWT Setting
-**File:** `supabase/config.toml`
-
-Add configuration entry:
-```toml
-[functions.send-confirmation-email]
-verify_jwt = false
-```
-
-### 3. Frontend: Update Signup Flow
-**File:** `src/hooks/useAuth.ts`
-
-Modify the `signUp` function to:
-- After successful signup, call the confirmation email Edge Function
-- Return data indicating whether confirmation is needed
-
-### 4. Frontend: Confirmation Pending UI
-**File:** `src/pages/Auth.tsx`
-
-Add a new state and UI component:
-- `emailConfirmationPending` state
-- Display a "Check Your Email" screen instead of redirecting
-- Show the registered email address
-- Provide a "Resend Email" button
-- Include instructions to check spam folder
-
-### 5. Frontend: Email Verification Handler Route
-**File:** `src/pages/VerifyEmail.tsx` (new file)
-
-Create a new page that:
-- Handles the redirect from the confirmation email
-- Processes the token automatically (Supabase handles this)
-- Triggers the referral verification if applicable
-- Shows success message and redirects to dashboard
-
-### 6. Routing: Add Verification Route
-**File:** `src/App.tsx`
-
-Add the new route:
-```tsx
-<Route path="/verify-email" element={<VerifyEmail />} />
-```
-
----
-
-## User Flow
+## Root Cause Analysis
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         SIGNUP FLOW                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. User fills signup form                                      │
-│              │                                                  │
-│              ▼                                                  │
-│  2. Frontend calls signUp()                                     │
-│              │                                                  │
-│              ▼                                                  │
-│  3. Edge Function sends branded confirmation email              │
-│              │                                                  │
-│              ▼                                                  │
-│  4. Show "Check Your Email" screen (no dashboard access)        │
-│              │                                                  │
-│              ▼                                                  │
-│  5. User clicks email link                                      │
-│              │                                                  │
-│              ▼                                                  │
-│  6. /verify-email page processes confirmation                   │
-│              │                                                  │
-│              ▼                                                  │
-│  7. Trigger referral verification (if applicable)               │
-│              │                                                  │
-│              ▼                                                  │
-│  8. Redirect to Dashboard with success message                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+User applies Jan 31 --> Application = "pending", Conversation = "active"
+                         |
+7+ days pass, no contractor interaction
+                         |
+process-chat-expiry SHOULD run but:
+  1. No cron job is set up to trigger it
+  2. Even if it ran, it only sets conversation.status = "closed"
+     -- it does NOT update job_application.status
+                         |
+Result: application stays "pending" forever
+        --> counts against active_applications (1/1 for free tier)
+        --> user cannot apply to any new job
 ```
 
----
+## Solution
+
+### 1. Update `process-chat-expiry` Edge Function
+
+When closing a conversation due to 72+ hours of inactivity, also update the linked job application to a new "expired" status. This frees the user's application slot.
+
+Changes:
+- After setting `conversation.status = "closed"`, also update the linked `job_application.status` to `"expired"`
+- Only expire applications that are still in "pending" status (not "hired" or already "rejected")
+- Log the application expiry for audit purposes
+
+### 2. Update `submit-application` Edge Function
+
+The active applications query currently counts `pending` and `shortlisted` statuses. This is correct and doesn't need changes since once the chat expiry properly expires applications, they won't be counted. However, for additional safety:
+- No changes needed since the fix in step 1 handles the root cause
+
+### 3. Update `JobDetail.tsx` Frontend
+
+Add a client-side guard for free-tier users who have hit their application slot limit (not just cooldown). Currently the page only shows:
+- Cooldown warning (for free tier users in cooldown period)
+- Application limit warning (for subscribed users only)
+
+Missing: A warning for free-tier users who have used all their slots (base + referral credits) but are past the cooldown period. This is the exact scenario the user hit.
+
+Changes:
+- Extend the `checkApplication` logic in the free-tier branch to also check if `activeApplications >= totalAllowedApplications`
+- If the slot limit is reached, set `applicationLimitReached` with an appropriate message and upgrade prompt
+- The existing UI rendering for `applicationLimitReached` will handle the display, but update it to also show "Invite Friends" and "Upgrade" buttons for free-tier users
+
+### 4. Set Up Cron Job for `process-chat-expiry`
+
+Create a database migration to add a `pg_cron` job that invokes the `process-chat-expiry` function every hour. This ensures inactive conversations are processed automatically.
 
 ## Technical Details
 
-### Confirmation Email Template
-The email will match the existing password reset design:
-- **Header:** Workie logo centered
-- **Card:** White background with rounded corners and shadow
-- **Title:** "Activate Your Account"
-- **Body:** Personalized welcome message
-- **CTA:** Green gradient button "Activate Account"
-- **Expiry notice:** 24-hour link validity
-- **Footer:** Copyright notice
+### Database Migration
 
-### Security Considerations
-- Uses Supabase Admin API `generateLink` with type "signup"
-- Link expires after 24 hours
-- Email confirmation required before accessing protected routes
-- Frontend checks `user.email_confirmed_at` to determine access
+Enable `pg_cron` extension and create a scheduled job:
 
-### Sign-In Behavior Update
-For users who try to sign in without confirming:
-- Supabase returns `Email not confirmed` error
-- Display helpful message with option to resend confirmation email
+```sql
+-- Enable pg_cron and pg_net extensions
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
----
+-- Schedule process-chat-expiry to run every hour
+SELECT cron.schedule(
+  'process-chat-expiry',
+  '0 * * * *',
+  $$SELECT extensions.http(
+    (
+      'POST',
+      '<supabase_url>/functions/v1/process-chat-expiry',
+      ARRAY[extensions.http_header('Authorization', 'Bearer <service_role_key>')],
+      'application/json',
+      '{}'
+    )::extensions.http_request
+  );$$
+);
+```
 
-## Files to Create/Modify
+### Edge Function Changes (`process-chat-expiry`)
+
+After closing a conversation (line ~111-114), add:
+
+```typescript
+// Also expire the linked job application
+if (conv.job_application_id) {
+  const { error: appUpdateError } = await supabaseAdmin
+    .from("job_applications")
+    .update({ status: "expired" })
+    .eq("id", conv.job_application_id)
+    .eq("status", "pending");  // Only expire pending applications
+
+  if (!appUpdateError) {
+    logStep("Application expired", { applicationId: conv.job_application_id });
+  }
+}
+```
+
+### Frontend Changes (`JobDetail.tsx`)
+
+In the free-tier branch of `checkApplication` (around line 198-246), after the cooldown check, add a slot limit check:
+
+```typescript
+// Check if free tier user has hit their slot limit
+const totalAllowed = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
+if (activeApplications >= totalAllowed) {
+  setApplicationLimitReached({
+    reached: true,
+    message: "You've reached the limit for free applications. Upgrade to Workie Premium or invite friends to earn more application credits.",
+  });
+}
+```
+
+Update the `applicationLimitReached` UI block to show both "Upgrade" and "Invite Friends" buttons when the user is on the free tier.
+
+### Files Changed
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `supabase/functions/send-confirmation-email/index.ts` | Create | Backend email sending with branded template |
-| `supabase/config.toml` | Modify | Add function JWT config |
-| `src/pages/VerifyEmail.tsx` | Create | Handle email confirmation callback |
-| `src/pages/Auth.tsx` | Modify | Add confirmation pending state and UI |
-| `src/hooks/useAuth.ts` | Modify | Integrate confirmation email sending |
-| `src/App.tsx` | Modify | Add /verify-email route |
+| `supabase/functions/process-chat-expiry/index.ts` | Edit | Expire linked job applications when closing conversations |
+| `src/pages/JobDetail.tsx` | Edit | Add free-tier slot limit UI guard with upgrade/referral prompt |
+| Database migration | Create | Set up hourly cron job for chat expiry processing |
 
----
+### Immediate Data Fix
 
-## Branded Email Preview
+For the specific user `7idreamzjsm@gmail.com`, the existing stale application (`d4819de5-...`) and conversation (`d89a7c6c-...`) will be cleaned up by manually triggering the updated `process-chat-expiry` function after deployment, or by running the cron job.
 
-The confirmation email will look like this:
-
-```
-┌──────────────────────────────────────────┐
-│                                          │
-│            [Workie Logo]                 │
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │                                    │  │
-│  │    Activate Your Account           │  │
-│  │                                    │  │
-│  │    Hi [First Name],                │  │
-│  │                                    │  │
-│  │    Welcome to Workie! Click the    │  │
-│  │    button below to verify your     │  │
-│  │    email and start your journey.   │  │
-│  │                                    │  │
-│  │    ┌────────────────────────┐      │  │
-│  │    │  Activate Account      │      │  │
-│  │    └────────────────────────┘      │  │
-│  │                                    │  │
-│  │    This link expires in 24 hours   │  │
-│  │                                    │  │
-│  │    ─────────────────────────────   │  │
-│  │    If you didn't create an         │  │
-│  │    account, ignore this email.     │  │
-│  │                                    │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│       © 2026 Workie. All rights reserved │
-│                                          │
-└──────────────────────────────────────────┘
-```
-
----
-
-## Expected Outcome
-After implementation:
-1. Users must verify email before accessing the platform
-2. Branded, professional confirmation emails matching Workie's design
-3. Clear UX with "Check Your Email" screen and resend option
-4. Automatic referral verification upon email confirmation
-5. Secure, backend-driven email delivery via Resend
