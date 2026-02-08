@@ -232,7 +232,7 @@ export default function JobDetail() {
                 onCooldown: true,
                 daysRemaining: remaining
               });
-            } else {
+          } else {
               setCooldownInfo({
                 onCooldown: false,
                 daysRemaining: 0
@@ -243,6 +243,17 @@ export default function JobDetail() {
               onCooldown: false,
               daysRemaining: 0
             });
+          }
+
+          // Check if free tier user has hit their slot limit (regardless of cooldown)
+          const totalAllowed = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
+          if (activeApplications >= totalAllowed) {
+            setApplicationLimitReached({
+              reached: true,
+              message: "You've reached the limit for free applications. Upgrade to Workie Premium or invite friends to earn more application credits.",
+            });
+          } else {
+            setApplicationLimitReached(null);
           }
         } else {
           // Subscribed users - check if they've hit their active application limit
@@ -598,9 +609,15 @@ export default function JobDetail() {
                       <p className="text-sm text-muted-foreground">
                         {applicationLimitReached.message}
                       </p>
-                      <Button asChild size="sm" variant="outline" className="mt-3">
-                        <Link to="/dashboard">View My Applications</Link>
-                      </Button>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <UpgradeButtonInline size="sm" />
+                        <Button asChild size="sm" variant="outline">
+                          <Link to="/dashboard?tab=settings">Invite Friends</Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to="/dashboard">View My Applications</Link>
+                        </Button>
+                      </div>
                     </div>
                   </div> : <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
