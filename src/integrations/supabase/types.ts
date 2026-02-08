@@ -1301,6 +1301,10 @@ export type Database = {
         Args: { verified_count: number }
         Returns: number
       }
+      check_job_application_slot: {
+        Args: { p_job_id: string }
+        Returns: boolean
+      }
       cleanup_scheduled_conversations: { Args: never; Returns: number }
       contractor_has_published_jobs: {
         Args: { _contractor_profile_id: string }
