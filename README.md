@@ -60,6 +60,14 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## CI dependency install note
+
+If your CI provider auto-detects Bun and runs `bun install --frozen-lockfile`, an outdated `bun.lockb` can fail with:
+
+`Outdated lockfile version: failed to parse lockfile: 'bun.lockb'`
+
+This repository uses npm lockfile installs in CI. Keep `package-lock.json` current and avoid committing stale `bun.lockb` files unless you intentionally use Bun for dependency resolution.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
