@@ -161,6 +161,19 @@ Expected:
 4. **Purge cache**: Cloudflare Dashboard → Caching → Purge Everything
 5. **Check Worker logs**: Workers → workie-og-proxy → Logs → Begin log stream, then hit the URL
 
+
+### Worker seems active but site still fails / loops
+
+If the Worker is attached as a **Custom Domain**, calling `fetch(request)` can re-enter the same Worker and create routing issues depending on account setup.
+
+This implementation avoids that by explicitly passing through to the Lovable origin hostname (`workienz.lovable.app`) for non-bot and fallback traffic.
+
+### `*.workers.dev` URL returns 404
+
+This can be normal when your production traffic is served through a **Custom Domain** and your account/project is not using `workers.dev` as a public entrypoint.
+
+Always validate with the real production URL (`https://www.workie.co.nz/...`) and inspect `X-Worker-Status` headers.
+
 ### Worker runs but Edge Function returns error
 
 - Verify `apikey` header is included in the fetch to the Edge Function

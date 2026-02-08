@@ -1,6 +1,6 @@
 name = "workie-og-proxy"
 main = "worker.js"
-compatibility_date = "2024-02-06"
+compatibility_date = "2026-02-06"
 
 # Routes are handled via Custom Domains in the Cloudflare dashboard
 # Custom Domains have the highest routing priority, bypassing SaaS routing conflicts
