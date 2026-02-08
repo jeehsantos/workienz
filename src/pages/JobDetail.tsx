@@ -100,6 +100,10 @@ export default function JobDetail() {
     onCooldown: boolean;
     daysRemaining: number;
   } | null>(null);
+  const [applicationLimitReached, setApplicationLimitReached] = useState<{
+    reached: boolean;
+    message: string;
+  } | null>(null);
   useEffect(() => {
     async function fetchJob() {
       if (!id) return;
@@ -241,11 +245,34 @@ export default function JobDetail() {
             });
           }
         } else {
-          // Subscribed users - no cooldown warning needed here (backend handles their cooldown)
-          setCooldownInfo({
-            onCooldown: false,
-            daysRemaining: 0
-          });
+          // Subscribed users - check if they've hit their active application limit
+          const { count: activeAppsCount } = await supabase
+            .from("job_applications")
+            .select("id", { count: "exact", head: true })
+            .eq("employee_id", profile.id)
+            .in("status", ["pending", "shortlisted"]);
+          
+          const activeApplications = activeAppsCount || 0;
+
+          // Get paid tier max active apps from platform settings
+          const { data: paidSettings } = await supabase
+            .from("platform_settings")
+            .select("setting_value")
+            .eq("setting_key", "paid_tier_max_active_apps")
+            .maybeSingle();
+
+          const paidTierMaxActiveApps = paidSettings ? parseInt(paidSettings.setting_value) || 3 : 3;
+
+          if (activeApplications >= paidTierMaxActiveApps) {
+            setApplicationLimitReached({
+              reached: true,
+              message: `You have reached your limit of ${paidTierMaxActiveApps} active applications. Please wait for a response on your current applications before applying to more jobs.`,
+            });
+          } else {
+            setApplicationLimitReached(null);
+          }
+
+          setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
         }
       }
     }
@@ -563,6 +590,17 @@ export default function JobDetail() {
                           <Link to="/dashboard?tab=settings">Invite Friends</Link>
                         </Button>
                       </div>
+                    </div>
+                  </div> : applicationLimitReached?.reached ? <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Application Limit Reached</p>
+                      <p className="text-sm text-muted-foreground">
+                        {applicationLimitReached.message}
+                      </p>
+                      <Button asChild size="sm" variant="outline" className="mt-3">
+                        <Link to="/dashboard">View My Applications</Link>
+                      </Button>
                     </div>
                   </div> : <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
