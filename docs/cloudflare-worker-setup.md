@@ -21,8 +21,11 @@ Name it something like `workie-og-proxy`.
 // Cloudflare Worker for www.workie.co.nz
 // Intercepts social media crawlers and serves dynamic OG tags via Supabase Edge Function
 
-const SUPABASE_EDGE_FUNCTION_URL = "https://dkhcdzxelkkpxhmxazqi.supabase.co/functions/v1/share-job";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRraGNkenhlbGtrcHhobXhhenFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzYzODUsImV4cCI6MjA4NTg1MjM4NX0.IiArWt_cVlUW-P-9H3EedsK98MI7k3dM0N6F4lf3Qn8";
+// IMPORTANT: Use the PRODUCTION project URL, not the test/development one
+// Production project ref: xzrlnezeuubdoqllvodi (Live environment)
+// Test project ref: dkhcdzxelkkpxhmxazqi (Test environment - do NOT use in Worker)
+const SUPABASE_EDGE_FUNCTION_URL = "https://xzrlnezeuubdoqllvodi.supabase.co/functions/v1/share-job";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6cmxuZXpldXViZG9xbGx2b2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxMjEwNjAsImV4cCI6MjA4MjY5NzA2MH0.8W0wrJoVnwRYaL3pYKUolz1amDxxAU4mXZu--DqorY8";
 
 // Social media crawler user agents (case-insensitive matching)
 const CRAWLER_PATTERNS = [
