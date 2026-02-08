@@ -201,15 +201,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 11. Check application slots with queue system
-    if (isSubscribed) {
-      if (activeApplications >= paidTierMaxActiveApps) {
-        return new Response(
-          JSON.stringify({ error: `You have reached your limit of ${paidTierMaxActiveApps} active applications.` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } else {
+    // 11. Check application slots - paid subscribers have unlimited applications
+    if (!isSubscribed) {
       // Free tier logic with referral credits and queue system
       
       // First, check the concurrency limit (max 3 active at any time)
