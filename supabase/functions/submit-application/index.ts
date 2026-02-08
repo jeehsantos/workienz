@@ -250,7 +250,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 12. All validations passed - create the application
+    // 12. Atomically check position availability to prevent race conditions
+    console.log('[submit-application] Checking position availability atomically');
+    
+    const { data: hasSlot, error: slotError } = await supabase
+      .rpc('check_job_application_slot', { p_job_id: job_id });
+
+    if (slotError) {
+      console.error('[submit-application] Slot check error:', slotError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify position availability. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!hasSlot) {
+      console.log('[submit-application] No positions available for job:', job_id);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Someone was quicker and this position has been filled by another applicant. Please check other available positions.',
+          position_filled: true,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 13. All validations passed - create the application
     console.log('[submit-application] All validations passed, creating application');
 
     const { data: appData, error: appError } = await supabase
