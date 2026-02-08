@@ -215,34 +215,39 @@ export default function JobDetail() {
           }
           const BASE_FREE_TIER_APPLICATIONS = 1;
 
-          // Cooldown only applies if user has exhausted base slot AND has no referral credits
-          const shouldApplyCooldown = activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0;
-          if (shouldApplyCooldown && profile.last_application_at) {
-            // Get cooldown days from platform settings
-            const {
-              data: settings
-            } = await supabase.from("platform_settings").select("setting_value").eq("setting_key", "free_tier_cooldown_days").maybeSingle();
-            const freeTierCooldownDays = settings ? parseInt(settings.setting_value) || 3 : 3;
-            const lastAppDate = new Date(profile.last_application_at);
-            const now = new Date();
-            const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (daysSinceLastApp < freeTierCooldownDays) {
-              const remaining = freeTierCooldownDays - daysSinceLastApp;
-              setCooldownInfo({
-                onCooldown: true,
-                daysRemaining: remaining
-              });
+          const totalAllowedApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
+          const hasExhaustedSlots = activeApplications >= totalAllowedApplications;
+
+          if (hasExhaustedSlots) {
+            // Check cooldown first
+            if (profile.last_application_at) {
+              const { data: settings } = await supabase
+                .from("platform_settings")
+                .select("setting_value")
+                .eq("setting_key", "free_tier_cooldown_days")
+                .maybeSingle();
+              const freeTierCooldownDays = settings ? parseInt(settings.setting_value) || 3 : 3;
+              const lastAppDate = new Date(profile.last_application_at);
+              const now = new Date();
+              const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
+              if (daysSinceLastApp < freeTierCooldownDays) {
+                const remaining = freeTierCooldownDays - daysSinceLastApp;
+                setCooldownInfo({ onCooldown: true, daysRemaining: remaining });
+              } else {
+                setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
+              }
             } else {
-              setCooldownInfo({
-                onCooldown: false,
-                daysRemaining: 0
-              });
+              setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
             }
-          } else {
-            setCooldownInfo({
-              onCooldown: false,
-              daysRemaining: 0
+
+            // Always show the limit warning when slots are exhausted
+            setApplicationLimitReached({
+              reached: true,
+              message: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features! Alternatively, invite friends to earn more application credits.",
             });
+          } else {
+            setCooldownInfo({ onCooldown: false, daysRemaining: 0 });
+            setApplicationLimitReached(null);
           }
         } else {
           // Subscribed users - check if they've hit their active application limit
