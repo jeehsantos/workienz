@@ -333,7 +333,14 @@ export default function JobDetail() {
     return eligibility;
   };
   const handleApply = useCallback(async () => {
-    if (!employeeProfileId || !id || !user) return;
+    if (!employeeProfileId || !id || !user || !job) return;
+
+    // Check if positions are still available
+    const remaining = job.positions_available - job.positions_filled;
+    if (remaining <= 0) {
+      setApplicationError("Someone was quicker and this position has been filled by another applicant. Please check other available positions.");
+      return;
+    }
 
     // Client-side pre-check (but backend will do the real validation)
     const eligibility = canApply();
@@ -344,7 +351,7 @@ export default function JobDetail() {
 
     // Show requirements dialog first
     setShowRequirementsDialog(true);
-  }, [employeeProfileId, id, user, canApply]);
+  }, [employeeProfileId, id, user, job, canApply]);
   const proceedWithApplication = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
 
@@ -387,9 +394,13 @@ export default function JobDetail() {
 
       // Check for error response from the edge function
       if (result?.error) {
+        // If position was filled by another applicant, update job state to reflect it
+        if (result.position_filled && job) {
+          setJob({ ...job, positions_filled: job.positions_available });
+        }
         setApplicationError(result.error);
         toast({
-          title: "Application Error",
+          title: result.position_filled ? "Position Filled" : "Application Error",
           description: result.error,
           variant: "destructive"
         });
@@ -586,6 +597,17 @@ export default function JobDetail() {
                       {eligibility.reason?.includes("experience") && <Button asChild size="sm" variant="outline" className="mt-2">
                           <Link to="/employee/profile">Update Profile</Link>
                         </Button>}
+                    </div>
+                  </div> : (job.positions_available - job.positions_filled) <= 0 ? <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
+                    <Users className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Position Filled</p>
+                      <p className="text-sm text-muted-foreground">
+                        Someone was quicker and this position has been filled by another applicant. Please check other available positions.
+                      </p>
+                      <Button asChild size="sm" variant="outline" className="mt-3">
+                        <Link to="/jobs">Browse Other Jobs</Link>
+                      </Button>
                     </div>
                   </div> : cooldownInfo?.onCooldown ? <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
                     <Clock className="w-6 h-6 flex-shrink-0 mt-0.5" />
