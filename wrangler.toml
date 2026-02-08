@@ -1,0 +1,13 @@
+name = "workie-og-proxy"
+main = "worker.js"
+compatibility_date = "2024-02-06"
+
+# Routes are handled via Custom Domains in the Cloudflare dashboard
+# Custom Domains have the highest routing priority, bypassing SaaS routing conflicts
+# 
+# To set up:
+# 1. Go to Workers > workie-og-proxy > Settings > Domains and Routes
+# 2. Add Custom Domain: www.workie.co.nz
+# 3. Optionally add: workie.co.nz
+#
+# The Worker code filters by path (/jobs/{uuid}) so all other traffic passes through to origin
