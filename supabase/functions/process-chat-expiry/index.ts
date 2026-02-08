@@ -118,6 +118,21 @@ serve(async (req) => {
             continue;
           }
 
+          // Also expire the linked job application so the user's slot is freed
+          if (conv.job_application_id) {
+            const { error: appUpdateError } = await supabaseAdmin
+              .from("job_applications")
+              .update({ status: "expired" })
+              .eq("id", conv.job_application_id)
+              .eq("status", "pending"); // Only expire pending applications
+
+            if (appUpdateError) {
+              logStep("Failed to expire application", { applicationId: conv.job_application_id, error: appUpdateError.message });
+            } else {
+              logStep("Application expired", { applicationId: conv.job_application_id });
+            }
+          }
+
           // Create notifications for both parties
           const closedNotifications = [
             {
