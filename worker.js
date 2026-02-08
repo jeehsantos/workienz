@@ -16,6 +16,8 @@ const SUPABASE_ANON_KEY =
 // Social media crawler user agents (case-insensitive matching)
 const CRAWLER_PATTERNS = [
   "facebookexternalhit",
+  "meta-externalagent",
+  "meta-externalfetcher",
   "facebot",
   "whatsapp",
   "twitterbot",
@@ -36,6 +38,20 @@ function isCrawler(userAgent) {
   return CRAWLER_PATTERNS.some((pattern) => ua.includes(pattern));
 }
 
+function extractJobId(pathname) {
+  // Accept /jobs/{uuid} and /jobs/{uuid}/ to avoid missing crawler requests
+  const jobMatch = pathname.match(/^\/jobs\/([a-f0-9-]{36})\/?$/i);
+  return jobMatch ? jobMatch[1] : null;
+}
+
+function withWorkerHeaders(response, headers) {
+  const newResponse = new Response(response.body, response);
+  Object.entries(headers).forEach(([key, value]) => {
+    newResponse.headers.set(key, value);
+  });
+  return newResponse;
+}
+
 async function proxyToOrigin(request) {
   const passthroughUrl = new URL(request.url);
   passthroughUrl.protocol = "https:";
@@ -50,32 +66,34 @@ export default {
     const url = new URL(request.url);
     const userAgent = request.headers.get("User-Agent") || "";
 
-    // Only intercept /jobs/{uuid} paths
-    const jobMatch = url.pathname.match(/^\/jobs\/([a-f0-9-]{36})$/i);
-
-    if (!jobMatch) {
-      // Not a job URL — pass through to origin
-      return proxyToOrigin(request);
-    }
-
+    const jobId = extractJobId(url.pathname);
     const isBot = isCrawler(userAgent);
 
     console.log(
-      `[workie-og-proxy] path=${url.pathname} | isBot=${isBot} | UA=${userAgent.substring(0, 80)}`
+      `[workie-og-proxy] path=${url.pathname} | jobId=${jobId || "none"} | isBot=${isBot} | UA=${userAgent.substring(0, 100)}`
     );
+
+    if (!jobId) {
+      // Not a job URL — pass through to origin but keep debug headers for verification.
+      const response = await proxyToOrigin(request);
+      return withWorkerHeaders(response, {
+        "X-Worker-Status": "passthrough-non-job-path",
+        "X-Bot-Detected": isBot ? "true" : "false",
+        "X-Worker-Origin": PASS_THROUGH_ORIGIN,
+      });
+    }
 
     if (!isBot) {
       // Not a bot — pass through to origin (React SPA)
       const response = await proxyToOrigin(request);
-      const newResponse = new Response(response.body, response);
-      newResponse.headers.set("X-Worker-Status", "passthrough");
-      newResponse.headers.set("X-Bot-Detected", "false");
-      newResponse.headers.set("X-Worker-Origin", PASS_THROUGH_ORIGIN);
-      return newResponse;
+      return withWorkerHeaders(response, {
+        "X-Worker-Status": "passthrough",
+        "X-Bot-Detected": "false",
+        "X-Worker-Origin": PASS_THROUGH_ORIGIN,
+      });
     }
 
     // Bot detected — proxy to Edge Function
-    const jobId = jobMatch[1];
     const edgeFunctionUrl = `${SUPABASE_EDGE_FUNCTION_URL}?id=${encodeURIComponent(jobId)}`;
 
     try {
@@ -114,10 +132,10 @@ export default {
 
     // Fallback: serve the SPA
     const fallbackResponse = await proxyToOrigin(request);
-    const newFallback = new Response(fallbackResponse.body, fallbackResponse);
-    newFallback.headers.set("X-Worker-Status", "fallback-to-origin");
-    newFallback.headers.set("X-Bot-Detected", "true");
-    newFallback.headers.set("X-Worker-Origin", PASS_THROUGH_ORIGIN);
-    return newFallback;
+    return withWorkerHeaders(fallbackResponse, {
+      "X-Worker-Status": "fallback-to-origin",
+      "X-Bot-Detected": "true",
+      "X-Worker-Origin": PASS_THROUGH_ORIGIN,
+    });
   },
 };
