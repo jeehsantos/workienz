@@ -9,6 +9,7 @@
 // Production project ref: xzrlnezeuubdoqllvodi
 const SUPABASE_EDGE_FUNCTION_URL =
   "https://xzrlnezeuubdoqllvodi.supabase.co/functions/v1/share-job";
+const PASS_THROUGH_ORIGIN = "workienz.lovable.app";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6cmxuZXpldXViZG9xbGx2b2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxMjEwNjAsImV4cCI6MjA4MjY5NzA2MH0.8W0wrJoVnwRYaL3pYKUolz1amDxxAU4mXZu--DqorY8";
 
@@ -35,6 +36,15 @@ function isCrawler(userAgent) {
   return CRAWLER_PATTERNS.some((pattern) => ua.includes(pattern));
 }
 
+async function proxyToOrigin(request) {
+  const passthroughUrl = new URL(request.url);
+  passthroughUrl.protocol = "https:";
+  passthroughUrl.hostname = PASS_THROUGH_ORIGIN;
+
+  const originRequest = new Request(passthroughUrl.toString(), request);
+  return fetch(originRequest);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -45,7 +55,7 @@ export default {
 
     if (!jobMatch) {
       // Not a job URL — pass through to origin
-      return fetch(request);
+      return proxyToOrigin(request);
     }
 
     const isBot = isCrawler(userAgent);
@@ -56,10 +66,11 @@ export default {
 
     if (!isBot) {
       // Not a bot — pass through to origin (React SPA)
-      const response = await fetch(request);
+      const response = await proxyToOrigin(request);
       const newResponse = new Response(response.body, response);
       newResponse.headers.set("X-Worker-Status", "passthrough");
       newResponse.headers.set("X-Bot-Detected", "false");
+      newResponse.headers.set("X-Worker-Origin", PASS_THROUGH_ORIGIN);
       return newResponse;
     }
 
@@ -102,10 +113,11 @@ export default {
     }
 
     // Fallback: serve the SPA
-    const fallbackResponse = await fetch(request);
+    const fallbackResponse = await proxyToOrigin(request);
     const newFallback = new Response(fallbackResponse.body, fallbackResponse);
     newFallback.headers.set("X-Worker-Status", "fallback-to-origin");
     newFallback.headers.set("X-Bot-Detected", "true");
+    newFallback.headers.set("X-Worker-Origin", PASS_THROUGH_ORIGIN);
     return newFallback;
   },
 };
