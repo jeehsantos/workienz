@@ -39,6 +39,9 @@ const CRAWLER_PATTERNS = [
   'redditbot',
   'skypeuripreview',
   'vkshare',
+  'bot',
+  'crawler',
+  'spider',
 ];
 
 function isCrawler(userAgent) {
@@ -52,59 +55,90 @@ export default {
     const url = new URL(request.url);
     const userAgent = request.headers.get('User-Agent') || '';
 
-    // Only intercept /jobs/{uuid} paths for crawlers
+    // Only intercept /jobs/{uuid} paths
     const jobMatch = url.pathname.match(/^\/jobs\/([a-f0-9-]{36})$/i);
 
-    if (jobMatch && isCrawler(userAgent)) {
-      const jobId = jobMatch[1];
-      const edgeFunctionUrl = `${SUPABASE_EDGE_FUNCTION_URL}?id=${encodeURIComponent(jobId)}`;
-
-      try {
-        const response = await fetch(edgeFunctionUrl, {
-          headers: {
-            'User-Agent': userAgent,
-            'Accept': 'text/html',
-            'apikey': SUPABASE_ANON_KEY,
-          },
-        });
-
-        if (response.ok) {
-          const html = await response.text();
-          return new Response(html, {
-            status: 200,
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Cache-Control': 'public, max-age=300',
-            },
-          });
-        }
-        // If Edge Function fails, fall through to origin
-        console.error('Edge function returned status:', response.status);
-      } catch (error) {
-        console.error('Edge function fetch error:', error);
-        // Fall through to serve the SPA
-      }
+    if (!jobMatch) {
+      // Not a job URL — pass through to origin
+      return fetch(request);
     }
 
-    // For all other requests, pass through to origin (Lovable hosting)
-    return fetch(request);
+    const isBot = isCrawler(userAgent);
+
+    console.log(`[workie-og-proxy] path=${url.pathname} | UA=${userAgent} | isBot=${isBot}`);
+
+    if (!isBot) {
+      // Not a bot — pass through to origin (React SPA)
+      const response = await fetch(request);
+      const newResponse = new Response(response.body, response);
+      newResponse.headers.set('X-Worker-Status', 'passthrough');
+      newResponse.headers.set('X-Bot-Detected', 'false');
+      return newResponse;
+    }
+
+    // Bot detected — proxy to Edge Function
+    const jobId = jobMatch[1];
+    const edgeFunctionUrl = `${SUPABASE_EDGE_FUNCTION_URL}?id=${encodeURIComponent(jobId)}`;
+
+    try {
+      const response = await fetch(edgeFunctionUrl, {
+        headers: {
+          'User-Agent': userAgent,
+          'Accept': 'text/html',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+      });
+
+      console.log(`[workie-og-proxy] Edge Function status: ${response.status}`);
+
+      if (response.ok) {
+        const html = await response.text();
+        return new Response(html, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=300',
+            'X-Worker-Status': 'proxied-to-edge-function',
+            'X-Bot-Detected': 'true',
+          },
+        });
+      }
+
+      // If Edge Function fails, fall through to origin
+      console.error(`[workie-og-proxy] Edge function returned status: ${response.status}`);
+    } catch (error) {
+      console.error(`[workie-og-proxy] Edge function fetch error:`, error);
+    }
+
+    // Fallback: serve the SPA
+    const fallbackResponse = await fetch(request);
+    const newFallback = new Response(fallbackResponse.body, fallbackResponse);
+    newFallback.headers.set('X-Worker-Status', 'fallback-to-origin');
+    newFallback.headers.set('X-Bot-Detected', 'true');
+    return newFallback;
   },
 };
 ```
 
-### 3. Add a Worker Route (CRITICAL STEP)
+### 3. Add Worker Routes (CRITICAL STEP)
 
-Go to Cloudflare Dashboard → your domain (`workie.co.nz`) → Workers Routes → Add Route:
+Go to Cloudflare Dashboard → your domain (`workie.co.nz`) → Workers Routes → Add Route.
+
+⚠️ **IMPORTANT:** Copy the route pattern exactly. No trailing quotes, spaces, or extra characters!
 
 | Field   | Value                            |
 |---------|----------------------------------|
 | Route   | `www.workie.co.nz/jobs/*`        |
 | Worker  | `workie-og-proxy`                |
 
-**Important:** The route MUST be `www.workie.co.nz/jobs/*` (with `www`).
+Also add a second route for the non-www domain:
 
-If your site also responds on `workie.co.nz` (no www), add a second route:
-`workie.co.nz/jobs/*` → `workie-og-proxy`
+| Field   | Value                            |
+|---------|----------------------------------|
+| Route   | `workie.co.nz/jobs/*`            |
+| Worker  | `workie-og-proxy`                |
+
+**Common mistake:** The route must be exactly `www.workie.co.nz/jobs/*` — NOT `www.workie.co.nz/jobs/*"` (no trailing quote).
 
 ### 4. Verify DNS Configuration
 
@@ -115,39 +149,76 @@ In Cloudflare DNS settings for `workie.co.nz`:
 
 Example DNS records:
 ```
-Type  | Name | Content            | Proxy
+Type  | Name | Content              | Proxy
 CNAME | www  | workienz.lovable.app | Proxied (orange)
 ```
 
-Or if using an A record:
-```
-Type | Name | Content        | Proxy
-A    | www  | 185.158.133.1  | Proxied (orange)
+### 5. Purge Cache After Changes
+
+After updating the Worker code or routes:
+
+1. Go to Cloudflare Dashboard → Caching → Configuration
+2. Click "Purge Everything"
+3. Wait 30 seconds before testing
+
+---
+
+## Testing Checklist
+
+### Step 1: Test Edge Function Directly
+
+This tests the Supabase Edge Function in isolation:
+
+```bash
+curl -s -A "facebookexternalhit/1.1" \
+  "https://dkhcdzxelkkpxhmxazqi.supabase.co/functions/v1/share-job?id=c0855e59-cb48-4c08-ad9c-d41ab888e8bf" \
+  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRraGNkenhlbGtrcHhobXhhenFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzYzODUsImV4cCI6MjA4NTg1MjM4NX0.IiArWt_cVlUW-P-9H3EedsK98MI7k3dM0N6F4lf3Qn8"
 ```
 
-### 5. Important: Worker Route vs. Worker Custom Domain
+**Expected:** HTML with job-specific `og:title`, NO `<meta http-equiv="refresh">` tag.
 
-- **Worker Route** (recommended): Attach the worker to specific URL patterns on your existing domain
-- **Worker Custom Domain**: NOT needed — use Routes instead
+### Step 2: Test Cloudflare Worker with Bot UA
+
+```bash
+curl -s -D - -A "facebookexternalhit/1.1" \
+  "https://www.workie.co.nz/jobs/c0855e59-cb48-4c08-ad9c-d41ab888e8bf"
+```
+
+**Expected:**
+- `X-Worker-Status: proxied-to-edge-function`
+- `X-Bot-Detected: true`
+- HTML with job-specific `og:title`
+
+### Step 3: Test Cloudflare Worker with Normal UA
+
+```bash
+curl -s -D - -A "Mozilla/5.0 (Macintosh)" \
+  "https://www.workie.co.nz/jobs/c0855e59-cb48-4c08-ad9c-d41ab888e8bf"
+```
+
+**Expected:**
+- `X-Worker-Status: passthrough`
+- `X-Bot-Detected: false`
+- React SPA HTML
+
+### Step 4: Facebook Sharing Debugger
+
+1. Go to https://developers.facebook.com/tools/debug/
+2. Enter: `https://www.workie.co.nz/jobs/c0855e59-cb48-4c08-ad9c-d41ab888e8bf`
+3. Click "Scrape Again"
+4. Verify `og:title` shows the job-specific title
+
+---
 
 ## Troubleshooting
 
 ### Facebook Debugger still shows generic OG tags
 
-1. **Check Worker Route exists**: Dashboard → Workers Routes → verify `www.workie.co.nz/jobs/*` is listed
-2. **Check DNS is proxied**: The orange cloud must be ON for the domain
-3. **Check Worker is deployed**: Go to Workers → your worker → verify it shows as deployed
-4. **Test the Edge Function directly**:
-   ```
-   curl "https://dkhcdzxelkkpxhmxazqi.supabase.co/functions/v1/share-job?id=c0855e59-cb48-4c08-ad9c-d41ab888e8bf" \
-     -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-     -H "Accept: text/html"
-   ```
-5. **Test crawler detection**: Add `console.log` in the Worker:
-   ```javascript
-   console.log('UA:', userAgent, 'isCrawler:', isCrawler(userAgent), 'path:', url.pathname);
-   ```
-   Then check Workers → Logs → Begin log stream
+1. **Check Worker Route exists:** Dashboard → Workers Routes → verify `www.workie.co.nz/jobs/*` is listed with no trailing characters
+2. **Check DNS is proxied:** The orange cloud must be ON for the domain
+3. **Check Worker is deployed:** Go to Workers → your worker → verify it shows as deployed
+4. **Check headers:** Run the curl test from Step 2 above. If you don't see `X-Worker-Status` headers, the Worker is not running
+5. **Purge cache:** Cloudflare Dashboard → Caching → Purge Everything
 
 ### Worker is running but returning wrong content
 
@@ -161,6 +232,8 @@ WhatsApp caches link previews aggressively. To force a refresh:
 1. Send the link in a new chat (not the same conversation)
 2. Wait 5-10 minutes and try again
 3. WhatsApp caches can last up to 24 hours
+
+---
 
 ## How It Works
 
@@ -188,25 +261,7 @@ WhatsApp caches link previews aggressively. To force a refresh:
 │ - Dynamic OG tags       │          │ Returns:                │
 │ - Job-specific title    │          │ - React SPA             │
 │ - Job location          │          │ - Client-side app       │
-│ - 1-second redirect     │          │                         │
+│ - NO redirect (for bot) │          │                         │
+│ - Canonical URL         │          │                         │
 └─────────────────────────┘          └─────────────────────────┘
 ```
-
-## Testing Checklist
-
-1. **Facebook Sharing Debugger**: https://developers.facebook.com/tools/debug/
-   - Enter `https://www.workie.co.nz/jobs/{real-job-id}`
-   - Click "Scrape Again"
-   - Verify `og:title` shows: "Job Title in Suburb, City - Workie"
-
-2. **WhatsApp**: Send the link to yourself
-   - Preview should show job title and Workie branding
-
-3. **Twitter Card Validator**: https://cards-dev.twitter.com/validator
-   - Enter job URL and verify card preview
-
-4. **Direct curl test** (simulates Facebook crawler):
-   ```bash
-   curl -A "facebookexternalhit/1.1" "https://www.workie.co.nz/jobs/{job-id}"
-   ```
-   Should return HTML with job-specific OG tags, NOT the React SPA.
