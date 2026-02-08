@@ -8,6 +8,32 @@ const corsHeaders = {
 const WORKIE_DOMAIN = "https://www.workie.co.nz";
 const OG_IMAGE_URL = `${WORKIE_DOMAIN}/social/og.png`;
 
+// Comprehensive crawler/bot detection patterns
+const CRAWLER_PATTERNS = [
+  "facebookexternalhit",
+  "facebot",
+  "whatsapp",
+  "twitterbot",
+  "linkedinbot",
+  "slackbot",
+  "telegrambot",
+  "discordbot",
+  "pinterest",
+  "applebot",
+  "redditbot",
+  "skypeuripreview",
+  "vkshare",
+  "bot",
+  "crawler",
+  "spider",
+];
+
+function isCrawler(userAgent: string | null): boolean {
+  if (!userAgent) return false;
+  const ua = userAgent.toLowerCase();
+  return CRAWLER_PATTERNS.some((pattern) => ua.includes(pattern));
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -17,6 +43,10 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const jobId = url.searchParams.get("id");
+    const userAgent = req.headers.get("user-agent");
+    const isBot = isCrawler(userAgent);
+
+    console.log(`[share-job] UA: ${userAgent} | isBot: ${isBot} | jobId: ${jobId}`);
 
     if (!jobId) {
       return new Response(generateErrorHtml("Job not found", "No job ID provided."), {
@@ -52,21 +82,25 @@ Deno.serve(async (req) => {
     // Generate the title based on location
     const ogTitle = generateTitle(job.title, job.location_suburb, job.location_city);
     const ogDescription = "View this job opportunity and apply on Workie.";
-    const jobUrl = `${WORKIE_DOMAIN}/jobs/${job.id}?p=1`;
+    const jobUrl = `${WORKIE_DOMAIN}/jobs/${job.id}`;
 
     const html = generateHtml({
       title: ogTitle,
       description: ogDescription,
       imageUrl: OG_IMAGE_URL,
       url: jobUrl,
+      isBot,
     });
+
+    console.log(`[share-job] Serving HTML for job ${job.id} | isBot: ${isBot} | title: ${ogTitle}`);
 
     return new Response(html, {
       status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "public, max-age=300", // Cache for 5 minutes
+        "Cache-Control": "public, max-age=300",
+        "X-Bot-Detected": String(isBot),
       },
     });
   } catch (error) {
@@ -98,9 +132,15 @@ interface OgData {
   description: string;
   imageUrl: string;
   url: string;
+  isBot: boolean;
 }
 
-function generateHtml({ title, description, imageUrl, url }: OgData): string {
+function generateHtml({ title, description, imageUrl, url, isBot }: OgData): string {
+  // Only include the redirect meta tag for real users, NOT for crawlers/bots
+  const redirectTag = isBot
+    ? ""
+    : `\n  <meta http-equiv="refresh" content="0;url=${escapeHtml(url)}">`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,6 +148,7 @@ function generateHtml({ title, description, imageUrl, url }: OgData): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}">
+  <link rel="canonical" href="${escapeHtml(url)}">
   
   <!-- Open Graph -->
   <meta property="og:type" content="website">
@@ -117,16 +158,14 @@ function generateHtml({ title, description, imageUrl, url }: OgData): string {
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="${escapeHtml(url)}">
+  <meta property="og:site_name" content="Workie">
   
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(title)}">
   <meta name="twitter:description" content="${escapeHtml(description)}">
   <meta name="twitter:image" content="${escapeHtml(imageUrl)}">
-  
-  <!-- Redirect after 1 second -->
-  <meta http-equiv="refresh" content="1;url=${escapeHtml(url)}">
-  
+  ${redirectTag}
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -192,6 +231,7 @@ function generateErrorHtml(title: string, message: string): string {
   <meta property="og:description" content="${escapeHtml(message)}">
   <meta property="og:image" content="${OG_IMAGE_URL}">
   <meta property="og:url" content="${homeUrl}">
+  <link rel="canonical" href="${homeUrl}">
   <meta http-equiv="refresh" content="3;url=${homeUrl}">
   <style>
     body {
