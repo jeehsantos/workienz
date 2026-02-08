@@ -179,13 +179,13 @@ Deno.serve(async (req) => {
     // 9. Calculate total available applications for free tier
     const totalFreeApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
 
-    // 10. Calculate cooldown - only applies to paid users OR free users who have exhausted their credits
+    // 10. Calculate cooldown - only applies to FREE TIER users who have exhausted their credits
+    // Paid subscribers are NOT subject to cooldown (they are limited by paidTierMaxActiveApps instead)
     // Free tier users with available referral credits can apply without cooldown
-    const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
+    const cooldownDays = freeTierCooldownDays;
     
-    // For free tier: cooldown only applies if they're trying to use the base application again
-    // (i.e., they have no referral credits remaining and have already used their base slot)
-    const shouldApplyCooldown = isSubscribed || (activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0);
+    // Cooldown only applies to free tier users who have used their base slot and have no referral credits
+    const shouldApplyCooldown = !isSubscribed && (activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0);
 
     if (shouldApplyCooldown && employeeProfile.last_application_at) {
       const lastAppDate = new Date(employeeProfile.last_application_at);
