@@ -1,73 +1,105 @@
 
 
-# Fix Social Media OG Previews - Deploy the Edge Function
+# Fix Social Media OG Previews - Worker Custom Domain Approach
 
-## Root Cause (Confirmed)
+## Problem Identified
 
-The `share-job` Edge Function is **not deployed**. Testing it directly returns:
+The Cloudflare Worker is not executing because of a **routing priority conflict**. Your domain `www.workie.co.nz` CNAMEs to `workienz.lovable.app`, which is hosted on Cloudflare's infrastructure. This creates a "Cloudflare-to-Cloudflare" (orange-to-orange) proxy situation where Lovable's Cloudflare SaaS routing silently takes priority over your Worker Routes. This is a known Cloudflare behavior, not a bug in your configuration.
+
+Cloudflare's request processing order:
+```text
+1. Worker Custom Domains  <-- highest priority (THE FIX)
+2. Page Rules / Redirect Rules
+3. Worker Routes           <-- your current setup (blocked by #4)
+4. SaaS routing (Lovable)  <-- currently winning
 ```
-404: {"code":"NOT_FOUND","message":"Requested function was not found"}
-```
 
-This single issue causes the entire chain to fail:
-1. Cloudflare Worker detects Facebook crawler -- working correctly
-2. Worker calls Edge Function -- gets 404 because function doesn't exist
-3. Worker falls back to serving the React SPA HTML
-4. Facebook reads the SPA's generic OG tags from `index.html` (`Workie | New Zealand's #1 Temporary Work Platform`)
-5. Facebook follows the SPA's canonical URL (`https://www.workie.co.nz`) to the root page
+## Solution: Worker Custom Domain + Git Deployment
 
-The "infinite loop" visible in Screenshot 1 is the Workers.dev preview URL (`workie-og-proxy.alliance-noodlebox.workers.dev`), which has no origin server configured. This is expected behavior for the preview and does NOT affect production.
+### Step 1: Add files to the repository (Lovable will implement)
 
-## What Needs to Happen
+Two new files will be created:
 
-### Step 1: Deploy the Edge Function
+**`wrangler.toml`** - Cloudflare Worker configuration:
+- Worker name: `workie-og-proxy`
+- Entry point: `worker.js`
+- Compatibility date: `2026-02-06`
+- Routes defined for `workie.co.nz/jobs/*` and `www.workie.co.nz/jobs/*`
 
-Deploy `supabase/functions/share-job/index.ts` to both Test and Live environments. The function code is already correct:
-- Bot detection via `isCrawler()` is properly implemented
-- OG tags are dynamically generated with job title and location
-- Redirect meta tag is suppressed for bots
-- Canonical URL points to the correct job URL
+**`worker.js`** - The Worker source code (at repo root):
+- Uses the **production** backend URL (`xzrlnezeuubdoqllvodi`)
+- Uses the **production** anon key
+- Same bot detection and Edge Function proxy logic
+- Passes through non-bot and non-job traffic to origin
 
-### Step 2: Verify the Deployment
+### Step 2: Update Cloudflare Build Settings (you do this manually)
 
-After deployment, test the function directly:
-- Call the function with a Facebook crawler User-Agent
-- Confirm it returns job-specific HTML with `og:title`, `og:description`, canonical URL
-- Confirm no `<meta http-equiv="refresh">` tag for bot requests
-- Confirm `X-Bot-Detected: true` header
+In Cloudflare Dashboard, go to your Worker (`workie-og-proxy`) > Settings > Build:
 
-### Step 3: Publish to Live
+1. Change **Build command** from `bun run build` to: (leave empty or type `echo skip`)
+   - The current `bun run build` runs Vite which is unnecessary for the Worker
+2. Keep **Deploy command** as: `npx wrangler deploy`
+3. Keep **Root directory** as: `/`
+4. Keep **Production branch** as: `og-implementation`
 
-The Cloudflare Worker calls the **Live** Edge Function URL. The function must be published to Live for the production Worker to reach it.
+### Step 3: Add Custom Domain (you do this manually)
 
-## No Code Changes Needed
+This is the critical fix. In Cloudflare Dashboard:
 
-The Edge Function code (`supabase/functions/share-job/index.ts`) is already correct. The Cloudflare Worker code is already correct. The ShareJob component is already correct. The only action is deployment.
+1. Go to your Worker (`workie-og-proxy`) > Settings > Domains and Routes
+2. Click **+ Add** > Select **Custom Domain**
+3. Add: `www.workie.co.nz`
+4. Cloudflare will show a confirmation - accept it
+5. If you also want the non-www version: add `workie.co.nz` too
 
-## After Deployment - Manual Steps
+Custom Domains have the highest routing priority and will override the SaaS routing conflict.
 
-1. **Publish the project** to push the Edge Function to Live
-2. **Purge Cloudflare cache** (Caching > Purge Everything)
-3. **Test with Facebook Sharing Debugger**: Enter `https://www.workie.co.nz/jobs/c0855e59-cb48-4c08-ad9c-d41ab888e8bf` and click "Scrape Again"
+**Important:** After adding the Custom Domain, you can optionally remove the old Worker Routes (`workie.co.nz/jobs/*` and `www.workie.co.nz/jobs/*`) since the Custom Domain handles all traffic and the Worker code already filters by path.
 
-## About the Worker "Loop" (Screenshot 1)
+### Step 4: Merge and Deploy
 
-The repeated GET requests visible in the Workers preview panel are caused by accessing the Worker via its `.workers.dev` URL directly. This URL has no origin server — the Worker is designed to run on `www.workie.co.nz` where it can pass through to the Lovable origin. Accessing it directly via `workie-og-proxy.alliance-noodlebox.workers.dev` causes it to fail repeatedly since there is no origin to fetch from. This is not a bug and does not affect production.
+After Lovable adds the files to your main branch:
 
-## Expected Results After Fix
+1. In your Git repository, merge `main` into the `og-implementation` branch (or create it from main)
+2. Push to `og-implementation` - this triggers Cloudflare's automatic build and deploy
+3. Cloudflare runs `npx wrangler deploy` which reads `wrangler.toml` and deploys the Worker
 
-Edge Function test (direct):
-- Status: 200
-- og:title: "Cleaning house in Fairy Springs, Rotorua - Workie"
-- canonical: `https://www.workie.co.nz/jobs/c0855e59-cb48-4c08-ad9c-d41ab888e8bf`
-- No redirect meta tag for bot User-Agents
+### Step 5: Test and Verify
 
-Cloudflare Worker test (with bot UA):
-- X-Worker-Status: proxied-to-edge-function
-- X-Bot-Detected: true
-- Job-specific OG tags in HTML
+1. **Purge Cloudflare cache** (Caching > Purge Everything)
+2. **Test with bot UA** in PowerShell:
+   ```
+   (Invoke-WebRequest -Headers @{ "User-Agent"="facebookexternalhit/1.1" } "https://www.workie.co.nz/jobs/c0855e59-cb48-4c08-ad9c-d41ab888e8bf").Headers["X-Worker-Status"]
+   ```
+   Expected: `proxied-to-edge-function`
+3. **Facebook Sharing Debugger**: Scrape Again for the job URL
+4. Expected `og:title`: "Cleaning house in Fairy Springs, Rotorua - Workie"
 
-Facebook Sharing Debugger:
-- og:title: "Cleaning house in Fairy Springs, Rotorua - Workie"
-- og:image: `https://www.workie.co.nz/social/og.png`
-- Correct link preview with job details
+### Step 6: Update documentation
+
+The `docs/cloudflare-worker-setup.md` will be updated to reflect:
+- The Custom Domain approach instead of Worker Routes
+- The Git-based deployment workflow with `wrangler.toml`
+- Updated testing commands
+
+## Technical Details
+
+### Why Custom Domains fix the issue
+
+Worker Custom Domains create a direct binding between the domain and the Worker at the DNS level. Unlike Worker Routes (which operate at the HTTP routing layer and can be overridden by SaaS routing), Custom Domains are processed first in Cloudflare's pipeline. The `fetch(request)` calls within the Worker for pass-through traffic will correctly resolve to the origin (Lovable's servers) without creating infinite loops.
+
+### Files changed
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `wrangler.toml` | Create | Cloudflare Worker deployment config |
+| `worker.js` | Create | Worker source with production credentials |
+| `docs/cloudflare-worker-setup.md` | Update | Reflect new deployment approach |
+
+### Risk mitigation
+
+- The Worker passes through ALL non-job-path traffic unchanged, so the rest of the site is unaffected
+- For job paths with non-bot User-Agents, traffic also passes through to the SPA
+- Only bot requests to `/jobs/{uuid}` are intercepted and proxied to the Edge Function
+- If the Edge Function fails, the Worker falls back to serving the SPA (graceful degradation)
+
