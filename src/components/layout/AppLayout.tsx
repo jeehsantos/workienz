@@ -191,7 +191,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (roles.includes("employee") || roles.includes("contractor")) {
       mobileMenuItems.push(
         { label: "Messages", to: "/dashboard" },
-        { label: "Settings", to: "/dashboard" },
+        { label: "Settings", to: "/dashboard?open=settings" },
       );
     }
 
@@ -392,7 +392,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
             {/* Mobile Menu */}
             {isOpen && (
-              <div className="lg:hidden absolute top-full left-3 right-3 mt-2 p-4 border border-border/60 animate-fade-in bg-background/95 backdrop-blur-lg rounded-2xl shadow-xl max-h-[calc(100vh-5.5rem)] overflow-y-auto">
+              <div className="lg:hidden absolute top-full left-[20vw] right-0 mt-2 p-4 border border-border/60 animate-fade-in bg-background/95 backdrop-blur-lg rounded-l-2xl shadow-xl max-h-[calc(100vh-5.5rem)] overflow-y-auto">
                 <div className="flex flex-col gap-2.5">
                   {user ? (
                     <>
