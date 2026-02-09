@@ -222,12 +222,12 @@ export default function MyConversations({ userId }: MyConversationsProps) {
                   : "border-transparent hover:border-border/50"
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                 isHiredConv
                   ? "bg-emerald-100 dark:bg-emerald-900/50"
-                  : hasWarning 
-                    ? "bg-amber-100 dark:bg-amber-900/50" 
+                  : hasWarning
+                    ? "bg-amber-100 dark:bg-amber-900/50"
                     : "bg-primary/10"
               }`}>
                 {isHiredConv ? (
@@ -238,40 +238,42 @@ export default function MyConversations({ userId }: MyConversationsProps) {
                   <User className="w-5 h-5 text-primary" />
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {conv.other_party_name}
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <p className="font-medium text-sm truncate max-w-full">
+                        {conv.other_party_name}
+                      </p>
+                      {isHiredConv ? (
+                        <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 max-w-full">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Hired • {hiredStatus.hoursLeft}h
+                        </Badge>
+                      ) : hasWarning ? (
+                        <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 max-w-full">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          {expiry.hoursLeft}h left
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant={conv.status === "active" ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {conv.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      Re: {conv.job_title}
                     </p>
-                    {isHiredConv ? (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Hired • {hiredStatus.hoursLeft}h
-                      </Badge>
-                    ) : hasWarning ? (
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0 border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        {expiry.hoursLeft}h left
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant={conv.status === "active" ? "default" : "secondary"}
-                        className="text-xs flex-shrink-0"
-                      >
-                        {conv.status}
-                      </Badge>
-                    )}
                   </div>
                   {conv.last_message_at && (
-                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                    <span className="text-xs text-muted-foreground sm:text-right">
                       {formatMessageTime(conv.last_message_at)}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  Re: {conv.job_title}
-                </p>
                 {conv.last_message_preview && (
                   <p className="text-xs text-muted-foreground/70 truncate mt-0.5 italic">
                     "{conv.last_message_preview}"
