@@ -119,6 +119,9 @@ export default function AdminDashboard() {
   // Upgrade button visibility setting
   const [hideUpgradeButtons, setHideUpgradeButtons] = useState(false);
   const [isSavingUpgradeVisibility, setIsSavingUpgradeVisibility] = useState(false);
+  // Contractor referral settings
+  const [contractorReferralDays, setContractorReferralDays] = useState("3");
+  const [contractorReferralEnabled, setContractorReferralEnabled] = useState(true);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin())) {
@@ -177,6 +180,8 @@ export default function AdminDashboard() {
         "14_day_sprint_duration_days",
         "14_day_sprint_job_limit",
         "hide_upgrade_buttons",
+        "contractor_referral_premium_days",
+        "contractor_referral_enabled",
       ]);
     
     if (data) {
@@ -208,6 +213,12 @@ export default function AdminDashboard() {
             break;
           case "hide_upgrade_buttons":
             setHideUpgradeButtons(setting.setting_value === "true");
+            break;
+          case "contractor_referral_premium_days":
+            setContractorReferralDays(setting.setting_value);
+            break;
+          case "contractor_referral_enabled":
+            setContractorReferralEnabled(setting.setting_value === "true");
             break;
         }
       });
@@ -244,6 +255,8 @@ export default function AdminDashboard() {
       { key: "single_post_duration_days", value: singlePostDurationDays },
       { key: "14_day_sprint_duration_days", value: sprintDurationDays },
       { key: "14_day_sprint_job_limit", value: sprintJobLimit },
+      { key: "contractor_referral_premium_days", value: contractorReferralDays },
+      { key: "contractor_referral_enabled", value: contractorReferralEnabled ? "true" : "false" },
     ];
 
     let hasError = false;
@@ -1297,6 +1310,47 @@ export default function AdminDashboard() {
                             <li><strong>Employees:</strong> "Upgrade to Premium" buttons are completely hidden</li>
                             <li><strong>Contractors:</strong> Upgrade buttons become "Become a Partner" and redirect to Contact page</li>
                           </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contractor Referral Program Settings */}
+                    <div className="space-y-4 pt-4 border-t">
+                      <h3 className="text-lg font-semibold">Contractor Referral Program</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure the contractor-to-contractor referral program that grants temporary Premium access.
+                      </p>
+                      
+                      <div className="grid sm:grid-cols-2 gap-6">
+                        <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border border-border/50">
+                          <Switch
+                            id="contractorReferralEnabled"
+                            checked={contractorReferralEnabled}
+                            onCheckedChange={setContractorReferralEnabled}
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor="contractorReferralEnabled" className="font-medium cursor-pointer">
+                              Enable Contractor Referral Program
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              When enabled, contractors can share referral links to earn Premium days.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="contractorReferralDays">Premium Days Per Referral</Label>
+                          <Input
+                            id="contractorReferralDays"
+                            type="number"
+                            min="0"
+                            max="90"
+                            value={contractorReferralDays}
+                            onChange={(e) => setContractorReferralDays(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Days of Premium access granted when a referred contractor publishes their first job. Changes apply to future rewards only.
+                          </p>
                         </div>
                       </div>
                     </div>

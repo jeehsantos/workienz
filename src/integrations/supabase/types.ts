@@ -333,6 +333,126 @@ export type Database = {
         }
         Relationships: []
       }
+      contractor_referral_codes: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          referral_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          referral_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          referral_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contractor_referral_rewards: {
+        Row: {
+          created_at: string
+          days_granted: number
+          entitlement_id: string | null
+          granted_at: string
+          id: string
+          job_post_id: string
+          referral_id: string
+          referrer_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_granted: number
+          entitlement_id?: string | null
+          granted_at?: string
+          id?: string
+          job_post_id: string
+          referral_id: string
+          referrer_user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_granted?: number
+          entitlement_id?: string | null
+          granted_at?: string
+          id?: string
+          job_post_id?: string
+          referral_id?: string
+          referrer_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_referral_rewards_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_referral_rewards_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contractor_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown
+          qualified_at: string | null
+          referral_code: string
+          referred_user_id: string
+          referrer_user_id: string
+          status: string
+          updated_at: string
+          user_agent: string | null
+          voided_at: string | null
+          voided_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          qualified_at?: string | null
+          referral_code: string
+          referred_user_id: string
+          referrer_user_id: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          qualified_at?: string | null
+          referral_code?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Relationships: []
+      }
       contractor_subscriptions: {
         Row: {
           contractor_profile_id: string
@@ -1310,6 +1430,7 @@ export type Database = {
         Args: { _contractor_profile_id: string }
         Returns: boolean
       }
+      generate_contractor_referral_code: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_referral_credits_balance: {
         Args: { _user_id: string }
