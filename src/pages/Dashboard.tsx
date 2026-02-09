@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const { user, roles, isLoading, isAdmin, isContractor, isEmployee, isWriter } = useAuthContext();
 
   // Memoize role-based UI decisions - MUST be before any early returns
@@ -51,6 +53,22 @@ export default function Dashboard() {
       navigate("/auth");
     }
   }, [user, isLoading, navigate]);
+
+  useEffect(() => {
+    if (searchParams.get("open") === "settings") {
+      setIsSettingsDialogOpen(true);
+    }
+  }, [searchParams]);
+
+  const handleSettingsDialogChange = (open: boolean) => {
+    setIsSettingsDialogOpen(open);
+
+    if (!open && searchParams.get("open") === "settings") {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("open");
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -299,7 +317,13 @@ export default function Dashboard() {
           </div>
 
           {/* Settings Card - for employees and contractors */}
-          {(showEmployeeCards || showContractorCards) && <SettingsCard showReferralProgram={showReferralDashboard} />}
+          {(showEmployeeCards || showContractorCards) && (
+            <SettingsCard
+              showReferralProgram={showReferralDashboard}
+              open={isSettingsDialogOpen}
+              onOpenChange={handleSettingsDialogChange}
+            />
+          )}
         </div>
 
         {/* My Conversations Section - for employees and contractors */}

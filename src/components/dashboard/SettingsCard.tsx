@@ -13,10 +13,22 @@ import { ReferralProgramSection } from "./settings/ReferralProgramSection";
 
 interface SettingsCardProps {
   showReferralProgram: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function SettingsCard({ showReferralProgram }: SettingsCardProps) {
-  const [open, setOpen] = useState(false);
+export function SettingsCard({ showReferralProgram, open, onOpenChange }: SettingsCardProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = typeof open === "boolean";
+  const dialogOpen = isControlled ? open : internalOpen;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen);
+    }
+
+    onOpenChange?.(nextOpen);
+  };
 
   return (
     <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
@@ -27,13 +39,13 @@ export function SettingsCard({ showReferralProgram }: SettingsCardProps) {
       <p className="text-muted-foreground text-sm mb-4">
         Manage your account settings and preferences.
       </p>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           <Button variant="outline" size="sm">
             Open Settings
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-[600px] max-h-[85vh] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Settings</DialogTitle>
           </DialogHeader>
