@@ -47,6 +47,7 @@ export default function Dashboard() {
   });
 
   const showReferralDashboard = showEmployeeCards && !hasActiveSubscription;
+  const showContractorReferral = showContractorCards;
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -320,6 +321,7 @@ export default function Dashboard() {
           {(showEmployeeCards || showContractorCards) && (
             <SettingsCard
               showReferralProgram={showReferralDashboard}
+              showContractorReferral={showContractorReferral}
               open={isSettingsDialogOpen}
               onOpenChange={handleSettingsDialogChange}
             />

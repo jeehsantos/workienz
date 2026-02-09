@@ -1,5 +1,5 @@
- import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
- import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
  
  const corsHeaders = {
    "Access-Control-Allow-Origin": "*",
@@ -336,20 +336,31 @@
          logStep("Shifts inserted", { count: shiftsToInsert.length });
        }
  
-       return new Response(
-         JSON.stringify({
-           success: true,
-           job_id: createdJobId,
-           status: "published",
-           entitlement_id: selectedEntitlement?.id ?? null,
-           remaining_posts: selectedEntitlement
-             ? selectedEntitlement.job_allowance === null
-               ? "unlimited"
-               : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
-             : "N/A",
-         }),
-         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
-       );
+        // === Contractor Referral Reward Trigger ===
+        // Check if this publisher was referred and this is their first published job
+        if (createdJobId) {
+          try {
+            await grantContractorReferralReward(serviceClient, userId, createdJobId);
+          } catch (rewardErr) {
+            // Non-blocking: log but don't fail the job creation
+            logStep("Referral reward check failed (non-blocking)", { error: String(rewardErr) });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            job_id: createdJobId,
+            status: "published",
+            entitlement_id: selectedEntitlement?.id ?? null,
+            remaining_posts: selectedEntitlement
+              ? selectedEntitlement.job_allowance === null
+                ? "unlimited"
+                : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
+              : "N/A",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+        );
      } else {
        // Draft - no entitlement check needed
        let createdJobId = jobId;
@@ -408,12 +419,157 @@
          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
        );
      }
-   } catch (error) {
-     const errorMessage = error instanceof Error ? error.message : String(error);
-     logStep("ERROR", { message: errorMessage });
-     return new Response(JSON.stringify({ error: errorMessage }), {
-       headers: { ...corsHeaders, "Content-Type": "application/json" },
-       status: 500,
-     });
-   }
- });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStep("ERROR", { message: errorMessage });
+      return new Response(JSON.stringify({ error: errorMessage }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+  });
+
+/**
+ * Grant contractor referral reward when a referred contractor publishes their first job.
+ * This is idempotent: if a reward already exists for the referral, it won't create another.
+ */
+async function grantContractorReferralReward(
+  supabase: SupabaseClient,
+  publisherUserId: string,
+  jobId: string,
+) {
+  // 1. Check if this publisher has a pending contractor referral
+  const { data: referral } = await supabase
+    .from('contractor_referrals')
+    .select('id, referrer_user_id, status')
+    .eq('referred_user_id', publisherUserId)
+    .eq('status', 'pending')
+    .maybeSingle();
+
+  if (!referral) return; // No pending referral for this user
+
+  // 2. Check this is their first published job ever
+  const { count } = await supabase
+    .from('jobs')
+    .select('id', { count: 'exact', head: true })
+    .eq('contractor_id', (
+      await supabase
+        .from('contractor_profiles')
+        .select('id')
+        .eq('user_id', publisherUserId)
+        .single()
+    ).data?.id || '')
+    .eq('status', 'published');
+
+  // If more than 1 published job (including this one), it's not their first
+  if ((count || 0) > 1) {
+    logStep("Not first published job, skipping referral reward", { publisherUserId, count });
+    return;
+  }
+
+  // 3. Check no reward already exists (idempotency)
+  const { data: existingReward } = await supabase
+    .from('contractor_referral_rewards')
+    .select('id')
+    .eq('referral_id', referral.id)
+    .maybeSingle();
+
+  if (existingReward) {
+    logStep("Reward already granted for this referral", { referralId: referral.id });
+    return;
+  }
+
+  // 4. Get days per referral from settings
+  const { data: setting } = await supabase
+    .from('platform_settings')
+    .select('setting_value')
+    .eq('setting_key', 'contractor_referral_premium_days')
+    .maybeSingle();
+
+  const daysToGrant = parseInt(setting?.setting_value || '3', 10);
+  if (daysToGrant <= 0) return;
+
+  // 5. Find or create referral premium entitlement for the REFERRER
+  const referrerId = referral.referrer_user_id;
+
+  const { data: existingEntitlement } = await supabase
+    .from('contractor_entitlements')
+    .select('id, expires_at, status')
+    .eq('user_id', referrerId)
+    .eq('plan_type', 'referral_premium')
+    .eq('status', 'active')
+    .maybeSingle();
+
+  let entitlementId: string;
+  const now = new Date();
+
+  if (existingEntitlement && new Date(existingEntitlement.expires_at) > now) {
+    // Extend existing entitlement
+    const currentEnd = new Date(existingEntitlement.expires_at);
+    currentEnd.setDate(currentEnd.getDate() + daysToGrant);
+
+    await supabase
+      .from('contractor_entitlements')
+      .update({ expires_at: currentEnd.toISOString(), updated_at: now.toISOString() })
+      .eq('id', existingEntitlement.id);
+
+    entitlementId = existingEntitlement.id;
+    logStep("Extended referral premium entitlement", { entitlementId, newEnd: currentEnd.toISOString() });
+  } else {
+    // If there's an expired referral_premium, mark it expired
+    if (existingEntitlement) {
+      await supabase
+        .from('contractor_entitlements')
+        .update({ status: 'expired' })
+        .eq('id', existingEntitlement.id);
+    }
+
+    // Create new entitlement
+    const expiresAt = new Date(now);
+    expiresAt.setDate(expiresAt.getDate() + daysToGrant);
+
+    const { data: newEnt, error: entError } = await supabase
+      .from('contractor_entitlements')
+      .insert({
+        user_id: referrerId,
+        plan_type: 'referral_premium',
+        status: 'active',
+        job_allowance: null, // Unlimited during premium
+        jobs_used: 0,
+        is_recurring: false,
+        is_stackable: true,
+        activated_at: now.toISOString(),
+        purchased_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (entError) throw entError;
+    entitlementId = newEnt.id;
+    logStep("Created referral premium entitlement", { entitlementId, expiresAt: expiresAt.toISOString() });
+  }
+
+  // 6. Create reward record
+  await supabase
+    .from('contractor_referral_rewards')
+    .insert({
+      referral_id: referral.id,
+      referrer_user_id: referrerId,
+      days_granted: daysToGrant,
+      job_post_id: jobId,
+      entitlement_id: entitlementId,
+    });
+
+  // 7. Mark referral as qualified
+  await supabase
+    .from('contractor_referrals')
+    .update({ status: 'qualified', qualified_at: now.toISOString() })
+    .eq('id', referral.id);
+
+  logStep("Contractor referral reward granted successfully", {
+    referralId: referral.id,
+    referrerId,
+    daysGranted: daysToGrant,
+  });
+}

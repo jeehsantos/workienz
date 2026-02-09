@@ -10,14 +10,16 @@ import {
 } from "@/components/ui/dialog";
 import { ResetPasswordSection } from "./settings/ResetPasswordSection";
 import { ReferralProgramSection } from "./settings/ReferralProgramSection";
+import { ContractorReferralProgramSection } from "./settings/ContractorReferralProgramSection";
 
 interface SettingsCardProps {
   showReferralProgram: boolean;
+  showContractorReferral?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function SettingsCard({ showReferralProgram, open, onOpenChange }: SettingsCardProps) {
+export function SettingsCard({ showReferralProgram, showContractorReferral, open, onOpenChange }: SettingsCardProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = typeof open === "boolean";
   const dialogOpen = isControlled ? open : internalOpen;
@@ -52,6 +54,7 @@ export function SettingsCard({ showReferralProgram, open, onOpenChange }: Settin
           <div className="space-y-4 py-4">
             <ResetPasswordSection />
             {showReferralProgram && <ReferralProgramSection />}
+            {showContractorReferral && <ContractorReferralProgramSection />}
           </div>
         </DialogContent>
       </Dialog>

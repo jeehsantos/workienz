@@ -41,7 +41,7 @@ export function useAuth() {
     }
   }, []);
 
-  const applyPendingReferral = useCallback(async (session: Session | null) => {
+  const applyPendingReferral = useCallback(async (session: Session | null, userRoles?: AppRole[]) => {
     if (!session || hasAttemptedReferral.current) return;
 
     const referralCode = localStorage.getItem("pendingReferralCode");
@@ -49,8 +49,12 @@ export function useAuth() {
 
     hasAttemptedReferral.current = true;
 
+    // Determine if this user is a contractor or employee
+    const isContractorUser = userRoles?.includes("contractor");
+    const functionName = isContractorUser ? "process-contractor-referral" : "process-referral";
+
     try {
-      const { data, error } = await supabase.functions.invoke("process-referral", {
+      const { data, error } = await supabase.functions.invoke(functionName, {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -70,7 +74,9 @@ export function useAuth() {
       localStorage.removeItem("pendingReferralCode");
       toast({
         title: "Referral applied",
-        description: "Your referral was recorded and will be verified after email confirmation.",
+        description: isContractorUser
+          ? "Your referral was recorded. Your referrer will earn Premium days when you publish your first job."
+          : "Your referral was recorded and will be verified after email confirmation.",
       });
     } catch (error) {
       console.error("Error applying referral code:", error);
@@ -149,15 +155,21 @@ export function useAuth() {
       if (session?.user && event === "SIGNED_IN") {
         initializeSessionManager({
           onSessionTimeout: async () => {
-            // Auto sign out on timeout
             await supabase.auth.signOut();
           },
         });
-        void applyPendingReferral(session);
-      }
 
-      // Defer role fetching to avoid deadlock
-      if (session?.user) {
+        // Fetch roles first, then apply referral with role context
+        setTimeout(async () => {
+          if (!isMounted) return;
+          const roles = await fetchUserRoles(session.user.id);
+          if (isMounted) {
+            setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
+          }
+          void applyPendingReferral(session, roles);
+        }, 0);
+      } else if (session?.user) {
+        // Defer role fetching for other events
         setTimeout(async () => {
           if (!isMounted) return;
           const roles = await fetchUserRoles(session.user.id);
@@ -165,7 +177,6 @@ export function useAuth() {
             setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
           }
         }, 0);
-      } else {
         setAuthState((prev) => ({ ...prev, roles: [], rolesLoading: false }));
       }
     });
@@ -197,14 +208,12 @@ export function useAuth() {
             setAuthState((prev) => ({ ...prev, roles, rolesLoading: false }));
           }
           
-          // Initialize session manager for existing session
           initializeSessionManager({
             onSessionTimeout: async () => {
-              // Auto sign out on timeout
               await supabase.auth.signOut();
             },
           });
-          void applyPendingReferral(session);
+          void applyPendingReferral(session, roles);
         } else {
           if (isMounted) {
             setAuthState((prev) => ({ ...prev, rolesLoading: false }));
