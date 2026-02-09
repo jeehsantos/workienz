@@ -45,7 +45,7 @@ export function SettingsCard({ showReferralProgram, open, onOpenChange }: Settin
             Open Settings
           </Button>
         </DialogTrigger>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-[600px] max-h-[85vh] overflow-y-auto rounded-2xl">
+        <DialogContent className="box-border w-[calc(100vw-1.5rem)] max-w-[600px] max-h-[85vh] overflow-y-auto rounded-2xl p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-display">Settings</DialogTitle>
           </DialogHeader>
