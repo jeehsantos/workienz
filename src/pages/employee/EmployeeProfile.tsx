@@ -50,9 +50,13 @@ const VISA_STATUSES = [
   "Skilled Migrant Category Resident Visa",
   "Refugee/Protected Person",
   "Student Visa (with work rights)",
-  "Visitor Visa (with work rights)",
+  "Visitor Visa",
   "Other",
 ];
+
+const LEGACY_VISA_STATUS_MAP: Record<string, string> = {
+  "Visitor Visa (with work rights)": "Visitor Visa",
+};
 
 /**
  * Wizard steps configuration for the employee profile form
@@ -68,6 +72,8 @@ const STEPS = [
 ];
 
 export default function EmployeeProfile() {
+  const normalizeVisaStatus = (visaStatus: string) => LEGACY_VISA_STATUS_MAP[visaStatus] || visaStatus;
+
   const navigate = useNavigate();
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
   const { toast } = useToast();
@@ -90,7 +96,7 @@ export default function EmployeeProfile() {
     experience_years: "",
     availability: "flexible",
     is_available: true,
-    phone: "",
+    phone: "+64",
     industry: "",
     visa_status: "",
   });
@@ -281,9 +287,9 @@ export default function EmployeeProfile() {
           experience_years: data.experience_years?.toString() || "",
           availability: data.availability || "flexible",
           is_available: data.is_available ?? true,
-          phone: (data as any).phone || "",
+          phone: (data as any).phone || "+64",
           industry: (data as any).industry || "",
-          visa_status: (data as any).visa_status || "",
+          visa_status: normalizeVisaStatus((data as any).visa_status || ""),
         });
         setSkills(data.skills || []);
         setLanguages((data as any).languages || []);
@@ -626,7 +632,7 @@ export default function EmployeeProfile() {
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="e.g., +64 21 123 4567"
+                placeholder="21 123 4567"
                 required
               />
               <p className="text-xs text-muted-foreground">For employers to contact you</p>
