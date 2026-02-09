@@ -18,6 +18,11 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+interface MenuLinkItem {
+  label: string;
+  to: string;
+}
+
 const getRoleBadgeColor = (role: string) => {
   switch (role) {
     case "admin":
@@ -144,6 +149,54 @@ export function AppLayout({ children }: AppLayoutProps) {
     setMessagesOpen(false);
     navigate(`/messages/${conversationId}`);
   };
+
+  const mobileMenuItems: MenuLinkItem[] = [];
+
+  if (user) {
+    mobileMenuItems.push({ label: "Dashboard", to: "/dashboard" });
+
+    if (roles.includes("employee")) {
+      mobileMenuItems.push(
+        { label: "My Profile", to: "/employee/view-profile" },
+        { label: "Find Jobs", to: "/jobs" },
+        { label: "Workie NZ Guide", to: "/guide" },
+      );
+    }
+
+    if (roles.includes("contractor")) {
+      mobileMenuItems.push(
+        { label: "Company Profile", to: "/contractor/profile" },
+        { label: "Post a Job", to: "/contractor/post-job" },
+        { label: "My Jobs", to: "/contractor/jobs" },
+        { label: "Find Workers", to: "/contractor/search-workers" },
+      );
+    }
+
+    if (roles.includes("writer")) {
+      mobileMenuItems.push(
+        { label: "Write Topic", to: "/writer/new-guide" },
+        { label: "My Topics", to: "/writer/articles" },
+      );
+    }
+
+    if (roles.includes("admin")) {
+      mobileMenuItems.push(
+        { label: "Admin Dashboard", to: "/admin" },
+        { label: "Partner Management", to: "/admin/partners" },
+        { label: "View Analytics", to: "/admin/analytics" },
+        { label: "Topics Management", to: "/admin/content-structure" },
+      );
+    }
+
+    if (roles.includes("employee") || roles.includes("contractor")) {
+      mobileMenuItems.push(
+        { label: "Messages", to: "/dashboard" },
+        { label: "Settings", to: "/dashboard" },
+      );
+    }
+
+    mobileMenuItems.push({ label: "Billing & Subscription", to: "/subscription" });
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -339,8 +392,8 @@ export function AppLayout({ children }: AppLayoutProps) {
 
             {/* Mobile Menu */}
             {isOpen && (
-              <div className="lg:hidden py-4 border-t border-border/50 animate-fade-in bg-background/95 backdrop-blur-lg rounded-b-2xl">
-                <div className="flex flex-col gap-3">
+              <div className="lg:hidden absolute top-full left-3 right-3 mt-2 p-4 border border-border/60 animate-fade-in bg-background/95 backdrop-blur-lg rounded-2xl shadow-xl max-h-[calc(100vh-5.5rem)] overflow-y-auto">
+                <div className="flex flex-col gap-2.5">
                   {user ? (
                     <>
                       {/* Mobile User Info */}
@@ -360,12 +413,16 @@ export function AppLayout({ children }: AppLayoutProps) {
                           ))}
                         </div>
                       </div>
-                      <Button variant="outline" asChild className="rounded-xl">
-                        <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                          Dashboard
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" onClick={handleSignOut} className="rounded-xl">
+
+                      {mobileMenuItems.map((item) => (
+                        <Button key={`${item.label}-${item.to}`} variant="outline" asChild className="rounded-xl justify-start">
+                          <Link to={item.to} onClick={() => setIsOpen(false)}>
+                            {item.label}
+                          </Link>
+                        </Button>
+                      ))}
+
+                      <Button variant="ghost" onClick={handleSignOut} className="rounded-xl mt-4 pt-3 border-t border-border/30">
                         Sign Out
                       </Button>
                     </>
