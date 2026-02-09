@@ -78,7 +78,7 @@ export function ScheduleStep({
       <RadioGroup
         value={scheduleType}
         onValueChange={(v: "shifts" | "fixed_term") => onScheduleTypeChange(v)}
-        className="flex gap-4"
+        className="flex flex-wrap gap-4"
       >
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="shifts" id="shifts" />
@@ -112,7 +112,7 @@ export function ScheduleStep({
                     disabledDates={(date) => date < new Date()}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Start Time *</Label>
                     <TimePicker
@@ -130,7 +130,7 @@ export function ScheduleStep({
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Break (min)</Label>
                     <Input
@@ -165,7 +165,7 @@ export function ScheduleStep({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Start Date *</Label>
               <DatePicker

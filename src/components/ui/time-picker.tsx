@@ -42,25 +42,24 @@ export function TimePicker({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "w-full justify-start text-left font-normal h-10",
+            "w-full min-w-0 justify-start text-left font-normal h-10",
             !value && "text-muted-foreground",
             className
           )}
         >
           <Clock className="mr-2 h-4 w-4 flex-shrink-0" />
-          <span>{value || placeholder}</span>
+          <span className="truncate">{value || placeholder}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-[280px] p-0" 
-        align="start" 
+      <PopoverContent
+        className="w-[calc(100vw-2rem)] max-w-[280px] p-0"
+        align="start"
         sideOffset={4}
-        side="top"
       >
         {/* Quick select times */}
         <div className="p-3 border-b">
           <p className="text-xs font-medium text-muted-foreground mb-2">Quick select</p>
-          <div className="grid grid-cols-4 gap-1">
+          <div className="grid grid-cols-3 gap-1 sm:grid-cols-4">
             {QUICK_TIMES.map((time) => (
               <Button
                 key={time}
@@ -78,7 +77,7 @@ export function TimePicker({
         {/* Hour and Minute grid */}
         <div className="p-3">
           <p className="text-xs font-medium text-muted-foreground mb-2">Or select hour & minute</p>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             {/* Hours */}
             <div className="flex-1">
               <p className="text-[10px] text-muted-foreground mb-1 text-center">Hour</p>
@@ -101,9 +100,9 @@ export function TimePicker({
             </div>
 
             {/* Minutes */}
-            <div className="w-16">
+            <div className="w-full sm:w-16">
               <p className="text-[10px] text-muted-foreground mb-1 text-center">Min</p>
-              <div className="flex flex-col gap-1">
+              <div className="grid grid-cols-4 gap-1 sm:flex sm:flex-col">
                 {MINUTES.map((minute) => (
                   <Button
                     key={minute}
