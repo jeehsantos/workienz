@@ -13,7 +13,10 @@ import {
   CheckCircle,
   XCircle,
   MapPin,
+  Star,
 } from "lucide-react";
+import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
+import { FavoriteWorkerDialog } from "@/components/jobs/FavoriteWorkerDialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -60,12 +63,23 @@ export default function JobApplicants() {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Favorite workers state
+  const { favorites, fetchFavorites, addFavorite, removeFavorite } = useFavoriteWorkers();
+  const [favoriteDialogOpen, setFavoriteDialogOpen] = useState(false);
+  const [selectedApplicantForFav, setSelectedApplicantForFav] = useState<Applicant | null>(null);
+  const [isRemovingFavorite, setIsRemovingFavorite] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
       navigate("/auth");
     }
   }, [user, authLoading, isContractor, navigate]);
+
+  // Fetch favorites when user is ready
+  useEffect(() => {
+    if (user && isContractor()) fetchFavorites();
+  }, [user, isContractor, fetchFavorites]);
 
   useEffect(() => {
     async function fetchData() {
@@ -360,6 +374,26 @@ export default function JobApplicants() {
                       </SelectContent>
                     </Select>
 
+                    {/* Favorite button - show for hired applicants */}
+                    {applicant.status === "hired" && (() => {
+                      const isFav = favorites.some(f => f.employee_user_id === applicant.employee.user_id);
+                      return (
+                        <Button
+                          variant={isFav ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setSelectedApplicantForFav(applicant);
+                            setIsRemovingFavorite(isFav);
+                            setFavoriteDialogOpen(true);
+                          }}
+                          className="gap-1.5"
+                        >
+                          <Star className={`w-4 h-4 ${isFav ? "text-amber-500 fill-amber-500" : ""}`} />
+                          {isFav ? "Favorited" : "Favorite"}
+                        </Button>
+                      );
+                    })()}
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -381,6 +415,38 @@ export default function JobApplicants() {
           </div>
         )}
       </div>
+
+      {/* Favorite Worker Dialog */}
+      <FavoriteWorkerDialog
+        isOpen={favoriteDialogOpen}
+        onClose={() => {
+          setFavoriteDialogOpen(false);
+          setSelectedApplicantForFav(null);
+        }}
+        onConfirm={async (note) => {
+          if (!selectedApplicantForFav) return;
+          if (isRemovingFavorite) {
+            await removeFavorite(selectedApplicantForFav.employee.user_id);
+          } else {
+            await addFavorite(
+              selectedApplicantForFav.employee.user_id,
+              selectedApplicantForFav.employee.id,
+              note,
+              jobId
+            );
+          }
+          await fetchFavorites();
+          setFavoriteDialogOpen(false);
+          setSelectedApplicantForFav(null);
+        }}
+        workerName={selectedApplicantForFav?.profile?.full_name || "Worker"}
+        existingNote={
+          selectedApplicantForFav
+            ? favorites.find(f => f.employee_user_id === selectedApplicantForFav.employee.user_id)?.note
+            : null
+        }
+        isRemoving={isRemovingFavorite}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   Edit,
   Users,
   ShieldCheck,
+  Copy,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -206,12 +207,20 @@ export default function ContractorJobDetail() {
               Back to My Jobs
             </Link>
           </Button>
-          <Button asChild>
-            <Link to={`/contractor/jobs/${job.id}/edit`}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Job
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to={`/contractor/post-job?template=${job.id}`}>
+                <Copy className="w-4 h-4 mr-2" />
+                Use As Template
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to={`/contractor/jobs/${job.id}/edit`}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Job
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { UpgradeButton } from "@/components/ui/upgrade-button";
-
+import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
+import { FavoritedWorkersSuggestion } from "@/components/jobs/FavoritedWorkersSuggestion";
 import { StepIndicator } from "@/components/jobs/StepIndicator";
 import { JobDetailsStep } from "@/components/jobs/steps/JobDetailsStep";
 import { LocationPayStep } from "@/components/jobs/steps/LocationPayStep";
@@ -37,13 +38,17 @@ const STEPS = [
 
 export default function PostJob() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const templateJobId = searchParams.get("template");
   const { user, isLoading: authLoading, isContractor } = useAuthContext();
   const { toast } = useToast();
+  const { favorites, isLoading: favoritesLoading, fetchFavorites } = useFavoriteWorkers();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [contractorProfile, setContractorProfile] = useState<{ id: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateJobId);
   const [maxPositions, setMaxPositions] = useState(10);
   const [isFreeTier, setIsFreeTier] = useState(false);
   
@@ -80,6 +85,69 @@ export default function PostJob() {
       navigate("/auth");
     }
   }, [user, authLoading, isContractor, navigate]);
+
+  // Fetch favorites
+  useEffect(() => {
+    if (user && isContractor()) fetchFavorites();
+  }, [user, isContractor, fetchFavorites]);
+
+  // Load template job data if template param exists
+  useEffect(() => {
+    async function loadTemplate() {
+      if (!templateJobId || !user) return;
+
+      const { data: templateJob, error } = await supabase
+        .from("jobs")
+        .select("title, description, requirements, location_city, location_suburb, location_country, job_type, duration, hourly_rate_min, industry, positions_available, skills_required, schedule_type, experience_required, is_sse, requires_heavy_lifting, requires_standing, requires_car, provides_training, provides_accommodation, starts_at, ends_at, weekly_hours")
+        .eq("id", templateJobId)
+        .single();
+
+      if (error || !templateJob) {
+        console.error("Failed to load template job:", error);
+        toast({ title: "Template not found", description: "Could not load the job template.", variant: "destructive" });
+        setIsLoadingTemplate(false);
+        return;
+      }
+
+      // Pre-fill form data from template (don't copy schedule - it's date-specific)
+      setFormData({
+        title: templateJob.title || "",
+        description: templateJob.description || "",
+        requirements: templateJob.requirements || "",
+        location_region: "",
+        location_city: templateJob.location_city || "",
+        location_suburb: templateJob.location_suburb || "",
+        location_country: templateJob.location_country || "New Zealand",
+        job_type: templateJob.job_type || "temporary",
+        duration: templateJob.duration || "",
+        hourly_rate: templateJob.hourly_rate_min?.toString() || "",
+        positions_available: (templateJob.positions_available || 1).toString(),
+        industry: templateJob.industry || "",
+      });
+
+      // Set other fields
+      if (templateJob.skills_required) setSkills(templateJob.skills_required);
+      if (templateJob.experience_required) setExperienceRequired(true);
+      if (templateJob.is_sse) setIsSSE(true);
+      if (templateJob.schedule_type === "fixed_term") setScheduleType("fixed_term");
+      if (templateJob.requires_car) setRequiresCar(true);
+
+      const physReqs: string[] = [];
+      if (templateJob.requires_heavy_lifting) physReqs.push("Requires lifting > 10kg");
+      if (templateJob.requires_standing) physReqs.push("Requires standing for long periods");
+      setPhysicalRequirements(physReqs);
+
+      const benefits: string[] = [];
+      if (templateJob.provides_training) benefits.push("Provides training");
+      if (templateJob.provides_accommodation) benefits.push("Provides accommodation");
+      setSelectedBenefits(benefits);
+
+      toast({ title: "Template loaded", description: "Job details have been pre-filled from your previous posting. Review and update as needed." });
+      setIsLoadingTemplate(false);
+    }
+
+    if (user && templateJobId) loadTemplate();
+  }, [user, templateJobId, toast]);
 
   // Fetch contractor profile, platform settings, and entitlements
   useEffect(() => {
@@ -123,12 +191,11 @@ export default function PostJob() {
           setEntitlementError(entitlementData.message);
         }
         
-        // Check if user is on free tier - limit positions to 1 (support both 'free_tier' and 'free_contractor')
+        // Check if user is on free tier
         const isFreeTierPlan = entitlementData.plan_type === "free_tier" || entitlementData.plan_type === "free_contractor";
         if (isFreeTierPlan) {
           setIsFreeTier(true);
           setMaxPositions(1);
-          // Ensure positions_available is set to 1 for free tier
           setFormData(prev => ({ ...prev, positions_available: "1" }));
         }
       }
@@ -315,7 +382,7 @@ export default function PostJob() {
     navigate("/contractor/jobs");
   };
 
-  if (authLoading || isLoadingProfile) {
+  if (authLoading || isLoadingProfile || isLoadingTemplate) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -425,14 +492,27 @@ export default function PostJob() {
         </Button>
 
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold font-display">Post a Job</h1>
+          <h1 className="text-3xl font-bold font-display">
+            {templateJobId ? "Post Job from Template" : "Post a Job"}
+          </h1>
           {remainingPosts !== "unlimited" && (
             <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
               {remainingPosts} post{remainingPosts !== 1 ? "s" : ""} remaining
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mb-8">Create a new job posting to find temporary workers.</p>
+        <p className="text-muted-foreground mb-4">
+          {templateJobId 
+            ? "This job was pre-filled from a previous posting. Review the details and update as needed."
+            : "Create a new job posting to find temporary workers."}
+        </p>
+
+        {/* Favorited Workers Suggestion */}
+        {favorites.length > 0 && (
+          <div className="mb-6">
+            <FavoritedWorkersSuggestion favorites={favorites} isLoading={favoritesLoading} />
+          </div>
+        )}
 
         {/* Entitlement Warning */}
         {!canPostJob && entitlementError && (
