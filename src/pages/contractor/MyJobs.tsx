@@ -4,8 +4,9 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, ArrowLeft, Briefcase, Eye, Edit, Trash2, Users, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, ArrowLeft, Briefcase, Eye, Edit, Trash2, Users, AlertTriangle, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { JobDeletionDialog } from "@/components/jobs/JobDeletionDialog";
 import {
   AlertDialog,
@@ -280,34 +281,66 @@ export default function MyJobs() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/contractor/jobs/${job.id}/applicants`}>
-                        <Users className="w-4 h-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/contractor/jobs/${job.id}`}>
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link to={`/contractor/jobs/${job.id}/edit`}>
-                        <Edit className="w-4 h-4" />
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteClick(job)}
-                      disabled={isValidatingDeletion}
-                    >
-                      {isValidatingDeletion ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      )}
-                    </Button>
+                  <div className="flex gap-1 sm:gap-2 flex-wrap">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link to={`/contractor/jobs/${job.id}/applicants`}>
+                            <Users className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Applicants</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link to={`/contractor/jobs/${job.id}`}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>View</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link to={`/contractor/jobs/${job.id}/edit`}>
+                            <Edit className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => navigate(`/contractor/post-job?template=${job.id}`)}
+                        >
+                          <Copy className="w-4 h-4 text-primary" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Use As Template</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(job)}
+                          disabled={isValidatingDeletion}
+                        >
+                          {isValidatingDeletion ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>

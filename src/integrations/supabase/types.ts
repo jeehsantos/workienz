@@ -243,6 +243,39 @@ export type Database = {
           },
         ]
       }
+      contractor_favorite_workers: {
+        Row: {
+          contractor_user_id: string
+          created_at: string
+          employee_profile_id: string
+          employee_user_id: string
+          id: string
+          job_id: string | null
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          contractor_user_id: string
+          created_at?: string
+          employee_profile_id: string
+          employee_user_id: string
+          id?: string
+          job_id?: string | null
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contractor_user_id?: string
+          created_at?: string
+          employee_profile_id?: string
+          employee_user_id?: string
+          id?: string
+          job_id?: string | null
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contractor_packages: {
         Row: {
           created_at: string
