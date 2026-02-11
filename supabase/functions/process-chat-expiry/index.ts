@@ -107,10 +107,14 @@ serve(async (req) => {
         if (hoursSinceStart >= 72) {
           logStep("Closing conversation due to inactivity", { conversationId: conv.id, hoursSinceStart });
 
-          // Update conversation status to closed
+          // Update conversation status to closed and schedule deletion in 24h
+          const deletionAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
           const { error: updateError } = await supabaseAdmin
             .from("conversations")
-            .update({ status: "closed" })
+            .update({ 
+              status: "closed",
+              scheduled_deletion_at: deletionAt.toISOString(),
+            })
             .eq("id", conv.id);
 
           if (updateError) {
