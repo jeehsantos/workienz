@@ -133,14 +133,24 @@ export default function MyConversations({ userId }: MyConversationsProps) {
         })
       );
 
+      // Filter out conversations that are past their scheduled deletion time
+      const now = new Date();
+      const filtered = enriched.filter((conv) => {
+        if (conv.scheduled_deletion_at) {
+          const deletionAt = new Date(conv.scheduled_deletion_at);
+          if (deletionAt <= now) return false;
+        }
+        return true;
+      });
+
       // Sort by last message time
-      enriched.sort((a, b) => {
+      filtered.sort((a, b) => {
         const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
         const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
         return bTime - aTime;
       });
 
-      setConversations(enriched);
+      setConversations(filtered);
       setIsLoading(false);
     }
 
@@ -166,15 +176,19 @@ export default function MyConversations({ userId }: MyConversationsProps) {
 
   // Calculate hired countdown for a conversation
   const getHiredStatus = (conv: Conversation) => {
-    if (!conv.hired_at || !conv.scheduled_deletion_at) {
+    if (!conv.hired_at) {
       return null;
     }
 
     const now = new Date();
-    const deletionAt = new Date(conv.scheduled_deletion_at);
-    const hoursLeft = Math.max(0, Math.ceil((deletionAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
+    if (conv.scheduled_deletion_at) {
+      const deletionAt = new Date(conv.scheduled_deletion_at);
+      const hoursLeft = Math.max(1, Math.ceil((deletionAt.getTime() - now.getTime()) / (1000 * 60 * 60)));
+      return { isHired: true, hoursLeft };
+    }
 
-    return { isHired: true, hoursLeft };
+    // Hired but no deletion scheduled yet - show as hired
+    return { isHired: true, hoursLeft: null };
   };
 
   // Calculate expiry status for a conversation (only for non-hired conversations)
@@ -247,7 +261,7 @@ export default function MyConversations({ userId }: MyConversationsProps) {
                     {isHiredConv ? (
                       <Badge variant="outline" className="text-[10px] flex-shrink-0 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30">
                         <CheckCircle2 className="w-3 h-3 mr-1" />
-                        Hired • {hiredStatus.hoursLeft}h
+                        Hired{hiredStatus.hoursLeft != null ? ` • ${hiredStatus.hoursLeft}h` : ""}
                       </Badge>
                     ) : hasWarning ? (
                       <Badge variant="outline" className="text-[10px] flex-shrink-0 border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30">
@@ -277,7 +291,7 @@ export default function MyConversations({ userId }: MyConversationsProps) {
                     "{conv.last_message_preview}"
                   </p>
                 )}
-                {isHiredConv && (
+                {isHiredConv && hiredStatus.hoursLeft != null && (
                   <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
                     🎉 Hired! Archives in {hiredStatus.hoursLeft} hours
                   </p>
