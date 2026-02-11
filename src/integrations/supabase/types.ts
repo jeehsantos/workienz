@@ -1490,7 +1490,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "contractor" | "employee" | "writer"
       article_type: "qa" | "guide" | "checklist"
-      job_status: "draft" | "published" | "closed" | "filled"
+      job_status: "draft" | "published" | "closed" | "filled" | "private"
       referral_status: "pending" | "verified" | "voided"
       subscription_status: "active" | "cancelled" | "expired" | "pending"
       user_stage: "before_arrival" | "arrival" | "first_30_days" | "living_here"
@@ -1624,7 +1624,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "contractor", "employee", "writer"],
       article_type: ["qa", "guide", "checklist"],
-      job_status: ["draft", "published", "closed", "filled"],
+      job_status: ["draft", "published", "closed", "filled", "private"],
       referral_status: ["pending", "verified", "voided"],
       subscription_status: ["active", "cancelled", "expired", "pending"],
       user_stage: ["before_arrival", "arrival", "first_30_days", "living_here"],

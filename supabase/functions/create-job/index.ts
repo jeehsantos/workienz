@@ -99,11 +99,11 @@
  
      logStep("User authenticated", { userId });
  
-     const body = await req.json();
-     const jobData: JobData = body.jobData;
-     const status: "draft" | "published" = body.status ?? "draft";
-     const shifts: Shift[] = body.shifts ?? [];
-     const jobId: string | undefined = body.jobId; // For updates
+      const body = await req.json();
+      const jobData: JobData = body.jobData;
+      const status: "draft" | "published" | "private" = body.status ?? "draft";
+      const shifts: Shift[] = body.shifts ?? [];
+      const jobId: string | undefined = body.jobId; // For updates
  
      if (!jobData || !jobData.title || !jobData.description) {
        return new Response(
@@ -131,8 +131,8 @@
  
      logStep("Contractor profile found", { contractorId: contractorProfile.id });
  
-     // If publishing, validate entitlements
-     if (status === "published") {
+      // If publishing or posting as private, validate entitlements
+      if (status === "published" || status === "private") {
        // Check if this is an update to an already published job
        let isAlreadyPublished = false;
        if (jobId) {
