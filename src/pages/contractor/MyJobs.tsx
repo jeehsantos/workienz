@@ -197,6 +197,8 @@ export default function MyJobs() {
         return "bg-muted text-muted-foreground";
       case "filled":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+      case "private":
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
       default:
         return "bg-muted text-muted-foreground";
     }

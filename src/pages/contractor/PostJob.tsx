@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 import { UpgradeButton } from "@/components/ui/upgrade-button";
 import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
@@ -56,6 +56,7 @@ export default function PostJob() {
   const [canPostJob, setCanPostJob] = useState(true);
   const [remainingPosts, setRemainingPosts] = useState<number | "unlimited">("unlimited");
   const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [entitlementErrorCode, setEntitlementErrorCode] = useState<string | null>(null);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -189,6 +190,7 @@ export default function PostJob() {
         setRemainingPosts(entitlementData.remaining_posts);
         if (!entitlementData.can_post) {
           setEntitlementError(entitlementData.message);
+          setEntitlementErrorCode(entitlementData.error_code);
         }
         
         // Check if user is on free tier
@@ -287,11 +289,11 @@ export default function PostJob() {
     }
   };
 
-  const handleSubmit = async (status: "draft" | "published") => {
+  const handleSubmit = async (status: "draft" | "published" | "private") => {
     if (!contractorProfile) return;
 
     // Validate for publishing
-    if (status === "published") {
+    if (status === "published" || status === "private") {
       if (!formData.hourly_rate) {
         toast({ title: "Hourly rate required", description: "Please enter an hourly rate.", variant: "destructive" });
         setCurrentStep(2);
@@ -373,13 +375,21 @@ export default function PostJob() {
       return;
     }
 
+    const isPrivatePost = status === "private";
     toast({
-      title: status === "published" ? "Job Published!" : "Draft Saved",
-      description: status === "published" 
-        ? `Your job posting is now live. ${typeof data.remaining_posts === "number" ? `${data.remaining_posts} posts remaining.` : ""}`
-        : "Your job has been saved as a draft.",
+      title: isPrivatePost ? "Private Job Created!" : (status === "published" ? "Job Published!" : "Draft Saved"),
+      description: isPrivatePost
+        ? "Your private job has been created. You can now offer this position to your favorited workers."
+        : (status === "published" 
+          ? `Your job posting is now live. ${typeof data.remaining_posts === "number" ? `${data.remaining_posts} posts remaining.` : ""}`
+          : "Your job has been saved as a draft."),
     });
-    navigate("/contractor/jobs");
+    
+    if (isPrivatePost && data.job_id) {
+      navigate(`/contractor/jobs/${data.job_id}`);
+    } else {
+      navigate("/contractor/jobs");
+    }
   };
 
   if (authLoading || isLoadingProfile || isLoadingTemplate) {
@@ -516,12 +526,37 @@ export default function PostJob() {
 
         {/* Entitlement Warning */}
         {!canPostJob && entitlementError && (
-          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 ${
+            entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+              ? "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
+              : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+          }`}>
+            <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+              entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+                ? "text-purple-600 dark:text-purple-400"
+                : "text-amber-600 dark:text-amber-400"
+            }`} />
             <div>
-              <p className="font-medium text-amber-800 dark:text-amber-200">Posting Limit Reached</p>
-              <p className="text-sm text-amber-700 dark:text-amber-300">{entitlementError}</p>
-              <UpgradeButton size="sm" className="mt-3" />
+              <p className={`font-medium ${
+                entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+                  ? "text-purple-800 dark:text-purple-200"
+                  : "text-amber-800 dark:text-amber-200"
+              }`}>
+                {entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER" ? "Pending Position Offer" : "Posting Limit Reached"}
+              </p>
+              <p className={`text-sm ${
+                entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+                  ? "text-purple-700 dark:text-purple-300"
+                  : "text-amber-700 dark:text-amber-300"
+              }`}>{entitlementError}</p>
+              {entitlementErrorCode !== "ERR_UNRESOLVED_PRIVATE_OFFER" && (
+                <UpgradeButton size="sm" className="mt-3" />
+              )}
+              {entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER" && (
+                <Button size="sm" variant="outline" className="mt-3" asChild>
+                  <Link to="/contractor/jobs">View My Jobs</Link>
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -553,7 +588,7 @@ export default function PostJob() {
             )}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {currentStep === STEPS.length ? (
               <>
                 <Button
@@ -565,6 +600,21 @@ export default function PostJob() {
                   <Save className="w-4 h-4 mr-2" />
                   Save as Draft
                 </Button>
+                {favorites.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => handleSubmit("private")}
+                    disabled={isSubmitting || !canPostJob}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 mr-2" />
+                    )}
+                    Post as Private
+                  </Button>
+                )}
                 <Button
                   type="button"
                   onClick={() => handleSubmit("published")}

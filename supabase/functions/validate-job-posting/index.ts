@@ -174,6 +174,44 @@ serve(async (req) => {
     // Check for free tier - support both 'free_tier' and 'free_contractor' plan types
     const isFreeTier = selectedEntitlement.plan_type === "free_tier" || selectedEntitlement.plan_type === "free_contractor";
 
+    // BLOCKING LOGIC: Check if contractor has unresolved private job offers
+    const { data: privateJobs } = await supabaseClient
+      .from("jobs")
+      .select("id, title")
+      .eq("contractor_id", (await supabaseClient.from("contractor_profiles").select("id").eq("user_id", user.id).single()).data?.id)
+      .eq("status", "private");
+
+    if (privateJobs && privateJobs.length > 0) {
+      // Check if any private jobs have pending applications (unresolved offers)
+      const privateJobIds = privateJobs.map(j => j.id);
+      const { data: pendingApps } = await supabaseClient
+        .from("job_applications")
+        .select("id, job_id")
+        .in("job_id", privateJobIds)
+        .in("status", ["pending", "shortlisted"]);
+
+      if (pendingApps && pendingApps.length > 0) {
+        const unresolvedJob = privateJobs.find(j => pendingApps.some(a => a.job_id === j.id));
+        const result: ValidationResult = {
+          can_post: false,
+          remaining_posts: remaining,
+          error_code: "ERR_UNRESOLVED_PRIVATE_OFFER",
+          message: `You have an unresolved position offer for "${unresolvedJob?.title || 'a job'}". Please hire or reject the applicant before posting a new job.`,
+          current_tier: selectedEntitlement.plan_type,
+          plan_type: selectedEntitlement.plan_type,
+          upgrade_options: [],
+          entitlement_id: selectedEntitlement.id,
+        };
+
+        logStep("Blocked - unresolved private offer", { unresolvedJob });
+
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
+
     const result: ValidationResult = {
       can_post: true,
       remaining_posts: remaining,

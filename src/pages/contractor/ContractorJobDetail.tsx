@@ -14,11 +14,14 @@ import {
   Users,
   ShieldCheck,
   Copy,
+  EyeOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
+import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
+import { FavoritedWorkersSuggestion } from "@/components/jobs/FavoritedWorkersSuggestion";
 
 type JobShift = {
   id: string;
@@ -65,6 +68,7 @@ export default function ContractorJobDetail() {
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const { favorites, isLoading: favoritesLoading, fetchFavorites } = useFavoriteWorkers();
 
   // Stable fetch function
   const fetchJob = useCallback(async () => {
@@ -149,12 +153,13 @@ export default function ContractorJobDetail() {
     }
   }, [authLoading, user, isContractor, navigate]);
 
-  // Fetch job data - only when we have a user and id
+  // Fetch job data and favorites
   useEffect(() => {
     if (user && jobId && isContractor()) {
       fetchJob();
+      fetchFavorites();
     }
-  }, [user, jobId, isContractor, fetchJob]);
+  }, [user, jobId, isContractor, fetchJob, fetchFavorites]);
 
   if (authLoading || isLoading) {
     return (
@@ -188,6 +193,8 @@ export default function ContractorJobDetail() {
         return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
       case "draft":
         return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+      case "private":
+        return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
       case "closed":
         return "bg-muted text-muted-foreground";
       default:
@@ -222,6 +229,25 @@ export default function ContractorJobDetail() {
             </Button>
           </div>
         </div>
+
+        {/* Private Job: Show offer favorites */}
+        {job.status === "private" && favorites.length > 0 && (
+          <div className="mb-6 flex items-start gap-3 p-4 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 rounded-xl">
+            <EyeOff className="w-5 h-5 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-purple-800 dark:text-purple-200 mb-1">Private Job</p>
+              <p className="text-xs text-purple-700 dark:text-purple-300 mb-3">
+                This job is invisible to other workers. Offer the position to your favorited workers below.
+              </p>
+              <FavoritedWorkersSuggestion
+                favorites={favorites}
+                isLoading={favoritesLoading}
+                jobId={job.id}
+                isPrivateJob={true}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
