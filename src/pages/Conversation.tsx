@@ -71,6 +71,7 @@ type ConversationData = {
     job: {
       id: string;
       title: string;
+      status: string;
     };
   } | null;
   other_party: {
@@ -120,6 +121,7 @@ export default function Conversation() {
   const [isSending, setIsSending] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isHiring, setIsHiring] = useState(false);
+  const [isRespondingToOffer, setIsRespondingToOffer] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showSubscriberDialog, setShowSubscriberDialog] = useState(false);
   const [isFreeTier, setIsFreeTier] = useState(false);
@@ -195,6 +197,7 @@ export default function Conversation() {
       // Fetch job application and job info if exists
       let jobTitle = "Direct Contact";
       let jobId = null;
+      let jobStatus = "";
       let applicationStatus = "pending";
       if (convData.job_application_id) {
         const { data: appData } = await supabase
@@ -207,12 +210,13 @@ export default function Conversation() {
           applicationStatus = appData.status;
           const { data: jobData } = await supabase
             .from("jobs")
-            .select("id, title")
+            .select("id, title, status")
             .eq("id", appData.job_id)
             .single();
           if (jobData) {
             jobTitle = jobData.title;
             jobId = jobData.id;
+            jobStatus = jobData.status;
           }
         }
       }
@@ -272,7 +276,7 @@ export default function Conversation() {
         hired_at: convData.hired_at,
         scheduled_deletion_at: convData.scheduled_deletion_at,
         job_application: convData.job_application_id 
-          ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle } } 
+          ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle, status: jobStatus } } 
           : null,
         other_party: profileData ? { ...profileData, phone } : null,
         other_party_user_id: otherUserId,
@@ -617,11 +621,80 @@ export default function Conversation() {
     }
   };
 
+  const handleRespondToOffer = async (response: 'accept' | 'decline') => {
+    if (!conversation?.job_application?.id) return;
+
+    setIsRespondingToOffer(true);
+    try {
+      const result = await supabase.functions.invoke('respond-to-offer', {
+        body: {
+          application_id: conversation.job_application.id,
+          response,
+        },
+      });
+
+      if (result.error) {
+        toast({
+          title: "Error",
+          description: result.error.message || "Failed to respond to offer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const data = result.data;
+      if (!data?.success) {
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to respond to offer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setConversation(prev => {
+        if (!prev?.job_application) return prev;
+        return {
+          ...prev,
+          status: response === 'decline' ? 'closed' : prev.status,
+          job_application: {
+            ...prev.job_application,
+            status: data.data.new_status,
+          },
+        };
+      });
+
+      toast({
+        title: response === 'accept' ? "✅ Offer Accepted!" : "Offer Declined",
+        description: response === 'accept'
+          ? "The employer has been notified. They can now confirm your hire."
+          : "The employer has been notified. This conversation will be archived.",
+      });
+
+      if (response === 'decline') {
+        setTimeout(() => navigate('/dashboard'), 2000);
+      }
+    } catch (error) {
+      console.error("Error responding to offer:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRespondingToOffer(false);
+    }
+  };
+
   const isClosed = conversation?.status === "closed";
   const isUserContractor = conversation?.contractor_user_id === user?.id;
   const isHired = conversation?.job_application?.status === "hired";
   // Check if this is a hired conversation (has job_application and is hired)
   const isHiredConversation = isHired && conversation?.job_application_id;
+  // Check if this is a private job offer pending employee response
+  const isPrivateOffer = !isUserContractor 
+    && conversation?.job_application?.job.status === 'private' 
+    && conversation?.job_application?.status === 'pending';
 
   // Memoize hired countdown status - for 48h archive warning after hiring
   const hiredCountdown = useMemo(() => {
@@ -711,6 +784,65 @@ export default function Conversation() {
             <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
               Expires in <strong>{expiryStatus.hoursLeft}h</strong> - send a message to keep active
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Private Job Offer Banner - Accept/Decline for employees */}
+      {isPrivateOffer && (
+        <div className="bg-primary/5 border-b border-primary/20 px-4 py-3 flex-shrink-0">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Briefcase className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">💼 You've received a position offer!</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {conversation?.other_party?.full_name || "An employer"} has offered you: <strong>{conversation?.job_application?.job.title}</strong>
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleRespondToOffer('accept')}
+                    disabled={isRespondingToOffer}
+                    className="h-8"
+                  >
+                    {isRespondingToOffer ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-3 h-3 mr-1.5" />}
+                    Accept Offer
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isRespondingToOffer}
+                        className="h-8 text-destructive hover:text-destructive"
+                      >
+                        <X className="w-3 h-3 mr-1.5" />
+                        Decline
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Decline this offer?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to decline the position "{conversation?.job_application?.job.title}"? 
+                          The employer will be notified and this conversation will be closed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleRespondToOffer('decline')} disabled={isRespondingToOffer}>
+                          {isRespondingToOffer && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Decline Offer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
