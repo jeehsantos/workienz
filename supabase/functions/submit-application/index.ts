@@ -8,6 +8,7 @@ const corsHeaders = {
 interface SubmitRequest {
   job_id: string;
   cover_letter?: string;
+  application_answers?: Record<string, unknown>;
 }
 
 // Constants for application limits
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
     console.log('[submit-application] Authenticated user:', userId);
 
     // Parse request body
-    const { job_id, cover_letter }: SubmitRequest = await req.json();
+    const { job_id, cover_letter, application_answers }: SubmitRequest = await req.json();
 
     if (!job_id) {
       return new Response(
@@ -96,7 +97,7 @@ Deno.serve(async (req) => {
     // 3. Get job details
     const { data: job, error: jobError } = await supabase
       .from('jobs')
-      .select('id, title, industry, experience_required, contractor_id')
+      .select('id, title, industry, experience_required, contractor_id, hiring_style')
       .eq('id', job_id)
       .single();
 
@@ -253,13 +254,23 @@ Deno.serve(async (req) => {
     // 12. All validations passed - create the application
     console.log('[submit-application] All validations passed, creating application');
 
+    const isOpenAI = job.hiring_style === 'open_ai_top10';
+    
+    const insertPayload: Record<string, unknown> = {
+      job_id,
+      employee_id: employeeProfile.id,
+      cover_letter: cover_letter || null,
+    };
+
+    // For open_ai_top10, store answers and set scoring status
+    if (isOpenAI) {
+      insertPayload.application_answers = application_answers || null;
+      insertPayload.ai_scoring_status = 'pending';
+    }
+
     const { data: appData, error: appError } = await supabase
       .from('job_applications')
-      .insert({
-        job_id,
-        employee_id: employeeProfile.id,
-        cover_letter: cover_letter || null,
-      })
+      .insert(insertPayload)
       .select('id')
       .single();
 
@@ -330,6 +341,25 @@ Deno.serve(async (req) => {
     }
 
     console.log('[submit-application] Application created successfully:', appData.id);
+
+    // For open_ai_top10, trigger async AI scoring (fire-and-forget)
+    if (isOpenAI) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      try {
+        fetch(`${supabaseUrl}/functions/v1/score-application-ai`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ application_id: appData.id }),
+        });
+        console.log('[submit-application] Triggered async AI scoring');
+      } catch (e) {
+        console.error('[submit-application] Failed to trigger AI scoring (non-fatal):', e);
+      }
+    }
 
     // Calculate remaining credits for response
     const newReferralCreditsRemaining = referralCreditsRecord 

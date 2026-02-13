@@ -338,20 +338,37 @@ interface JobData {
          logStep("Shifts inserted", { count: shiftsToInsert.length });
        }
  
-       return new Response(
-         JSON.stringify({
-           success: true,
-           job_id: createdJobId,
-           status: "published",
-           entitlement_id: selectedEntitlement?.id ?? null,
-           remaining_posts: selectedEntitlement
-             ? selectedEntitlement.job_allowance === null
-               ? "unlimited"
-               : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
-             : "N/A",
-         }),
-         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
-       );
+      // If open_ai_top10, trigger questionnaire generation asynchronously
+      if (jobData.hiring_style === 'open_ai_top10' && createdJobId) {
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/generate-job-questionnaire`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${serviceRoleKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ job_id: createdJobId }),
+          });
+          logStep("Triggered questionnaire generation for open_ai_top10 job");
+        } catch (e) {
+          logStep("Failed to trigger questionnaire generation (non-fatal)", { error: String(e) });
+        }
+      }
+
+      return new Response(
+          JSON.stringify({
+            success: true,
+            job_id: createdJobId,
+            status: "published",
+            entitlement_id: selectedEntitlement?.id ?? null,
+            remaining_posts: selectedEntitlement
+              ? selectedEntitlement.job_allowance === null
+                ? "unlimited"
+                : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
+              : "N/A",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+        );
      } else {
        // Draft - no entitlement check needed
        let createdJobId = jobId;
