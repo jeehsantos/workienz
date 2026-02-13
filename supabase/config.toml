@@ -1,1 +1,10 @@
 project_id = "dkhcdzxelkkpxhmxazqi"
+
+[functions.generate-job-questionnaire]
+verify_jwt = false
+
+[functions.score-application-ai]
+verify_jwt = false
+
+[functions.refresh-top-candidates]
+verify_jwt = false
