@@ -769,8 +769,45 @@ export type Database = {
         }
         Relationships: []
       }
+      job_ai_questionnaires: {
+        Row: {
+          generated_at: string
+          job_id: string
+          model: string
+          prompt_version: string
+          questionnaire: Json
+        }
+        Insert: {
+          generated_at?: string
+          job_id: string
+          model: string
+          prompt_version?: string
+          questionnaire: Json
+        }
+        Update: {
+          generated_at?: string
+          job_id?: string
+          model?: string
+          prompt_version?: string
+          questionnaire?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_ai_questionnaires_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_applications: {
         Row: {
+          ai_reason_summary: string | null
+          ai_score: number | null
+          ai_score_updated_at: string | null
+          ai_scoring_status: string
+          application_answers: Json | null
           cover_letter: string | null
           created_at: string
           employee_id: string
@@ -780,6 +817,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_reason_summary?: string | null
+          ai_score?: number | null
+          ai_score_updated_at?: string | null
+          ai_scoring_status?: string
+          application_answers?: Json | null
           cover_letter?: string | null
           created_at?: string
           employee_id: string
@@ -789,6 +831,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_reason_summary?: string | null
+          ai_score?: number | null
+          ai_score_updated_at?: string | null
+          ai_scoring_status?: string
+          application_answers?: Json | null
           cover_letter?: string | null
           created_at?: string
           employee_id?: string
@@ -885,6 +932,48 @@ export type Database = {
           },
         ]
       }
+      job_top_candidates: {
+        Row: {
+          id: string
+          job_application_id: string
+          job_id: string
+          rank: number
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          job_application_id: string
+          job_id: string
+          rank: number
+          score: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          job_application_id?: string
+          job_id?: string
+          rank?: number
+          score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_top_candidates_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_top_candidates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_work_dates: {
         Row: {
           created_at: string
@@ -923,6 +1012,8 @@ export type Database = {
           ends_at: string | null
           experience_required: boolean | null
           form_data: Json | null
+          hiring_config: Json
+          hiring_style: string
           hourly_rate_max: number | null
           hourly_rate_min: number | null
           id: string
@@ -957,6 +1048,8 @@ export type Database = {
           ends_at?: string | null
           experience_required?: boolean | null
           form_data?: Json | null
+          hiring_config?: Json
+          hiring_style?: string
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
@@ -991,6 +1084,8 @@ export type Database = {
           ends_at?: string | null
           experience_required?: boolean | null
           form_data?: Json | null
+          hiring_config?: Json
+          hiring_style?: string
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string

@@ -60,6 +60,7 @@ export default function EditJob() {
   const [selectedBenefits, setSelectedBenefits] = useState<string[]>([]);
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [isSSE, setIsSSE] = useState(false);
+  const [hiringStyle, setHiringStyle] = useState<"slot_1to1" | "open_ai_top10">("slot_1to1");
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   const [shifts, setShifts] = useState<Shift[]>([
     { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
@@ -146,6 +147,7 @@ export default function EditJob() {
       setScheduleType(job.schedule_type === "fixed_term" ? "fixed_term" : "shifts");
       setSkills(job.skills_required || []);
       setJobStatus(job.status);
+      setHiringStyle((job as any).hiring_style === "open_ai_top10" ? "open_ai_top10" : "slot_1to1");
       setWeeklyHours((job as any).weekly_hours?.toString() || "");
 
       // Set wizard step
@@ -298,6 +300,10 @@ export default function EditJob() {
       requires_car: requiresCar,
       provides_training: selectedBenefits.includes("Provides training"),
       provides_accommodation: selectedBenefits.includes("Provides accommodation"),
+      hiring_style: hiringStyle,
+      hiring_config: hiringStyle === "open_ai_top10"
+        ? { top_n: 10, question_count: 8, score_version: "v1", refresh_debounce_seconds: 60 }
+        : {},
     };
 
     // Prepare shifts data
@@ -358,6 +364,8 @@ export default function EditJob() {
           <JobDetailsStep
             formData={formData}
             maxPositions={maxPositions}
+            hiringStyle={hiringStyle}
+            onHiringStyleChange={setHiringStyle}
             onChange={updateFormData}
           />
         );
