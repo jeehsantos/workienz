@@ -11,34 +11,36 @@
    console.log(`[CREATE-JOB] ${step}${detailsStr}`);
  };
  
- interface JobData {
-   title: string;
-   description: string;
-   requirements?: string;
-   location_city?: string;
-   location_suburb?: string;
-   location_country?: string;
-   hourly_rate_min?: number;
-   hourly_rate_max?: number;
-   job_type?: string;
-   duration?: string;
-   positions_available?: number;
-   skills_required?: string[];
-   industry?: string;
-   schedule_type?: string;
-   experience_required?: boolean;
-   requires_heavy_lifting?: boolean;
-   requires_standing?: boolean;
-   requires_car?: boolean;
-   provides_training?: boolean;
-   provides_accommodation?: boolean;
-   is_sse?: boolean;
-   starts_at?: string;
-   ends_at?: string;
-   weekly_hours?: number;
-   wizard_step?: number;
-   form_data?: Record<string, unknown>;
- }
+interface JobData {
+    title: string;
+    description: string;
+    requirements?: string;
+    location_city?: string;
+    location_suburb?: string;
+    location_country?: string;
+    hourly_rate_min?: number;
+    hourly_rate_max?: number;
+    job_type?: string;
+    duration?: string;
+    positions_available?: number;
+    skills_required?: string[];
+    industry?: string;
+    schedule_type?: string;
+    experience_required?: boolean;
+    requires_heavy_lifting?: boolean;
+    requires_standing?: boolean;
+    requires_car?: boolean;
+    provides_training?: boolean;
+    provides_accommodation?: boolean;
+    is_sse?: boolean;
+    starts_at?: string;
+    ends_at?: string;
+    weekly_hours?: number;
+    wizard_step?: number;
+    form_data?: Record<string, unknown>;
+    hiring_style?: string;
+    hiring_config?: Record<string, unknown>;
+  }
  
  interface Shift {
    shift_date: string;
