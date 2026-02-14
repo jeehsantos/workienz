@@ -362,19 +362,35 @@ export default function JobDetail() {
       // Handle edge function errors (returns error in response.data when status is 4xx/5xx)
       if (response.error) {
         console.error("Error applying:", response.error);
-        // Try to extract error message from the edge function response
         let errorMessage = "Failed to submit application. Please try again.";
+        let isUpgradePrompt = false;
         try {
-          // Edge function errors often have the message in response.error.message or as JSON
-          if (typeof response.error === 'object' && response.error.message) {
-            errorMessage = response.error.message;
+          // FunctionsHttpError: try to parse JSON from the error context/message
+          if (typeof response.error === 'object') {
+            // Try reading the response body from the error context
+            const ctx = (response.error as any).context;
+            if (ctx && typeof ctx.json === 'function') {
+              const body = await ctx.json();
+              if (body?.error) errorMessage = body.error;
+              if (body?.upgrade_prompt) isUpgradePrompt = true;
+            } else if (response.error.message) {
+              // Fallback: try to extract JSON from the message string
+              const jsonMatch = response.error.message.match(/\{[\s\S]*\}$/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (parsed?.error) errorMessage = parsed.error;
+                if (parsed?.upgrade_prompt) isUpgradePrompt = true;
+              } else {
+                errorMessage = response.error.message;
+              }
+            }
           }
         } catch {
           // Keep default message
         }
         setApplicationError(errorMessage);
         toast({
-          title: "Application Error",
+          title: isUpgradePrompt ? "Application Limit Reached" : "Application Error",
           description: errorMessage,
           variant: "destructive"
         });
@@ -387,7 +403,7 @@ export default function JobDetail() {
       if (result?.error) {
         setApplicationError(result.error);
         toast({
-          title: "Application Error",
+          title: result.upgrade_prompt ? "Application Limit Reached" : "Application Error",
           description: result.error,
           variant: "destructive"
         });
