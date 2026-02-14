@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AIApplicantsView from "@/components/applicants/AIApplicantsView";
 
 type Applicant = {
   id: string;
@@ -51,8 +52,10 @@ type Job = {
   title: string;
   positions_available: number;
   positions_filled: number;
+  hiring_style: string;
+  hiring_config: Record<string, unknown>;
+  location_city: string | null;
 };
-
 export default function JobApplicants() {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -88,7 +91,7 @@ export default function JobApplicants() {
       // Fetch job
       const { data: jobData, error: jobError } = await supabase
         .from("jobs")
-        .select("id, title, positions_available, positions_filled")
+        .select("id, title, positions_available, positions_filled, hiring_style, hiring_config, location_city")
         .eq("id", jobId)
         .single();
 
@@ -98,7 +101,7 @@ export default function JobApplicants() {
         return;
       }
 
-      setJob(jobData);
+      setJob({ ...jobData, hiring_config: (jobData.hiring_config || {}) as Record<string, unknown> });
 
       // Fetch applications
       const { data: applications, error: appError } = await supabase
@@ -266,6 +269,12 @@ export default function JobApplicants() {
     );
   }
 
+  // Render AI Top-10 view for open_ai_top10 hiring style
+  if (job.hiring_style === "open_ai_top10") {
+    return <AIApplicantsView jobId={jobId!} job={job} />;
+  }
+
+  // Existing slot_1to1 view
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
