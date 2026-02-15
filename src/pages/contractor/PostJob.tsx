@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { UpgradeButton } from "@/components/ui/upgrade-button";
 import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
 import { FavoritedWorkersSuggestion } from "@/components/jobs/FavoritedWorkersSuggestion";
+import { TemplateConfirmation } from "@/components/jobs/TemplateConfirmation";
 import { StepIndicator } from "@/components/jobs/StepIndicator";
 import { JobDetailsStep } from "@/components/jobs/steps/JobDetailsStep";
 import { LocationPayStep } from "@/components/jobs/steps/LocationPayStep";
@@ -80,7 +81,7 @@ export default function PostJob() {
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
   const [weeklyHours, setWeeklyHours] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-
+  const [showTemplateConfirmation, setShowTemplateConfirmation] = useState(!!templateJobId);
   // Auth check
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
@@ -144,11 +145,13 @@ export default function PostJob() {
       if (templateJob.provides_accommodation) benefits.push("Provides accommodation");
       setSelectedBenefits(benefits);
 
-      toast({ title: "Template loaded", description: "Job details have been pre-filled from your previous posting. Review and update as needed." });
+      toast({ title: "Template loaded", description: "Review the details and post, or edit to customize." });
+      setShowTemplateConfirmation(true);
       setIsLoadingTemplate(false);
     }
 
     if (user && templateJobId) loadTemplate();
+
   }, [user, templateJobId, toast]);
 
   // Fetch contractor profile, platform settings, and entitlements
@@ -501,16 +504,41 @@ export default function PostJob() {
     }
   };
 
+  // Template confirmation view
+  if (showTemplateConfirmation && templateJobId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link to="/dashboard"><ArrowLeft className="w-4 h-4 mr-2" />Cancel and Back</Link>
+          </Button>
+
+          <TemplateConfirmation
+            formData={formData}
+            favorites={favorites}
+            favoritesLoading={favoritesLoading}
+            isSubmitting={isSubmitting}
+            canPostJob={canPostJob}
+            onPublish={() => handleSubmit("published")}
+            onEditWizard={() => setShowTemplateConfirmation(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
-          <Link to="/dashboard"><ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard</Link>
+          <Link to={templateJobId ? "#" : "/dashboard"} onClick={templateJobId ? (e) => { e.preventDefault(); setShowTemplateConfirmation(true); } : undefined}>
+            <ArrowLeft className="w-4 h-4 mr-2" />{templateJobId ? "Back to Confirmation" : "Back to Dashboard"}
+          </Link>
         </Button>
 
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-3xl font-bold font-display">
-            {templateJobId ? "Post Job from Template" : "Post a Job"}
+            {templateJobId ? "Edit Template Details" : "Post a Job"}
           </h1>
           {remainingPosts !== "unlimited" && (
             <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
@@ -520,12 +548,12 @@ export default function PostJob() {
         </div>
         <p className="text-muted-foreground mb-4">
           {templateJobId 
-            ? "This job was pre-filled from a previous posting. Review the details and update as needed."
+            ? "Edit the pre-filled details, then go back to confirm and post."
             : "Create a new job posting to find temporary workers."}
         </p>
 
-        {/* Favorited Workers Suggestion */}
-        {favorites.length > 0 && (
+        {/* Favorited Workers Suggestion (non-template flow) */}
+        {!templateJobId && favorites.length > 0 && (
           <div className="mb-6">
             <FavoritedWorkersSuggestion favorites={favorites} isLoading={favoritesLoading} />
           </div>
