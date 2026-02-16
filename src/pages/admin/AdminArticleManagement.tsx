@@ -369,6 +369,13 @@ export default function AdminArticleManagement() {
     } else {
       toast({ title: "Success", description: `Article ${!currentStatus ? "published" : "unpublished"}` });
       setArticles(articles.map(a => a.id === articleId ? { ...a, is_published: !currentStatus } : a));
+
+      // Fire-and-forget: trigger embedding ingestion when publishing
+      if (!currentStatus) {
+        supabase.functions.invoke("ingest-article-embeddings", {
+          body: { article_id: articleId },
+        }).catch((err) => console.warn("[RAG] Embedding ingestion failed (non-blocking):", err));
+      }
     }
 
     setUpdatingId(null);

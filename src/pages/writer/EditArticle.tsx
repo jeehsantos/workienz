@@ -307,6 +307,13 @@ export default function EditArticle() {
       const nextPublishedState = publish !== undefined ? publish : formData.is_published;
       setFormData((prev) => ({ ...prev, is_published: nextPublishedState }));
 
+      // Fire-and-forget: trigger embedding ingestion for published articles
+      if (nextPublishedState && article?.id) {
+        supabase.functions.invoke("ingest-article-embeddings", {
+          body: { article_id: article.id },
+        }).catch((err) => console.warn("[RAG] Embedding ingestion failed (non-blocking):", err));
+      }
+
       toast({
         title: publish === undefined ? "Changes Saved" : nextPublishedState ? "Topic Published" : "Topic Unpublished",
         description:
