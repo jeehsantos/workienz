@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.refresh-top-candidates]
 verify_jwt = false
+
+[functions.ingest-article-embeddings]
+verify_jwt = false
+
+[functions.rag-chat-answer]
+verify_jwt = false

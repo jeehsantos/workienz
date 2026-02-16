@@ -229,6 +229,24 @@ export default function NewGuideArticle() {
 
       if (error) throw error;
 
+      // Fire-and-forget: trigger embedding ingestion for published articles
+      if (publish) {
+        // Need the newly created article ID — fetch by slug
+        const slug = formData.slug || generateSlug(formData.title);
+        supabase
+          .from("articles")
+          .select("id")
+          .eq("slug", slug)
+          .single()
+          .then(({ data: newArticle }) => {
+            if (newArticle?.id) {
+              supabase.functions.invoke("ingest-article-embeddings", {
+                body: { article_id: newArticle.id },
+              }).catch((err) => console.warn("[RAG] Embedding ingestion failed (non-blocking):", err));
+            }
+          });
+      }
+
       toast({
         title: publish ? "Article Published!" : "Draft Saved",
         description: publish
