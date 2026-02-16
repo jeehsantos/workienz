@@ -47,6 +47,44 @@ export type Database = {
         }
         Relationships: []
       }
+      article_chunks: {
+        Row: {
+          article_id: string
+          chunk_index: number
+          chunk_text: string
+          embedding: string | null
+          id: string
+          token_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          chunk_index: number
+          chunk_text: string
+          embedding?: string | null
+          id?: string
+          token_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          chunk_index?: number
+          chunk_text?: string
+          embedding?: string | null
+          id?: string
+          token_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_chunks_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_reports: {
         Row: {
           admin_notes: string | null
@@ -95,6 +133,7 @@ export type Database = {
         Row: {
           article_type: string | null
           author_id: string
+          canonical_text: string | null
           category: string | null
           content: string
           content_blocks: Json | null
@@ -116,6 +155,7 @@ export type Database = {
         Insert: {
           article_type?: string | null
           author_id: string
+          canonical_text?: string | null
           category?: string | null
           content: string
           content_blocks?: Json | null
@@ -137,6 +177,7 @@ export type Database = {
         Update: {
           article_type?: string | null
           author_id?: string
+          canonical_text?: string | null
           category?: string | null
           content?: string
           content_blocks?: Json | null
@@ -1580,6 +1621,21 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_article_chunks: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          query_embedding: string
+          scope_article_id?: string
+        }
+        Returns: {
+          article_id: string
+          chunk_text: string
+          similarity: number
+          slug: string
+          title: string
+        }[]
       }
     }
     Enums: {
