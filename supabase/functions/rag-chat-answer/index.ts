@@ -7,8 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1";
-const EMBEDDING_MODEL = "text-embedding-004";
+const OPENAI_EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const EMBEDDING_MODEL = "text-embedding-3-small";
 const CHAT_MODEL = "google/gemini-2.5-flash";
 const EMBEDDING_DIMS = 1536;
 const MATCH_COUNT = 5;
@@ -26,7 +27,7 @@ Return your response as JSON with this structure:
 Only return valid JSON, no markdown code fences.`;
 
 async function getEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch(`${AI_GATEWAY_URL}/embeddings`, {
+  const response = await fetch(OPENAI_EMBEDDING_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -54,6 +55,8 @@ serve(async (req) => {
   }
 
   try {
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -90,7 +93,7 @@ serve(async (req) => {
 
     // 1. Embed the question
     console.log(`[rag] Embedding question: "${question.slice(0, 80)}..."`);
-    const queryEmbedding = await getEmbedding(question, LOVABLE_API_KEY);
+    const queryEmbedding = await getEmbedding(question, OPENAI_API_KEY);
 
     // 2. Search for matching chunks via RPC
     const { data: chunks, error: rpcError } = await supabase.rpc(
@@ -137,7 +140,7 @@ serve(async (req) => {
     const userPrompt = `Question: ${question}\n\nSources:\n${sourcesText}`;
 
     // 5. Call LLM for answer
-    const llmResponse = await fetch(`${AI_GATEWAY_URL}/chat/completions`, {
+    const llmResponse = await fetch(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
