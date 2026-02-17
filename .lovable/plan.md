@@ -1,194 +1,60 @@
 
-# Email Confirmation Implementation Plan
 
-## Overview
-Implement a complete email verification flow that requires users to confirm their email address before accessing the platform. This will be a backend-first approach using a custom Edge Function to send branded emails via Resend.
+# Free RAG Pipeline - Replace OpenAI Embeddings with Full-Text Search
 
-## Current State Analysis
-- **No email verification exists** - Users are immediately logged in after signup
-- **Resend is already configured** - Password reset emails use it with branded templates
-- **Logo already hosted** - Available at `https://workienz.lovable.app/workie-logo.png`
-- **Referral verification** - The `verify-referral` function expects email confirmation to trigger
+## Problem
+The current RAG pipeline requires a paid OpenAI API key for `text-embedding-3-small` embeddings. The LLM chat answer already uses the free Lovable AI gateway (Gemini), so the only cost is embeddings.
 
----
+## Solution
+Replace vector similarity search with PostgreSQL full-text search (`tsvector`/`tsquery`). This is completely free, built into your database, and works well for article content where users ask questions using terms that appear in the articles.
 
-## Implementation Components
+## How It Works
 
-### 1. Backend: Edge Function for Confirmation Email
-**File:** `supabase/functions/send-confirmation-email/index.ts`
+1. **Ingestion** (`ingest-article-embeddings`):
+   - Same chunking logic (build canonical_text, split into chunks)
+   - Instead of generating embeddings, store a `tsvector` column on each chunk for full-text search
+   - No external API calls needed
 
-Create a new Edge Function that:
-- Accepts user email and generates a secure confirmation link using Supabase Admin API
-- Sends a beautifully branded HTML email via Resend
-- Uses the same design language as the password reset email (green gradient CTA, Workie logo, clean card layout)
+2. **Search** (`rag-chat-answer`):
+   - Instead of embedding the question, use `plainto_tsquery` or `websearch_to_tsquery` to search chunks
+   - Rank results using `ts_rank_cd` (built-in PostgreSQL ranking)
+   - Pass top chunks to Gemini via Lovable AI gateway (free) to generate the answer
 
-**Email Design Elements:**
-- Workie logo header
-- Welcome message with user's first name
-- Clear call-to-action button with green gradient
-- Security notice about link expiration
-- Footer with copyright
+3. **Chat answer**: Uses `google/gemini-2.5-flash` via Lovable AI gateway -- no API key needed, included free.
 
-### 2. Configuration: Edge Function JWT Setting
-**File:** `supabase/config.toml`
+## Trade-offs
 
-Add configuration entry:
-```toml
-[functions.send-confirmation-email]
-verify_jwt = false
-```
+| Aspect | Vector Search (current) | Full-Text Search (proposed) |
+|--------|------------------------|----------------------------|
+| Cost | Paid (OpenAI API) | Free |
+| Semantic understanding | High (understands meaning) | Moderate (keyword matching) |
+| Setup complexity | Requires API key | Built into database |
+| Quality for article Q&A | Excellent | Good (articles contain the keywords users search for) |
 
-### 3. Frontend: Update Signup Flow
-**File:** `src/hooks/useAuth.ts`
+For your use case -- answering questions strictly from your own article content -- full-text search is a strong fit because the answers are already in the text.
 
-Modify the `signUp` function to:
-- After successful signup, call the confirmation email Edge Function
-- Return data indicating whether confirmation is needed
+## Technical Changes
 
-### 4. Frontend: Confirmation Pending UI
-**File:** `src/pages/Auth.tsx`
+### 1. Database Migration
+- Add a `search_vector tsvector` column to `article_chunks`
+- Create a GIN index on it for fast searching
+- Create/replace the `match_article_chunks` RPC to use `ts_rank_cd` instead of cosine similarity
 
-Add a new state and UI component:
-- `emailConfirmationPending` state
-- Display a "Check Your Email" screen instead of redirecting
-- Show the registered email address
-- Provide a "Resend Email" button
-- Include instructions to check spam folder
+### 2. Update `ingest-article-embeddings`
+- Remove all OpenAI embedding calls
+- After inserting chunks, update the `search_vector` column using `to_tsvector('english', chunk_text)`
+- No external API dependencies
 
-### 5. Frontend: Email Verification Handler Route
-**File:** `src/pages/VerifyEmail.tsx` (new file)
+### 3. Update `rag-chat-answer`
+- Remove OpenAI embedding call for the question
+- Use the new full-text search RPC to find relevant chunks
+- Keep Gemini (Lovable AI) for generating the final answer -- this is already free
 
-Create a new page that:
-- Handles the redirect from the confirmation email
-- Processes the token automatically (Supabase handles this)
-- Triggers the referral verification if applicable
-- Shows success message and redirects to dashboard
+### 4. Cleanup
+- The `embedding` vector column on `article_chunks` can be kept (no harm) or dropped
+- The `OPENAI_API_KEY` secret is no longer needed for RAG (may still be used elsewhere)
 
-### 6. Routing: Add Verification Route
-**File:** `src/App.tsx`
-
-Add the new route:
-```tsx
-<Route path="/verify-email" element={<VerifyEmail />} />
-```
-
----
-
-## User Flow
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         SIGNUP FLOW                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. User fills signup form                                      │
-│              │                                                  │
-│              ▼                                                  │
-│  2. Frontend calls signUp()                                     │
-│              │                                                  │
-│              ▼                                                  │
-│  3. Edge Function sends branded confirmation email              │
-│              │                                                  │
-│              ▼                                                  │
-│  4. Show "Check Your Email" screen (no dashboard access)        │
-│              │                                                  │
-│              ▼                                                  │
-│  5. User clicks email link                                      │
-│              │                                                  │
-│              ▼                                                  │
-│  6. /verify-email page processes confirmation                   │
-│              │                                                  │
-│              ▼                                                  │
-│  7. Trigger referral verification (if applicable)               │
-│              │                                                  │
-│              ▼                                                  │
-│  8. Redirect to Dashboard with success message                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Technical Details
-
-### Confirmation Email Template
-The email will match the existing password reset design:
-- **Header:** Workie logo centered
-- **Card:** White background with rounded corners and shadow
-- **Title:** "Activate Your Account"
-- **Body:** Personalized welcome message
-- **CTA:** Green gradient button "Activate Account"
-- **Expiry notice:** 24-hour link validity
-- **Footer:** Copyright notice
-
-### Security Considerations
-- Uses Supabase Admin API `generateLink` with type "signup"
-- Link expires after 24 hours
-- Email confirmation required before accessing protected routes
-- Frontend checks `user.email_confirmed_at` to determine access
-
-### Sign-In Behavior Update
-For users who try to sign in without confirming:
-- Supabase returns `Email not confirmed` error
-- Display helpful message with option to resend confirmation email
-
----
-
-## Files to Create/Modify
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `supabase/functions/send-confirmation-email/index.ts` | Create | Backend email sending with branded template |
-| `supabase/config.toml` | Modify | Add function JWT config |
-| `src/pages/VerifyEmail.tsx` | Create | Handle email confirmation callback |
-| `src/pages/Auth.tsx` | Modify | Add confirmation pending state and UI |
-| `src/hooks/useAuth.ts` | Modify | Integrate confirmation email sending |
-| `src/App.tsx` | Modify | Add /verify-email route |
-
----
-
-## Branded Email Preview
-
-The confirmation email will look like this:
-
-```
-┌──────────────────────────────────────────┐
-│                                          │
-│            [Workie Logo]                 │
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │                                    │  │
-│  │    Activate Your Account           │  │
-│  │                                    │  │
-│  │    Hi [First Name],                │  │
-│  │                                    │  │
-│  │    Welcome to Workie! Click the    │  │
-│  │    button below to verify your     │  │
-│  │    email and start your journey.   │  │
-│  │                                    │  │
-│  │    ┌────────────────────────┐      │  │
-│  │    │  Activate Account      │      │  │
-│  │    └────────────────────────┘      │  │
-│  │                                    │  │
-│  │    This link expires in 24 hours   │  │
-│  │                                    │  │
-│  │    ─────────────────────────────   │  │
-│  │    If you didn't create an         │  │
-│  │    account, ignore this email.     │  │
-│  │                                    │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│       © 2026 Workie. All rights reserved │
-│                                          │
-└──────────────────────────────────────────┘
-```
-
----
-
-## Expected Outcome
-After implementation:
-1. Users must verify email before accessing the platform
-2. Branded, professional confirmation emails matching Workie's design
-3. Clear UX with "Check Your Email" screen and resend option
-4. Automatic referral verification upon email confirmation
-5. Secure, backend-driven email delivery via Resend
+## Result
+- Zero cost for the entire RAG pipeline
+- No external API keys required
+- Gemini handles the chat answer for free via Lovable AI
