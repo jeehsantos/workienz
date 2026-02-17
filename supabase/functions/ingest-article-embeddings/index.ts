@@ -7,8 +7,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1";
-const EMBEDDING_MODEL = "text-embedding-004";
+const OPENAI_EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
+const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMS = 1536;
 const CHUNK_TARGET_CHARS = 1500; // ~375 tokens
 const CHUNK_OVERLAP_CHARS = 200; // ~50 tokens
@@ -86,7 +86,7 @@ async function getEmbedding(
   text: string,
   apiKey: string
 ): Promise<number[]> {
-  const response = await fetch(`${AI_GATEWAY_URL}/embeddings`, {
+  const response = await fetch(OPENAI_EMBEDDING_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -114,30 +114,20 @@ async function getEmbeddingsBatch(
   texts: string[],
   apiKey: string
 ): Promise<number[][]> {
-  // Try batch first, fall back to sequential
-  try {
-    const response = await fetch(`${AI_GATEWAY_URL}/embeddings`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: texts,
-        dimensions: EMBEDDING_DIMS,
-      }),
-    });
+  const response = await fetch(OPENAI_EMBEDDING_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: texts,
+      dimensions: EMBEDDING_DIMS,
+    }),
+  });
 
-    if (!response.ok) {
-      throw new Error(`Batch failed: ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result.data
-      .sort((a: { index: number }, b: { index: number }) => a.index - b.index)
-      .map((d: { embedding: number[] }) => d.embedding);
-  } catch {
+  if (!response.ok) {
     // Fall back to sequential
     console.log("[ingest] Batch embedding failed, falling back to sequential");
     const embeddings: number[][] = [];
@@ -146,6 +136,11 @@ async function getEmbeddingsBatch(
     }
     return embeddings;
   }
+
+  const result = await response.json();
+  return result.data
+    .sort((a: { index: number }, b: { index: number }) => a.index - b.index)
+    .map((d: { embedding: number[] }) => d.embedding);
 }
 
 // ---------- main ----------
@@ -156,8 +151,8 @@ serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -238,7 +233,7 @@ serve(async (req) => {
     console.log(`[ingest] Article ${article_id}: ${chunks.length} chunks from ${canonicalText.length} chars`);
 
     // 5. Embed all chunks
-    const embeddings = await getEmbeddingsBatch(chunks, LOVABLE_API_KEY);
+    const embeddings = await getEmbeddingsBatch(chunks, OPENAI_API_KEY);
 
     // 6. Delete old chunks and insert new ones
     const { error: deleteError } = await supabase
