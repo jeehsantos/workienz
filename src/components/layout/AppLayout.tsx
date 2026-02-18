@@ -11,6 +11,7 @@ import { useProfileRefreshListener } from "@/hooks/useProfileRefresh";
 import { formatDistanceToNow } from "date-fns";
 import workieLogo from "@/assets/workie-logo.png";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { GuideChatWidget } from "@/components/guide/GuideChatWidget";
 
 type AppRole = "admin" | "contractor" | "employee" | "writer";
 
@@ -392,6 +393,9 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main content with top padding for fixed navbar */}
       <main className={isAuthFlowRoute ? "" : "pt-16 lg:pt-20 print:pt-0"}>{children}</main>
+
+      {/* Guide Chat Widget — only on /guide for employee users */}
+      {location.pathname === "/guide" && roles.includes("employee") && <GuideChatWidget />}
     </div>
   );
 }
