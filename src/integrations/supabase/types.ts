@@ -54,6 +54,7 @@ export type Database = {
           chunk_text: string
           embedding: string | null
           id: string
+          search_vector: unknown
           token_count: number | null
           updated_at: string
         }
@@ -63,6 +64,7 @@ export type Database = {
           chunk_text: string
           embedding?: string | null
           id?: string
+          search_vector?: unknown
           token_count?: number | null
           updated_at?: string
         }
@@ -72,6 +74,7 @@ export type Database = {
           chunk_text?: string
           embedding?: string | null
           id?: string
+          search_vector?: unknown
           token_count?: number | null
           updated_at?: string
         }
@@ -1626,7 +1629,7 @@ export type Database = {
         Args: {
           match_count?: number
           min_similarity?: number
-          query_embedding: string
+          query_text: string
           scope_article_id?: string
         }
         Returns: {

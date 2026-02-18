@@ -7,13 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENAI_EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const EMBEDDING_MODEL = "text-embedding-3-small";
 const CHAT_MODEL = "google/gemini-2.5-flash";
-const EMBEDDING_DIMS = 1536;
 const MATCH_COUNT = 5;
-const MIN_SIMILARITY = 0.78;
 const NO_ANSWER = "Sorry — this information isn't available on Workie yet.";
 
 const SYSTEM_PROMPT = `You are Workie's assistant. Answer ONLY using the provided sources. If sources do not contain the answer, say:
@@ -26,37 +22,12 @@ Return your response as JSON with this structure:
 }
 Only return valid JSON, no markdown code fences.`;
 
-async function getEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const response = await fetch(OPENAI_EMBEDDING_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: text,
-      dimensions: EMBEDDING_DIMS,
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(`Embedding API error [${response.status}]: ${errBody}`);
-  }
-
-  const result = await response.json();
-  return result.data[0].embedding;
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -88,20 +59,16 @@ serve(async (req) => {
       if (articleData) {
         scopeArticleId = articleData.id;
       }
-      // If slug not found, continue without scoping (search all articles)
     }
 
-    // 1. Embed the question
-    console.log(`[rag] Embedding question: "${question.slice(0, 80)}..."`);
-    const queryEmbedding = await getEmbedding(question, OPENAI_API_KEY);
-
-    // 2. Search for matching chunks via RPC
+    // 1. Full-text search for matching chunks
+    console.log(`[rag] Searching for: "${question.slice(0, 80)}..."`);
     const { data: chunks, error: rpcError } = await supabase.rpc(
       "match_article_chunks",
       {
-        query_embedding: JSON.stringify(queryEmbedding),
+        query_text: question,
         match_count: MATCH_COUNT,
-        min_similarity: MIN_SIMILARITY,
+        min_similarity: 0.0,
         scope_article_id: scopeArticleId,
       }
     );
@@ -114,21 +81,18 @@ serve(async (req) => {
       );
     }
 
-    // 3. Check if we have relevant results
+    // 2. Check if we have relevant results
     if (!chunks || chunks.length === 0) {
       console.log("[rag] No matching chunks found");
       return new Response(
-        JSON.stringify({
-          answer: NO_ANSWER,
-          sources: [],
-        }),
+        JSON.stringify({ answer: NO_ANSWER, sources: [] }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[rag] Found ${chunks.length} chunks, top similarity: ${chunks[0]?.similarity}`);
+    console.log(`[rag] Found ${chunks.length} chunks, top rank: ${chunks[0]?.similarity}`);
 
-    // 4. Build sources context for LLM
+    // 3. Build sources context for LLM
     const uniqueSources = new Map<string, { title: string; slug: string }>();
     const sourcesText = chunks
       .map((chunk: { chunk_text: string; title: string; slug: string; similarity: number }, i: number) => {
@@ -139,7 +103,7 @@ serve(async (req) => {
 
     const userPrompt = `Question: ${question}\n\nSources:\n${sourcesText}`;
 
-    // 5. Call LLM for answer
+    // 4. Call Gemini via Lovable AI for answer
     const llmResponse = await fetch(LOVABLE_AI_URL, {
       method: "POST",
       headers: {
@@ -176,18 +140,16 @@ serve(async (req) => {
     const llmResult = await llmResponse.json();
     const rawContent = llmResult.choices?.[0]?.message?.content || "";
 
-    // 6. Parse LLM JSON response
+    // 5. Parse LLM JSON response
     let answer: string;
     let sources: { title: string; slug: string }[];
 
     try {
-      // Strip markdown code fences if present
       const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(cleaned);
       answer = parsed.answer || NO_ANSWER;
       sources = Array.isArray(parsed.sources) ? parsed.sources : Array.from(uniqueSources.values());
     } catch {
-      // If JSON parsing fails, use raw content as answer
       console.warn("[rag] Failed to parse LLM JSON, using raw content");
       answer = rawContent || NO_ANSWER;
       sources = Array.from(uniqueSources.values());

@@ -7,9 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const OPENAI_EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
-const EMBEDDING_MODEL = "text-embedding-3-small";
-const EMBEDDING_DIMS = 1536;
 const CHUNK_TARGET_CHARS = 1500; // ~375 tokens
 const CHUNK_OVERLAP_CHARS = 200; // ~50 tokens
 
@@ -62,7 +59,6 @@ function chunkText(text: string): string[] {
   while (start < text.length) {
     let end = Math.min(start + CHUNK_TARGET_CHARS, text.length);
 
-    // Try to break at a paragraph or sentence boundary
     if (end < text.length) {
       const slice = text.slice(start, end);
       const lastParagraph = slice.lastIndexOf("\n\n");
@@ -76,71 +72,17 @@ function chunkText(text: string): string[] {
     }
 
     chunks.push(text.slice(start, end).trim());
-    start = Math.max(start + 1, end - CHUNK_OVERLAP_CHARS);
+    // Ensure we always advance by at least half the chunk size to avoid infinite loops
+    const nextStart = end - CHUNK_OVERLAP_CHARS;
+    start = Math.max(start + Math.max(end - start, 1), nextStart);
+    if (start <= end - CHUNK_OVERLAP_CHARS && end < text.length) {
+      start = end - CHUNK_OVERLAP_CHARS;
+    }
+    // Simplify: always move forward by the chunk we just consumed minus overlap
+    start = end >= text.length ? text.length : Math.max(end - CHUNK_OVERLAP_CHARS, start + 1);
   }
 
   return chunks.filter((c) => c.length > 20);
-}
-
-async function getEmbedding(
-  text: string,
-  apiKey: string
-): Promise<number[]> {
-  const response = await fetch(OPENAI_EMBEDDING_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: text,
-      dimensions: EMBEDDING_DIMS,
-    }),
-  });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(
-      `Embedding API error [${response.status}]: ${errBody}`
-    );
-  }
-
-  const result = await response.json();
-  return result.data[0].embedding;
-}
-
-async function getEmbeddingsBatch(
-  texts: string[],
-  apiKey: string
-): Promise<number[][]> {
-  const response = await fetch(OPENAI_EMBEDDING_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: EMBEDDING_MODEL,
-      input: texts,
-      dimensions: EMBEDDING_DIMS,
-    }),
-  });
-
-  if (!response.ok) {
-    // Fall back to sequential
-    console.log("[ingest] Batch embedding failed, falling back to sequential");
-    const embeddings: number[][] = [];
-    for (const text of texts) {
-      embeddings.push(await getEmbedding(text, apiKey));
-    }
-    return embeddings;
-  }
-
-  const result = await response.json();
-  return result.data
-    .sort((a: { index: number }, b: { index: number }) => a.index - b.index)
-    .map((d: { embedding: number[] }) => d.embedding);
 }
 
 // ---------- main ----------
@@ -151,9 +93,6 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -184,14 +123,13 @@ serve(async (req) => {
 
     // Skip drafts
     if (!article.is_published) {
-      // Clean up any existing chunks for unpublished articles
       await supabase
         .from("article_chunks")
         .delete()
         .eq("article_id", article_id);
 
       return new Response(
-        JSON.stringify({ message: "Article is not published, skipping embedding. Existing chunks removed." }),
+        JSON.stringify({ message: "Article is not published, skipping. Existing chunks removed." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -210,7 +148,7 @@ serve(async (req) => {
 
     if (!canonicalText || canonicalText.trim().length < 50) {
       return new Response(
-        JSON.stringify({ error: "Article content too short for embedding" }),
+        JSON.stringify({ error: "Article content too short for indexing" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -232,10 +170,7 @@ serve(async (req) => {
     const chunks = chunkText(canonicalText);
     console.log(`[ingest] Article ${article_id}: ${chunks.length} chunks from ${canonicalText.length} chars`);
 
-    // 5. Embed all chunks
-    const embeddings = await getEmbeddingsBatch(chunks, OPENAI_API_KEY);
-
-    // 6. Delete old chunks and insert new ones
+    // 5. Delete old chunks and insert new ones
     const { error: deleteError } = await supabase
       .from("article_chunks")
       .delete()
@@ -245,13 +180,12 @@ serve(async (req) => {
       console.error("[ingest] Failed to delete old chunks:", deleteError);
     }
 
-    // Insert chunks using service role (bypasses RLS)
+    // Insert chunks — the DB trigger auto-populates search_vector
     const rows = chunks.map((text, i) => ({
       article_id,
       chunk_index: i,
       chunk_text: text,
-      embedding: JSON.stringify(embeddings[i]),
-      token_count: Math.ceil(text.length / 4), // rough estimate
+      token_count: Math.ceil(text.length / 4),
     }));
 
     const { error: insertError } = await supabase
@@ -261,12 +195,12 @@ serve(async (req) => {
     if (insertError) {
       console.error("[ingest] Failed to insert chunks:", insertError);
       return new Response(
-        JSON.stringify({ error: "Failed to store embeddings", details: insertError.message }),
+        JSON.stringify({ error: "Failed to store chunks", details: insertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[ingest] Successfully embedded article ${article_id}: ${chunks.length} chunks`);
+    console.log(`[ingest] Successfully indexed article ${article_id}: ${chunks.length} chunks`);
 
     return new Response(
       JSON.stringify({
