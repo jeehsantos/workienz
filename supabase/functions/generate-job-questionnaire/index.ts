@@ -9,6 +9,14 @@ const log = (step: string, details?: unknown) => {
   console.log(`[GENERATE-QUESTIONNAIRE] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
+const KNOWN_CANDIDATE_FIELDS = [
+  'visa_status', 'city', 'suburb', 'country', 'location_region',
+  'availability', 'is_available', 'has_car', 'comfortable_heavy_lifting',
+  'comfortable_standing', 'has_ird_number', 'phone', 'languages', 'skills',
+  'experience_years', 'industry', 'bio', 'headline', 'date_of_birth',
+  'work_experience', 'education',
+].join(', ');
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,11 +28,10 @@ Deno.serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
-    // Auth check - accept both service-role calls and authenticated contractor calls
+    // Auth check
     const authHeader = req.headers.get('Authorization');
     if (authHeader) {
       const token = authHeader.replace('Bearer ', '');
-      // Verify token if provided (non-service calls)
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
       if (token !== serviceKey && token !== anonKey) {
         const authClient = createClient(supabaseUrl, anonKey, {
@@ -50,10 +57,10 @@ Deno.serve(async (req) => {
 
     log('Starting', { job_id, force });
 
-    // Fetch job
+    // Fetch job with skills and physical requirements
     const { data: job, error: jobErr } = await supabase
       .from('jobs')
-      .select('id, title, description, requirements, location_city, location_suburb, location_country, schedule_type, hiring_style, hiring_config')
+      .select('id, title, description, requirements, location_city, location_suburb, location_country, schedule_type, hiring_style, hiring_config, skills_required, requires_car, requires_heavy_lifting, requires_standing')
       .eq('id', job_id)
       .single();
 
@@ -71,7 +78,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Idempotency: check if questionnaire already exists
+    // Idempotency check
     if (!force) {
       const { data: existing } = await supabase
         .from('job_ai_questionnaires')
@@ -94,7 +101,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch shifts/notes
+    // Fetch shifts
     let shiftNotes = 'Not specified';
     if (job.schedule_type === 'shifts') {
       const { data: shifts } = await supabase
@@ -109,51 +116,49 @@ Deno.serve(async (req) => {
       }
     }
 
-    const hiringConfig = (job.hiring_config || {}) as Record<string, unknown>;
-    const questionCount = (hiringConfig.question_count as number) || 8;
     const location = [job.location_suburb, job.location_city, job.location_country].filter(Boolean).join(', ');
-    const checklistJson = job.requirements || 'None';
+    const requiredSkillsList = (job.skills_required || []).join(', ') || 'None';
 
-    // Call LLM
-    const systemPrompt = `You generate short, practical screening questions for temporary/entry-level work in New Zealand.
-Avoid academic or trivia questions. Keep language simple. Do not ask sensitive personal questions.`;
+    // Build v2 prompts
+    const systemPrompt = `You generate short, practical screening questions for entry-level/temporary jobs in New Zealand.
+Avoid academic/trivia questions. Keep language simple. Do not ask sensitive personal questions.`;
 
     const userPrompt = `Create a screening questionnaire for this job.
 
-Rules:
-- Total 6 to 10 questions (aim for ${questionCount}).
-- Practical + job-related + fair.
-- Mix: yes_no, single_select, short_text.
-- Focus on: reliability, availability, role tasks, safety/physical realities if relevant.
-
-Return ONLY valid JSON matching schema below.
-
-SCHEMA:
-{
-  "version": "questionnaire_v1",
-  "questions": [
-    {
-      "id": "q_xxx",
-      "type": "yes_no" | "single_select" | "short_text",
-      "prompt": "string",
-      "options": [{"value":"string","label":"string"}]
-    }
-  ]
-}
+IMPORTANT RULES:
+- Total questions: 5 to 7 (max 8 only if safety-critical).
+- Do NOT ask questions for data we already collect in the candidate profile.
+  Already captured fields (DO NOT ASK): ${KNOWN_CANDIDATE_FIELDS}
+  Example fields: visa/work rights, location, availability, transport, phone/email.
+- Contractor "required skills" must NOT be combined into one question.
+  Each required skill must become an atomic check (its own yes/no or single_select question).
+- Questions must be practical and directly job-related.
+- Use simple formats: yes_no, single_select, short_text.
+- Options must be included only for single_select.
+- Keep prompts under 160 characters.
+- Questionnaire must only ask for missing decision-relevant information.
 
 JOB:
 Title: ${job.title}
 Description: ${job.description}
 Location: ${location}
 Shifts/notes: ${shiftNotes}
-Checklist (optional): ${checklistJson}
+Contractor required skills (list): ${requiredSkillsList}
 
-IMPORTANT:
-- Include "options" ONLY for single_select.
-- Keep prompts <= 180 chars.
-- No extra keys, no markdown.`;
+Return ONLY valid JSON in this schema:
+{
+  "version": "questionnaire_v2",
+  "questions": [
+    {
+      "id": "q_001",
+      "type": "yes_no" | "single_select" | "short_text",
+      "prompt": "string",
+      "options": [{"value":"string","label":"string"}]
+    }
+  ]
+}`;
 
-    log('Calling AI gateway');
+    log('Calling AI gateway (v2)');
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -182,7 +187,6 @@ IMPORTANT:
     const aiData = await aiResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || '';
 
-    // Parse JSON from response (strip markdown fences if present)
     let questionnaire;
     try {
       const jsonStr = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -195,7 +199,6 @@ IMPORTANT:
       });
     }
 
-    // Validate basic structure
     if (!questionnaire.questions || !Array.isArray(questionnaire.questions) || questionnaire.questions.length === 0) {
       return new Response(JSON.stringify({ error: 'AI returned empty questionnaire' }), {
         status: 502,
@@ -203,14 +206,14 @@ IMPORTANT:
       });
     }
 
-    // Upsert into job_ai_questionnaires (service role bypasses RLS)
+    // Upsert
     const { error: upsertErr } = await supabase
       .from('job_ai_questionnaires')
       .upsert({
         job_id,
         questionnaire,
         model: 'google/gemini-3-flash-preview',
-        prompt_version: 'qgen_v1',
+        prompt_version: 'qgen_v2',
         generated_at: new Date().toISOString(),
       }, { onConflict: 'job_id' });
 
@@ -222,7 +225,7 @@ IMPORTANT:
       });
     }
 
-    log('Questionnaire generated and saved', { questionCount: questionnaire.questions.length });
+    log('Questionnaire v2 generated and saved', { questionCount: questionnaire.questions.length });
 
     return new Response(JSON.stringify({ success: true, questionnaire, cached: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

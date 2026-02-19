@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
-import { ApplicationRequirementsDialog } from "@/components/jobs/ApplicationRequirementsDialog";
+
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 type JobShift = {
   id: string;
@@ -99,7 +99,7 @@ export default function JobDetail() {
   const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
   const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
   const [applicationError, setApplicationError] = useState<string | null>(null);
-  const [showRequirementsDialog, setShowRequirementsDialog] = useState(false);
+  
   
   // Questionnaire state for open_ai_top10
   const [questionnaire, setQuestionnaire] = useState<any>(null);
@@ -322,19 +322,6 @@ export default function JobDetail() {
   const canApply = () => {
     return eligibility;
   };
-  const handleApply = useCallback(async () => {
-    if (!employeeProfileId || !id || !user) return;
-
-    // Client-side pre-check (but backend will do the real validation)
-    const eligibility = canApply();
-    if (!eligibility.allowed) {
-      setApplicationError(eligibility.reason);
-      return;
-    }
-
-    // Show requirements dialog first
-    setShowRequirementsDialog(true);
-  }, [employeeProfileId, id, user, canApply]);
   const proceedWithApplication = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
 
@@ -359,22 +346,19 @@ export default function JobDetail() {
         body: requestBody
       });
 
-      // Handle edge function errors (returns error in response.data when status is 4xx/5xx)
+      // Handle edge function errors
       if (response.error) {
         console.error("Error applying:", response.error);
         let errorMessage = "Failed to submit application. Please try again.";
         let isUpgradePrompt = false;
         try {
-          // FunctionsHttpError: try to parse JSON from the error context/message
           if (typeof response.error === 'object') {
-            // Try reading the response body from the error context
             const ctx = (response.error as any).context;
             if (ctx && typeof ctx.json === 'function') {
               const body = await ctx.json();
               if (body?.error) errorMessage = body.error;
               if (body?.upgrade_prompt) isUpgradePrompt = true;
             } else if (response.error.message) {
-              // Fallback: try to extract JSON from the message string
               const jsonMatch = response.error.message.match(/\{[\s\S]*\}$/);
               if (jsonMatch) {
                 const parsed = JSON.parse(jsonMatch[0]);
@@ -399,7 +383,6 @@ export default function JobDetail() {
       }
       const result = response.data;
 
-      // Check for error response from the edge function
       if (result?.error) {
         setApplicationError(result.error);
         toast({
@@ -425,7 +408,6 @@ export default function JobDetail() {
       setHasApplied(true);
       setCoverLetter("");
 
-      // Show success message - stay on the page instead of redirecting
       toast({
         title: "Application Submitted!",
         description: result.data?.conversation_id ? "You're now connected with the employer. Check your dashboard to view the conversation." : "Your application has been sent to the employer."
@@ -440,7 +422,19 @@ export default function JobDetail() {
       });
       setIsApplying(false);
     }
-  }, [employeeProfileId, id, user, coverLetter, toast]);
+  }, [employeeProfileId, id, user, coverLetter, toast, job, questionnaireAnswers, isApplying]);
+
+  const handleApply = useCallback(async () => {
+    if (!employeeProfileId || !id || !user) return;
+
+    const eligibility = canApply();
+    if (!eligibility.allowed) {
+      setApplicationError(eligibility.reason);
+      return;
+    }
+
+    proceedWithApplication();
+  }, [employeeProfileId, id, user, canApply, proceedWithApplication]);
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -459,8 +453,6 @@ export default function JobDetail() {
       </div>;
   }
 
-  // Render requirements dialog
-  const renderRequirementsDialog = () => <ApplicationRequirementsDialog open={showRequirementsDialog} onOpenChange={setShowRequirementsDialog} jobId={id || ""} jobTitle={job?.title || ""} onProceed={proceedWithApplication} />;
   return <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
@@ -783,7 +775,5 @@ export default function JobDetail() {
         </div>
       </div>
       
-      {/* Requirements Dialog */}
-      {renderRequirementsDialog()}
     </div>;
 }
