@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.rag-chat-answer]
 verify_jwt = false
+
+[functions.bulk-ingest-articles]
+verify_jwt = false
