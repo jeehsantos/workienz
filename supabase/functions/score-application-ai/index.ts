@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     log('Starting', { application_id });
 
-    // Fetch application with job details
+    // Fetch application
     const { data: app, error: appErr } = await supabase
       .from('job_applications')
       .select('id, job_id, employee_id, application_answers, ai_scoring_status, cover_letter')
@@ -44,10 +44,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch job
+    // Fetch job with requirements fields
     const { data: job, error: jobErr } = await supabase
       .from('jobs')
-      .select('id, title, description, requirements, location_city, location_suburb, location_country, schedule_type, hiring_style, hiring_config')
+      .select('id, title, description, requirements, location_city, location_suburb, location_country, schedule_type, hiring_style, hiring_config, skills_required, requires_car, requires_heavy_lifting, requires_standing')
       .eq('id', app.job_id)
       .single();
 
@@ -78,18 +78,27 @@ Deno.serve(async (req) => {
       .eq('user_id', empProfile.user_id)
       .single() : { data: null };
 
-    // Build candidate summary (no PII - just relevant work info)
+    // Build candidate summary
     const candidateSummary = empProfile ? [
       `Name: ${userProfile?.full_name || 'Not provided'}`,
       `Experience: ${empProfile.experience_years || 0} years${empProfile.industry ? ` in ${empProfile.industry}` : ''}`,
-      `Location: ${[empProfile.city, empProfile.country].filter(Boolean).join(', ') || 'Not specified'}`,
+      `Location: ${[empProfile.suburb, empProfile.city, empProfile.country].filter(Boolean).join(', ') || 'Not specified'}`,
       `Skills: ${empProfile.skills?.join(', ') || 'None listed'}`,
       `Languages: ${empProfile.languages?.join(', ') || 'Not specified'}`,
       `Availability: ${empProfile.availability || 'Not specified'}`,
       `Has car: ${empProfile.has_car ? 'Yes' : 'No'}`,
       `Comfortable with heavy lifting: ${empProfile.comfortable_heavy_lifting ? 'Yes' : 'No'}`,
       `Comfortable standing long periods: ${empProfile.comfortable_standing ? 'Yes' : 'No'}`,
+      `Visa status: ${empProfile.visa_status || 'Not specified'}`,
     ].join('\n') : 'No profile data available';
+
+    // Build job requirements summary for scoring context
+    const jobRequirements = [
+      job.skills_required?.length ? `Required skills: ${job.skills_required.join(', ')}` : null,
+      job.requires_car ? 'Requires own transport (car)' : null,
+      job.requires_heavy_lifting ? 'Requires heavy lifting' : null,
+      job.requires_standing ? 'Requires standing for long periods' : null,
+    ].filter(Boolean).join('\n') || 'No specific requirements';
 
     // Fetch questionnaire
     const { data: questData } = await supabase
@@ -122,7 +131,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Score one applicant for one job using only provided information. Be fair and job-relevant. Do not infer protected attributes. Return JSON only.`;
+    const systemPrompt = `Score one applicant for one job. Combine three data sources:
+1. Candidate profile data (visa, location, availability, transport, physical capabilities, skills)
+2. Questionnaire answers
+3. Job requirements (required skills, physical requirements, transport)
+
+Determine overall fit and eligibility. Be fair and job-relevant. Do not infer protected attributes. Return JSON only.`;
 
     const userPrompt = `JOB:
 ${job.title}
@@ -130,6 +144,10 @@ ${job.description}
 Location: ${location}
 Shifts/notes: ${shiftNotes}
 Checklist: ${job.requirements || 'None'}
+
+JOB REQUIREMENTS:
+${jobRequirements}
+
 Questionnaire: ${questData ? JSON.stringify(questData.questionnaire) : 'None'}
 
 CANDIDATE PROFILE SUMMARY:
@@ -147,7 +165,10 @@ Return ONLY this JSON:
 Rules:
 - ai_score is 0-100 integer.
 - reason_summary is 1-2 sentences, max 200 chars.
-- Be fair. Focus on job-relevant factors only.`;
+- Be fair. Focus on job-relevant factors only.
+- Compare candidate profile against job requirements (skills match, transport, physical capabilities).
+- Factor in questionnaire answers for role-specific readiness.
+- A candidate missing critical requirements (e.g. no car when required) should score lower.`;
 
     log('Calling AI gateway for scoring');
 
@@ -191,11 +212,10 @@ Rules:
       });
     }
 
-    // Clamp score 0-100
     const aiScore = Math.max(0, Math.min(100, Math.round(scoreResult.ai_score)));
     const reasonSummary = (scoreResult.reason_summary || '').substring(0, 500);
 
-    // Save score - DO NOT change application status
+    // Save score
     await supabase
       .from('job_applications')
       .update({
@@ -208,7 +228,7 @@ Rules:
 
     log('Score saved', { aiScore, applicationId: application_id });
 
-    // Trigger refresh-top-candidates asynchronously (fire-and-forget)
+    // Trigger refresh-top-candidates (fire-and-forget)
     try {
       await fetch(`${supabaseUrl}/functions/v1/refresh-top-candidates`, {
         method: 'POST',
