@@ -163,18 +163,23 @@ export function TemplateConfirmation({
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <User className="w-4 h-4 text-primary" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold truncate uppercase">{fav.employee_name}</p>
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400 flex items-center gap-0.5">
-                            <CheckCircle2 className="w-2.5 h-2.5" />
-                            Available
-                          </Badge>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold truncate uppercase">{fav.employee_name}</p>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-600 dark:border-emerald-700 dark:text-emerald-400 flex items-center gap-0.5">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              Available
+                            </Badge>
+                          </div>
+                          {fav.employee_headline && (
+                            <p className="text-xs text-muted-foreground truncate">{fav.employee_headline}</p>
+                          )}
+                          {fav.job_title && (
+                            <p className="text-[10px] text-primary/70 truncate mt-0.5">
+                              Hired as: {fav.job_title}
+                            </p>
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {fav.employee_headline || fav.job_title || "Worker"}
-                        </p>
-                      </div>
                     </div>
                     <Button
                       size="sm"
