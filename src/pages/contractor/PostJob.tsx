@@ -552,12 +552,6 @@ export default function PostJob() {
             : "Create a new job posting to find temporary workers."}
         </p>
 
-        {/* Favorited Workers Suggestion (non-template flow) */}
-        {!templateJobId && favorites.length > 0 && (
-          <div className="mb-6">
-            <FavoritedWorkersSuggestion favorites={favorites} isLoading={favoritesLoading} />
-          </div>
-        )}
 
         {/* Entitlement Warning */}
         {!canPostJob && entitlementError && (
