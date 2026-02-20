@@ -146,11 +146,6 @@ export function TemplateConfirmation({
               Favorite Past Hires
             </h3>
 
-            {formData.title && (
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                Previously worked as {formData.title}
-              </p>
-            )}
 
             {favoritesLoading ? (
               <div className="flex items-center justify-center py-8">
