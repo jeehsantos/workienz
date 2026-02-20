@@ -216,6 +216,33 @@ export type Database = {
           },
         ]
       }
+      contractor_application_notes: {
+        Row: {
+          application_id: string
+          contractor_user_id: string
+          created_at: string
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          contractor_user_id: string
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          contractor_user_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contractor_entitlements: {
         Row: {
           activated_at: string | null

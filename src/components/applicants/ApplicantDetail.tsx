@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   User,
@@ -11,7 +11,11 @@ import {
   XCircle,
   Globe,
   Star,
+  Save,
+  CheckCheck,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,7 +43,70 @@ function ApplicantDetail({
   onStartConversation,
   isUpdating,
 }: ApplicantDetailProps) {
-  const [internalNotes, setInternalNotes] = useState("");
+  const { user } = useAuthContext();
+  const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load existing note for this applicant
+  useEffect(() => {
+    if (!user || !applicant.id) return;
+    supabase
+      .from("contractor_application_notes")
+      .select("note, updated_at")
+      .eq("contractor_user_id", user.id)
+      .eq("application_id", applicant.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setNote(data.note);
+          setSavedAt(new Date(data.updated_at));
+        } else {
+          setNote("");
+          setSavedAt(null);
+        }
+        setIsDirty(false);
+      });
+  }, [applicant.id, user]);
+
+  const saveNote = useCallback(async (value: string) => {
+    if (!user) return;
+    setIsSaving(true);
+    const { error } = await supabase
+      .from("contractor_application_notes")
+      .upsert(
+        {
+          contractor_user_id: user.id,
+          application_id: applicant.id,
+          note: value,
+        },
+        { onConflict: "contractor_user_id,application_id" }
+      );
+    setIsSaving(false);
+    if (!error) {
+      setSavedAt(new Date());
+      setIsDirty(false);
+    }
+  }, [user, applicant.id]);
+
+  const handleNoteChange = (value: string) => {
+    setNote(value);
+    setIsDirty(true);
+    // Debounce autosave — 2 seconds after last keystroke
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      saveNote(value);
+    }, 2000);
+  };
+
+  // Cleanup autosave timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, []);
 
   const renderAnswer = (questionId: string, answer: string) => {
     const question = questionnaire?.questions.find((q) => q.id === questionId);
@@ -269,15 +336,46 @@ function ApplicantDetail({
 
         {/* Internal Notes */}
         <div>
-          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">
-            Internal Notes
-          </h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+              Internal Notes
+            </h4>
+            <div className="flex items-center gap-2">
+              {savedAt && !isDirty && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <CheckCheck className="w-3 h-3 text-green-600" />
+                  Saved {savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+              {isDirty && !isSaving && (
+                <span className="text-xs text-muted-foreground">Unsaved changes</span>
+              )}
+              {isSaving && (
+                <span className="text-xs text-muted-foreground animate-pulse">Saving…</span>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+                  saveNote(note);
+                }}
+                disabled={isSaving || !isDirty}
+                className="h-7 px-2 text-xs gap-1"
+              >
+                <Save className="w-3 h-3" />
+                Save
+              </Button>
+            </div>
+          </div>
           <Textarea
-            value={internalNotes}
-            onChange={(e) => setInternalNotes(e.target.value)}
-            placeholder="Add private notes about this candidate..."
-            className="min-h-[100px] bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30"
+            value={note}
+            onChange={(e) => handleNoteChange(e.target.value)}
+            placeholder="Add private notes about this candidate. Autosaved as you type…"
+            className="min-h-[120px] bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/30 focus-visible:ring-amber-400/50 resize-none"
+            maxLength={2000}
           />
+          <p className="text-xs text-muted-foreground text-right mt-1">{note.length}/2000</p>
         </div>
       </div>
     </div>
@@ -285,3 +383,4 @@ function ApplicantDetail({
 }
 
 export default memo(ApplicantDetail);
+
