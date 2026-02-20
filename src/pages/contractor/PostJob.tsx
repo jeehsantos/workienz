@@ -629,7 +629,7 @@ export default function PostJob() {
                   <Save className="w-4 h-4 mr-2" />
                   Save as Draft
                 </Button>
-                {favorites.length > 0 && (
+                {templateJobId && favorites.length > 0 && (
                   <Button
                     type="button"
                     variant="secondary"
