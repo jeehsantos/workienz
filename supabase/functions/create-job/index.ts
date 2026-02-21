@@ -251,8 +251,8 @@ interface JobData {
            .from("jobs")
            .update({
              ...jobData,
-             status: "published",
-             updated_at: new Date().toISOString(),
+              status: status === "private" ? "private" : "published",
+              updated_at: new Date().toISOString(),
            })
            .eq("id", jobId)
            .eq("contractor_id", contractorProfile.id);
@@ -265,8 +265,8 @@ interface JobData {
            .from("jobs")
            .insert({
              ...jobData,
-             contractor_id: contractorProfile.id,
-             status: "published",
+              contractor_id: contractorProfile.id,
+              status: status === "private" ? "private" : "published",
            })
            .select("id")
            .single();
