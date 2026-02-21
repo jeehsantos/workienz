@@ -440,7 +440,7 @@ export default function PostJob() {
     });
 
     if (offerData.data.conversation_id) {
-      navigate(`/conversation/${offerData.data.conversation_id}`);
+      navigate(`/messages/${offerData.data.conversation_id}`);
     } else {
       navigate(`/contractor/jobs/${result.job_id}`);
     }
