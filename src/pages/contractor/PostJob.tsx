@@ -293,15 +293,15 @@ export default function PostJob() {
     }
   };
 
-  const handleSubmit = async (status: "draft" | "published" | "private") => {
-    if (!contractorProfile) return;
+  const createJob = async (status: "draft" | "published" | "private"): Promise<{ job_id?: string; error?: boolean }> => {
+    if (!contractorProfile) return { error: true };
 
     // Validate for publishing
     if (status === "published" || status === "private") {
       if (!formData.hourly_rate) {
         toast({ title: "Hourly rate required", description: "Please enter an hourly rate.", variant: "destructive" });
         setCurrentStep(2);
-        return;
+        return { error: true };
       }
     }
 
@@ -364,7 +364,7 @@ export default function PostJob() {
     if (error) {
       console.error("Error creating job:", error);
       toast({ title: "Error", description: "Failed to create job posting. Please try again.", variant: "destructive" });
-      return;
+      return { error: true };
     }
 
     // Handle backend errors (like entitlement issues)
@@ -375,13 +375,19 @@ export default function PostJob() {
           description: data.message,
           variant: "destructive",
         });
-        // Optionally redirect to pricing
         setTimeout(() => navigate("/pricing"), 2000);
       } else {
         toast({ title: "Error", description: data.message || "Failed to create job.", variant: "destructive" });
       }
-      return;
+      return { error: true };
     }
+
+    return { job_id: data.job_id };
+  };
+
+  const handleSubmit = async (status: "draft" | "published" | "private") => {
+    const result = await createJob(status);
+    if (result.error || !result.job_id) return;
 
     const isPrivatePost = status === "private";
     toast({
@@ -389,14 +395,54 @@ export default function PostJob() {
       description: isPrivatePost
         ? "Your private job has been created. You can now offer this position to your favorited workers."
         : (status === "published" 
-          ? `Your job posting is now live. ${typeof data.remaining_posts === "number" ? `${data.remaining_posts} posts remaining.` : ""}`
+          ? "Your job posting is now live."
           : "Your job has been saved as a draft."),
     });
     
-    if (isPrivatePost && data.job_id) {
-      navigate(`/contractor/jobs/${data.job_id}`);
+    if (isPrivatePost && result.job_id) {
+      navigate(`/contractor/jobs/${result.job_id}`);
     } else {
       navigate("/contractor/jobs");
+    }
+  };
+
+  const handleOfferToWorker = async (employeeUserId: string) => {
+    if (!contractorProfile) return;
+
+    setIsSubmitting(true);
+    const result = await createJob("private");
+    if (result.error || !result.job_id) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Call offer-position to create application + conversation
+    const { data: offerData, error: offerError } = await supabase.functions.invoke("offer-position", {
+      body: { job_id: result.job_id, employee_user_id: employeeUserId },
+    });
+
+    setIsSubmitting(false);
+
+    if (offerError || !offerData?.success) {
+      console.error("Error offering position:", offerError || offerData?.error);
+      toast({
+        title: "Job created but offer failed",
+        description: offerData?.error || "Could not send the offer. You can try again from the job page.",
+        variant: "destructive",
+      });
+      navigate(`/contractor/jobs/${result.job_id}`);
+      return;
+    }
+
+    toast({
+      title: "Position Offered!",
+      description: `Offer sent to ${offerData.data.employee_name} for "${offerData.data.job_title}".`,
+    });
+
+    if (offerData.data.conversation_id) {
+      navigate(`/conversation/${offerData.data.conversation_id}`);
+    } else {
+      navigate(`/contractor/jobs/${result.job_id}`);
     }
   };
 
@@ -521,6 +567,7 @@ export default function PostJob() {
             canPostJob={canPostJob}
             onPublish={() => handleSubmit("published")}
             onEditWizard={() => setShowTemplateConfirmation(false)}
+            onOfferToWorker={handleOfferToWorker}
           />
         </div>
       </div>
