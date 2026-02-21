@@ -1,11 +1,8 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Star, User, MessageSquare, Loader2, ArrowLeft, Send, Search, CheckCircle2, Lightbulb } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Star, User, Loader2, Send, Search, CheckCircle2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import type { FavoriteWorker } from "@/hooks/useFavoriteWorkers";
 
 interface TemplateConfirmationProps {
@@ -22,6 +19,7 @@ interface TemplateConfirmationProps {
   canPostJob: boolean;
   onPublish: () => void;
   onEditWizard: () => void;
+  onOfferToWorker: (employeeUserId: string) => void;
 }
 
 export function TemplateConfirmation({
@@ -32,39 +30,8 @@ export function TemplateConfirmation({
   canPostJob,
   onPublish,
   onEditWizard,
+  onOfferToWorker,
 }: TemplateConfirmationProps) {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [messagingTo, setMessagingTo] = useState<string | null>(null);
-
-  const handleSendMessage = async (fav: FavoriteWorker) => {
-    setMessagingTo(fav.employee_user_id);
-    try {
-      // Check for existing conversation
-      const { data: existingConv } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("employee_user_id", fav.employee_user_id)
-        .in("status", ["active", "pending"])
-        .limit(1)
-        .maybeSingle();
-
-      if (existingConv) {
-        navigate(`/conversation/${existingConv.id}`);
-        return;
-      }
-
-      // No existing conversation — just navigate to their profile for now
-      toast({
-        title: "No active conversation",
-        description: `Post the job first, then you can offer the position to ${fav.employee_name}.`,
-      });
-    } catch {
-      toast({ title: "Error", description: "Could not open conversation.", variant: "destructive" });
-    } finally {
-      setMessagingTo(null);
-    }
-  };
 
   // Filter favorites that previously worked on similar jobs
   const relevantFavorites = favorites.filter(
@@ -184,15 +151,15 @@ export function TemplateConfirmation({
                     <Button
                       size="sm"
                       className="w-full gap-2 bg-primary hover:bg-primary/90"
-                      onClick={() => handleSendMessage(fav)}
-                      disabled={messagingTo === fav.employee_user_id}
+                      onClick={() => onOfferToWorker(fav.employee_user_id)}
+                      disabled={isSubmitting || !canPostJob}
                     >
-                      {messagingTo === fav.employee_user_id ? (
+                      {isSubmitting ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
-                        <MessageSquare className="w-3.5 h-3.5" />
+                        <Send className="w-3.5 h-3.5" />
                       )}
-                      Send Message
+                      Offer Position
                     </Button>
                   </div>
                 ))}
