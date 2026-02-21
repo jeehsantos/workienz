@@ -275,7 +275,11 @@ export default function MyJobs() {
                       {job.location_city && <span>{job.location_city}</span>}
                       {(job.hourly_rate_min || job.hourly_rate_max) && (
                         <span>
-                          ${job.hourly_rate_min || "?"} - ${job.hourly_rate_max || "?"}/hr
+                          {job.hourly_rate_min && job.hourly_rate_max
+                            ? `$${job.hourly_rate_min} - $${job.hourly_rate_max}/hr`
+                            : job.hourly_rate_min
+                              ? `$${job.hourly_rate_min}/hr`
+                              : `$${job.hourly_rate_max}/hr`}
                         </span>
                       )}
                       <span>
