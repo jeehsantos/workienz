@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_pre_employment_packs: {
+        Row: {
+          answers: Json | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          job_application_id: string
+          pack_version: string
+          required_by_user_id: string
+          reviewed_at: string | null
+          started_at: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          job_application_id: string
+          pack_version?: string
+          required_by_user_id: string
+          reviewed_at?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          job_application_id?: string
+          pack_version?: string
+          required_by_user_id?: string
+          reviewed_at?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_pre_employment_packs_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: true
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_categories: {
         Row: {
           created_at: string

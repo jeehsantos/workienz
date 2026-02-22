@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
+import { PreEmploymentPackBanner } from "@/components/chat/PreEmploymentPackBanner";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -864,6 +865,12 @@ export default function Conversation() {
           </div>
         </div>
       )}
+
+      {/* Pre-Employment Pack Banner */}
+      <PreEmploymentPackBanner
+        jobApplicationId={conversation?.job_application_id || null}
+        isEmployee={!isUserContractor}
+      />
 
       {/* Header - Fixed */}
       <div className="border-b border-border/50 bg-card flex-shrink-0">

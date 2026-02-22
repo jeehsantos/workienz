@@ -140,6 +140,24 @@ Deno.serve(async (req) => {
 
     const employeeName = employeeUserProfile?.full_name || "Applicant";
 
+    // CHECK: Pre-employment pack gate
+    const { data: packData } = await supabase
+      .from("application_pre_employment_packs")
+      .select("id, status")
+      .eq("job_application_id", application_id)
+      .maybeSingle();
+
+    if (packData && !["submitted", "reviewed", "waived"].includes(packData.status)) {
+      console.log("[hire-applicant] Pre-employment pack not complete:", packData.status);
+      return new Response(
+        JSON.stringify({
+          error: "Pre-employment pack has not been completed yet. The candidate must submit their pre-employment form before you can confirm the hire.",
+          pack_status: packData.status,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // BEGIN TRANSACTIONAL OPERATIONS
     console.log("[hire-applicant] Starting transactional hire process...");
 
