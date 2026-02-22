@@ -1159,8 +1159,8 @@ export default function Conversation() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              Permanent Action: Deleting this chat will end the current application process and make the position
-              available to other applicants again.
+              Deleting this chat will end the current application process and make the position available to other
+              applicants again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
