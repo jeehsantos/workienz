@@ -90,9 +90,7 @@ const MessageBubble = memo(({ message, isOwn }: { message: Message; isOwn: boole
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
-          isOwn
-            ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-muted rounded-bl-md"
+          isOwn ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md"
         }`}
       >
         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
@@ -104,7 +102,7 @@ const MessageBubble = memo(({ message, isOwn }: { message: Message; isOwn: boole
   );
 });
 
-MessageBubble.displayName = 'MessageBubble';
+MessageBubble.displayName = "MessageBubble";
 
 export default function Conversation() {
   const { id } = useParams();
@@ -126,7 +124,7 @@ export default function Conversation() {
   const [showSubscriberDialog, setShowSubscriberDialog] = useState(false);
   const [isFreeTier, setIsFreeTier] = useState(false);
   const [checkingFreeTier, setCheckingFreeTier] = useState(false);
-  
+
   // Pagination state (Requirement 9.3)
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -137,7 +135,7 @@ export default function Conversation() {
   useEffect(() => {
     async function checkFreeTierStatus() {
       if (!user || !isContractor) return;
-      
+
       setCheckingFreeTier(true);
       try {
         const { data: entitlements } = await supabase
@@ -148,8 +146,8 @@ export default function Conversation() {
 
         if (entitlements && entitlements.length > 0) {
           // Check if user only has free tier (no paid plans)
-          const hasPaidPlan = entitlements.some(e => e.plan_type !== "free_contractor");
-          const hasFreeTier = entitlements.some(e => e.plan_type === "free_contractor");
+          const hasPaidPlan = entitlements.some((e) => e.plan_type !== "free_contractor");
+          const hasFreeTier = entitlements.some((e) => e.plan_type === "free_contractor");
           setIsFreeTier(hasFreeTier && !hasPaidPlan);
         }
       } catch (error) {
@@ -173,7 +171,8 @@ export default function Conversation() {
 
       const { data: convData, error: convError } = await supabase
         .from("conversations")
-        .select(`
+        .select(
+          `
           id,
           status,
           contractor_user_id,
@@ -184,7 +183,8 @@ export default function Conversation() {
           reminder_count,
           hired_at,
           scheduled_deletion_at
-        `)
+        `,
+        )
         .eq("id", id)
         .single();
 
@@ -223,9 +223,7 @@ export default function Conversation() {
 
       // Determine other party
       const otherUserId =
-        convData.contractor_user_id === user?.id
-          ? convData.employee_user_id
-          : convData.contractor_user_id;
+        convData.contractor_user_id === user?.id ? convData.employee_user_id : convData.contractor_user_id;
 
       // Fetch other party profile
       const { data: profileData } = await supabase
@@ -238,7 +236,7 @@ export default function Conversation() {
       let phone = profileData?.phone || null;
       let contractorAvatarUrl: string | null = null;
       let contractorCompanyName: string | null = null;
-      
+
       if (!phone) {
         if (convData.contractor_user_id === user?.id) {
           const { data: empProfile } = await supabase
@@ -275,8 +273,12 @@ export default function Conversation() {
         reminder_count: convData.reminder_count || 0,
         hired_at: convData.hired_at,
         scheduled_deletion_at: convData.scheduled_deletion_at,
-        job_application: convData.job_application_id 
-          ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle, status: jobStatus } } 
+        job_application: convData.job_application_id
+          ? {
+              id: convData.job_application_id,
+              status: applicationStatus,
+              job: { id: jobId || "", title: jobTitle, status: jobStatus },
+            }
           : null,
         other_party: profileData ? { ...profileData, phone } : null,
         other_party_user_id: otherUserId,
@@ -298,7 +300,7 @@ export default function Conversation() {
 
       const messages = (messagesData || []).reverse(); // Reverse to show oldest first
       setMessages(messages);
-      
+
       // Check if there are more messages
       if (messages.length === MESSAGES_PER_PAGE) {
         setHasMoreMessages(true);
@@ -306,20 +308,21 @@ export default function Conversation() {
       } else {
         setHasMoreMessages(false);
       }
-      
+
       setIsLoading(false);
 
       // Mark conversation as read
       if (user && messagesData && messagesData.length > 0) {
-        await supabase
-          .from("conversation_read_status")
-          .upsert({
+        await supabase.from("conversation_read_status").upsert(
+          {
             conversation_id: id,
             user_id: user.id,
             last_read_at: new Date().toISOString(),
-          }, {
-            onConflict: 'conversation_id,user_id'
-          });
+          },
+          {
+            onConflict: "conversation_id,user_id",
+          },
+        );
         dispatchUnreadRefresh();
       }
     }
@@ -338,7 +341,7 @@ export default function Conversation() {
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
-        }
+        },
       )
       .subscribe();
 
@@ -362,7 +365,7 @@ export default function Conversation() {
 
     try {
       // Get the oldest message's created_at timestamp
-      const oldestMessage = messages.find(m => m.id === oldestMessageId);
+      const oldestMessage = messages.find((m) => m.id === oldestMessageId);
       if (!oldestMessage) {
         setIsLoadingMore(false);
         return;
@@ -384,9 +387,9 @@ export default function Conversation() {
 
       if (olderMessages && olderMessages.length > 0) {
         const reversedMessages = olderMessages.reverse();
-        setMessages(prev => [...reversedMessages, ...prev]);
+        setMessages((prev) => [...reversedMessages, ...prev]);
         setOldestMessageId(reversedMessages[0]?.id || null);
-        
+
         // Check if there are more messages
         if (olderMessages.length < MESSAGES_PER_PAGE) {
           setHasMoreMessages(false);
@@ -404,7 +407,7 @@ export default function Conversation() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedMessage = newMessage.trim();
-    
+
     if (!trimmedMessage || !user || !id || conversation?.status !== "active") return;
 
     if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
@@ -445,10 +448,7 @@ export default function Conversation() {
 
     setIsClosing(true);
 
-    const { error } = await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("conversations").delete().eq("id", id);
 
     setIsClosing(false);
     setShowCloseDialog(false);
@@ -490,7 +490,7 @@ export default function Conversation() {
         return;
       }
 
-      const response = await supabase.functions.invoke('hire-applicant', {
+      const response = await supabase.functions.invoke("hire-applicant", {
         body: { application_id: conversation.job_application_id },
       });
 
@@ -517,14 +517,19 @@ export default function Conversation() {
         return;
       }
 
-      setConversation(prev => prev ? {
-        ...prev,
-        job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null
-      } : null);
+      setConversation((prev) =>
+        prev
+          ? {
+              ...prev,
+              job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null,
+            }
+          : null,
+      );
 
       toast({
         title: "🎉 Applicant Hired!",
-        description: "Congratulations message sent. The worker's availability has been updated. Other pending applications have been closed.",
+        description:
+          "Congratulations message sent. The worker's availability has been updated. Other pending applications have been closed.",
       });
     } catch (error) {
       console.error("Error hiring applicant:", error);
@@ -557,7 +562,7 @@ export default function Conversation() {
       .single();
 
     let phone = profile?.phone || null;
-    
+
     if (!phone) {
       const isContractorUser = conversation?.contractor_user_id === user.id;
       if (isContractorUser) {
@@ -582,7 +587,9 @@ export default function Conversation() {
       `Name: ${profile?.full_name || "Not provided"}`,
       `Email: ${profile?.email || "Not provided"}`,
       phone ? `Phone: ${phone}` : null,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const { error } = await supabase.from("messages").insert({
       conversation_id: id,
@@ -610,7 +617,7 @@ export default function Conversation() {
 
   const handleViewProfile = () => {
     if (!conversation?.other_party_user_id) return;
-    
+
     const isUserContractor = conversation.contractor_user_id === user?.id;
     if (isUserContractor) {
       // Contractor viewing employee profile - use /workers/:id route
@@ -621,12 +628,12 @@ export default function Conversation() {
     }
   };
 
-  const handleRespondToOffer = async (response: 'accept' | 'decline') => {
+  const handleRespondToOffer = async (response: "accept" | "decline") => {
     if (!conversation?.job_application?.id) return;
 
     setIsRespondingToOffer(true);
     try {
-      const result = await supabase.functions.invoke('respond-to-offer', {
+      const result = await supabase.functions.invoke("respond-to-offer", {
         body: {
           application_id: conversation.job_application.id,
           response,
@@ -652,11 +659,11 @@ export default function Conversation() {
         return;
       }
 
-      setConversation(prev => {
+      setConversation((prev) => {
         if (!prev?.job_application) return prev;
         return {
           ...prev,
-          status: response === 'decline' ? 'closed' : prev.status,
+          status: response === "decline" ? "closed" : prev.status,
           job_application: {
             ...prev.job_application,
             status: data.data.new_status,
@@ -665,14 +672,15 @@ export default function Conversation() {
       });
 
       toast({
-        title: response === 'accept' ? "✅ Offer Accepted!" : "Offer Declined",
-        description: response === 'accept'
-          ? "The employer has been notified. They can now confirm your hire."
-          : "The employer has been notified. This conversation will be archived.",
+        title: response === "accept" ? "✅ Offer Accepted!" : "Offer Declined",
+        description:
+          response === "accept"
+            ? "The employer has been notified. They can now confirm your hire."
+            : "The employer has been notified. This conversation will be archived.",
       });
 
-      if (response === 'decline') {
-        setTimeout(() => navigate('/dashboard'), 2000);
+      if (response === "decline") {
+        setTimeout(() => navigate("/dashboard"), 2000);
       }
     } catch (error) {
       console.error("Error responding to offer:", error);
@@ -692,9 +700,10 @@ export default function Conversation() {
   // Check if this is a hired conversation (has job_application and is hired)
   const isHiredConversation = isHired && conversation?.job_application_id;
   // Check if this is a private job offer pending employee response
-  const isPrivateOffer = !isUserContractor 
-    && conversation?.job_application?.job.status === 'private' 
-    && conversation?.job_application?.status === 'pending';
+  const isPrivateOffer =
+    !isUserContractor &&
+    conversation?.job_application?.job.status === "private" &&
+    conversation?.job_application?.status === "pending";
 
   // Memoize hired countdown status - for 48h archive warning after hiring
   const hiredCountdown = useMemo(() => {
@@ -770,7 +779,8 @@ export default function Conversation() {
           <div className="max-w-4xl mx-auto flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300">
-              🎉 <strong>Hired!</strong> This conversation will be archived in <strong>{hiredCountdown.hoursLeft}h</strong>
+              🎉 <strong>Hired!</strong> This conversation will be archived in{" "}
+              <strong>{hiredCountdown.hoursLeft}h</strong>
             </p>
           </div>
         </div>
@@ -799,16 +809,21 @@ export default function Conversation() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm">💼 You've received a position offer!</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {conversation?.other_party?.full_name || "An employer"} has offered you: <strong>{conversation?.job_application?.job.title}</strong>
+                  {conversation?.other_party?.full_name || "An employer"} has offered you:{" "}
+                  <strong>{conversation?.job_application?.job.title}</strong>
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <Button
                     size="sm"
-                    onClick={() => handleRespondToOffer('accept')}
+                    onClick={() => handleRespondToOffer("accept")}
                     disabled={isRespondingToOffer}
                     className="h-8"
                   >
-                    {isRespondingToOffer ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <CheckCircle2 className="w-3 h-3 mr-1.5" />}
+                    {isRespondingToOffer ? (
+                      <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3 h-3 mr-1.5" />
+                    )}
                     Accept Offer
                   </Button>
                   <AlertDialog>
@@ -827,13 +842,16 @@ export default function Conversation() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Decline this offer?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to decline the position "{conversation?.job_application?.job.title}"? 
+                          Are you sure you want to decline the position "{conversation?.job_application?.job.title}"?
                           The employer will be notified and this conversation will be closed.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleRespondToOffer('decline')} disabled={isRespondingToOffer}>
+                        <AlertDialogAction
+                          onClick={() => handleRespondToOffer("decline")}
+                          disabled={isRespondingToOffer}
+                        >
                           {isRespondingToOffer && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                           Decline Offer
                         </AlertDialogAction>
@@ -858,7 +876,7 @@ export default function Conversation() {
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>
-              
+
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 {isUserContractor ? (
                   <Avatar className="h-9 w-9 flex-shrink-0">
@@ -875,9 +893,7 @@ export default function Conversation() {
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <h1 className="font-semibold truncate text-sm">
-                    {conversation.other_party?.full_name || "User"}
-                  </h1>
+                  <h1 className="font-semibold truncate text-sm">{conversation.other_party?.full_name || "User"}</h1>
                   <div className="flex items-center gap-1.5">
                     {conversation.job_application && (
                       <span className="text-xs text-muted-foreground truncate max-w-[150px]">
@@ -885,7 +901,9 @@ export default function Conversation() {
                       </span>
                     )}
                     {isHired && (
-                      <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">Hired</Badge>
+                      <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
+                        Hired
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -896,12 +914,7 @@ export default function Conversation() {
             <div className="flex items-center gap-1 flex-shrink-0">
               {/* View Profile Button - Only visible for Contractors */}
               {isUserContractor && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewProfile}
-                  className="h-9 px-3 hidden sm:flex"
-                >
+                <Button variant="outline" size="sm" onClick={handleViewProfile} className="h-9 px-3 hidden sm:flex">
                   <UserCircle className="w-4 h-4 mr-2" />
                   View Profile
                 </Button>
@@ -948,13 +961,15 @@ export default function Conversation() {
                   </Button>
 
                   {isUserContractor && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="text-destructive hover:text-destructive h-9"
                       onClick={() => setShowCloseDialog(true)}
                       disabled={!!isHiredConversation}
-                      title={isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined}
+                      title={
+                        isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined
+                      }
                     >
                       <X className="w-4 h-4 mr-2" />
                       Close
@@ -978,7 +993,7 @@ export default function Conversation() {
                       View Profile
                     </DropdownMenuItem>
                   )}
-                  
+
                   {conversation.job_application?.job.id && (
                     <DropdownMenuItem asChild className="h-11">
                       <Link to={`/jobs/${conversation.job_application.job.id}`}>
@@ -991,7 +1006,7 @@ export default function Conversation() {
                   {!isClosed && (
                     <>
                       <DropdownMenuSeparator />
-                      
+
                       {conversation.job_application && isUserContractor && !isHired && (
                         <DropdownMenuItem onClick={handleHireApplicant} disabled={isHiring} className="h-11">
                           <CheckCircle2 className="w-4 h-4 mr-3" />
@@ -1008,7 +1023,7 @@ export default function Conversation() {
                         <DropdownMenuItem asChild className="h-11">
                           <a href={`tel:${conversation.other_party.phone}`}>
                             <Phone className="w-4 h-4 mr-3" />
-                            Call {conversation.other_party.full_name?.split(' ')[0] || 'User'}
+                            Call {conversation.other_party.full_name?.split(" ")[0] || "User"}
                           </a>
                         </DropdownMenuItem>
                       )}
@@ -1016,9 +1031,9 @@ export default function Conversation() {
                       {isUserContractor && (
                         <>
                           <DropdownMenuSeparator />
-                          
+
                           {!isHiredConversation && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => setShowCloseDialog(true)}
                               className="h-11 text-destructive focus:text-destructive"
                             >
@@ -1125,9 +1140,9 @@ export default function Conversation() {
                 className="flex-1 h-11"
                 autoComplete="off"
               />
-              <Button 
-                type="submit" 
-                disabled={isSending || !newMessage.trim()} 
+              <Button
+                type="submit"
+                disabled={isSending || !newMessage.trim()}
                 size="icon"
                 className="h-11 w-11 flex-shrink-0"
               >
@@ -1142,10 +1157,10 @@ export default function Conversation() {
       <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Close this conversation?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the chat. If linked to a job application, 
-              the position will become available again.
+              Permanent Action: Deleting this chat will end the current application process and make the position
+              available to other applicants again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
