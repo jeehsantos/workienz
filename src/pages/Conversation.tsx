@@ -936,13 +936,7 @@ export default function Conversation() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Confirm Hire</AlertDialogTitle>
                           <AlertDialogDescription className="space-y-2">
-                            <p>Are you sure you want to hire this applicant? This will:</p>
-                            <ul className="list-disc list-inside text-sm space-y-1 mt-2">
-                              <li>Send a congratulations message to the worker</li>
-                              <li>Set their availability to "unavailable"</li>
-                              <li>Automatically close their other pending applications</li>
-                              <li>Archive this conversation after 48 hours</li>
-                            </ul>
+                            <p>Are you sure you want to hire this candidate?</p>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
