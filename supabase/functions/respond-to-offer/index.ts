@@ -148,6 +148,26 @@ Deno.serve(async (req) => {
 
       logStep('Application accepted (shortlisted)');
 
+      // Upsert pre-employment pack (idempotent)
+      const { error: packError } = await supabase
+        .from('application_pre_employment_packs')
+        .upsert(
+          {
+            job_application_id: application_id,
+            conversation_id: conversationId,
+            required_by_user_id: contractorProfile?.user_id || '',
+            status: 'required',
+            pack_version: 'v1',
+          },
+          { onConflict: 'job_application_id' }
+        );
+
+      if (packError) {
+        logStep('Failed to create pre-employment pack', { error: packError.message });
+      } else {
+        logStep('Pre-employment pack created/ensured');
+      }
+
       // Send acceptance message in chat
       if (conversationId) {
         await supabase.from('messages').insert({
