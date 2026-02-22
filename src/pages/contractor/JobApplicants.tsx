@@ -173,18 +173,17 @@ export default function JobApplicants() {
   const handleStatusChange = async (applicationId: string, newStatus: string) => {
     setUpdatingId(applicationId);
 
-    const { error } = await supabase
-      .from("job_applications")
-      .update({ status: newStatus })
-      .eq("id", applicationId);
+    const { data, error } = await supabase.functions.invoke("update-application-status", {
+      body: { job_application_id: applicationId, new_status: newStatus },
+    });
 
     setUpdatingId(null);
 
-    if (error) {
-      console.error("Error updating status:", error);
+    if (error || data?.error) {
+      console.error("Error updating status:", error || data?.error);
       toast({
         title: "Error",
-        description: "Failed to update application status.",
+        description: data?.error || "Failed to update application status.",
         variant: "destructive",
       });
       return;

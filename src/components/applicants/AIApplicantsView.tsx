@@ -234,14 +234,13 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
   const handleStatusChange = useCallback(
     async (applicationId: string, newStatus: string) => {
       setUpdatingId(applicationId);
-      const { error } = await supabase
-        .from("job_applications")
-        .update({ status: newStatus })
-        .eq("id", applicationId);
+      const { data, error } = await supabase.functions.invoke("update-application-status", {
+        body: { job_application_id: applicationId, new_status: newStatus },
+      });
 
       setUpdatingId(null);
-      if (error) {
-        toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+      if (error || data?.error) {
+        toast({ title: "Error", description: data?.error || "Failed to update status.", variant: "destructive" });
         return;
       }
 
@@ -255,14 +254,24 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
 
   const handleBulkAction = useCallback(
     async (newStatus: string) => {
+      let failCount = 0;
       for (const id of selectedIds) {
-        await supabase.from("job_applications").update({ status: newStatus }).eq("id", id);
+        const { data, error } = await supabase.functions.invoke("update-application-status", {
+          body: { job_application_id: id, new_status: newStatus },
+        });
+        if (error || data?.error) failCount++;
       }
       setApplicants((prev) =>
         prev.map((a) => (selectedIds.includes(a.id) ? { ...a, status: newStatus } : a))
       );
       setSelectedIds([]);
-      toast({ title: "Bulk Update", description: `${selectedIds.length} applicants updated.` });
+      toast({
+        title: "Bulk Update",
+        description: failCount
+          ? `${selectedIds.length - failCount} updated, ${failCount} failed.`
+          : `${selectedIds.length} applicants updated.`,
+        variant: failCount ? "destructive" : undefined,
+      });
     },
     [selectedIds, toast]
   );

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.bulk-ingest-articles]
 verify_jwt = false
+
+[functions.update-application-status]
+verify_jwt = false
