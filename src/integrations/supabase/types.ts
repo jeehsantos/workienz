@@ -269,6 +269,33 @@ export type Database = {
           },
         ]
       }
+      contractor_ai_usage_ledger: {
+        Row: {
+          contractor_user_id: string
+          count: number
+          created_at: string
+          event_type: string
+          id: string
+          job_id: string
+        }
+        Insert: {
+          contractor_user_id: string
+          count?: number
+          created_at?: string
+          event_type: string
+          id?: string
+          job_id: string
+        }
+        Update: {
+          contractor_user_id?: string
+          count?: number
+          created_at?: string
+          event_type?: string
+          id?: string
+          job_id?: string
+        }
+        Relationships: []
+      }
       contractor_application_notes: {
         Row: {
           application_id: string

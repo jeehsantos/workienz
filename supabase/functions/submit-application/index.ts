@@ -262,8 +262,32 @@ Deno.serve(async (req) => {
       cover_letter: cover_letter || null,
     };
 
-    // For open_ai_top10, store answers and set scoring status
+    // For open_ai_top10, validate required answers and store
     if (isOpenAI) {
+      // Fetch the questionnaire to validate required answers
+      const { data: questData } = await supabase
+        .from('job_ai_questionnaires')
+        .select('questionnaire')
+        .eq('job_id', job_id)
+        .maybeSingle();
+
+      if (questData?.questionnaire) {
+        const questions = (questData.questionnaire as any).questions;
+        if (Array.isArray(questions) && questions.length > 0) {
+          const answers = application_answers || {};
+          const unanswered = questions.filter((q: any) => {
+            const ans = (answers as Record<string, string>)[q.id];
+            return !ans || !String(ans).trim();
+          });
+          if (unanswered.length > 0) {
+            return new Response(
+              JSON.stringify({ error: `Please answer all ${questions.length} screening questions. ${unanswered.length} question(s) unanswered.` }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+
       insertPayload.application_answers = application_answers || null;
       insertPayload.ai_scoring_status = 'pending';
     }

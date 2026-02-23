@@ -228,6 +228,31 @@ Rules:
 
     log('Score saved', { aiScore, applicationId: application_id });
 
+    // Increment AI usage ledger for scoring
+    const { data: jobOwner } = await supabase
+      .from('jobs')
+      .select('contractor_id')
+      .eq('id', app.job_id)
+      .single();
+
+    if (jobOwner) {
+      const { data: contractorData } = await supabase
+        .from('contractor_profiles')
+        .select('user_id')
+        .eq('id', jobOwner.contractor_id)
+        .single();
+
+      if (contractorData) {
+        await supabase.from('contractor_ai_usage_ledger').insert({
+          contractor_user_id: contractorData.user_id,
+          job_id: app.job_id,
+          event_type: 'application_scored',
+          count: 1,
+        });
+        log('AI usage ledger incremented for application_scored');
+      }
+    }
+
     // Trigger refresh-top-candidates (fire-and-forget)
     try {
       await fetch(`${supabaseUrl}/functions/v1/refresh-top-candidates`, {

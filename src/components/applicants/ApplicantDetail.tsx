@@ -176,6 +176,11 @@ function ApplicantDetail({
                   AI Score: {Math.round(applicant.ai_score)}%
                 </Badge>
               )}
+              {applicant.ai_score_updated_at && (
+                <span className="text-[10px] text-muted-foreground">
+                  Scored {new Date(applicant.ai_score_updated_at).toLocaleDateString()} • {applicant.ai_model || 'AI'} {applicant.ai_prompt_version ? `(${applicant.ai_prompt_version})` : ''}
+                </span>
+              )}
               {applicant.top_rank !== null && (
                 <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20" variant="outline">
                   <Star className="w-3 h-3 mr-1 fill-amber-500 text-amber-500" />
