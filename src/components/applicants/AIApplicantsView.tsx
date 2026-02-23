@@ -47,16 +47,19 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null);
 
-  // Fetch questionnaire once
+  // Fetch questionnaire once (including model/prompt_version for explainability)
+  const [aiModelInfo, setAiModelInfo] = useState<{ model: string; prompt_version: string } | null>(null);
+
   useEffect(() => {
     async function fetchQuestionnaire() {
       const { data } = await supabase
         .from("job_ai_questionnaires")
-        .select("questionnaire")
+        .select("questionnaire, model, prompt_version")
         .eq("job_id", jobId)
         .maybeSingle();
       if (data?.questionnaire) {
         setQuestionnaire(data.questionnaire as unknown as Questionnaire);
+        setAiModelInfo({ model: (data as any).model || '', prompt_version: (data as any).prompt_version || '' });
       }
     }
     fetchQuestionnaire();
@@ -92,7 +95,7 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
 
           const { data: apps, error: appError } = await supabase
             .from("job_applications")
-            .select("id, status, cover_letter, created_at, ai_score, ai_scoring_status, ai_reason_summary, application_answers, employee_id")
+            .select("id, status, cover_letter, created_at, ai_score, ai_scoring_status, ai_reason_summary, ai_score_updated_at, application_answers, employee_id")
             .in("id", appIds);
 
           if (appError) throw appError;
@@ -105,7 +108,7 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
           // Build query for other tabs
           let query = supabase
             .from("job_applications")
-            .select("id, status, cover_letter, created_at, ai_score, ai_scoring_status, ai_reason_summary, application_answers, employee_id", { count: "exact" })
+            .select("id, status, cover_letter, created_at, ai_score, ai_scoring_status, ai_reason_summary, ai_score_updated_at, application_answers, employee_id", { count: "exact" })
             .eq("job_id", jobId);
 
           if (tab === "shortlisted") query = query.eq("status", "shortlisted");
@@ -183,6 +186,9 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
         ai_score: app.ai_score ? Number(app.ai_score) : null,
         ai_scoring_status: app.ai_scoring_status,
         ai_reason_summary: app.ai_reason_summary,
+        ai_score_updated_at: app.ai_score_updated_at || null,
+        ai_model: aiModelInfo?.model || null,
+        ai_prompt_version: aiModelInfo?.prompt_version || null,
         application_answers: app.application_answers as Record<string, string> | null,
         employee: emp,
         profile: prof ? { full_name: prof.full_name, email: prof.email, avatar_url: prof.avatar_url } : null,

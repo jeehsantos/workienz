@@ -628,14 +628,19 @@ export default function JobDetail() {
                           </div>
                         ) : questionnaire?.questions ? (
                           <div className="space-y-4 border border-border/50 rounded-lg p-4">
-                            <div className="flex items-center gap-2 text-sm font-medium">
-                              <ClipboardList className="w-4 h-4 text-primary" />
-                              Screening Questions
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-sm font-medium">
+                                <ClipboardList className="w-4 h-4 text-primary" />
+                                Screening Questions
+                              </div>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Answered {Object.keys(questionnaireAnswers).filter(k => questionnaireAnswers[k]?.trim()).length} / {questionnaire.questions.length}
+                              </span>
                             </div>
                             {questionnaire.questions.map((q: any, idx: number) => (
                               <div key={q.id || idx} className="space-y-2">
                                 <Label className="text-sm font-medium">
-                                  {idx + 1}. {q.prompt}
+                                  {idx + 1}. {q.prompt} <span className="text-destructive">*</span>
                                 </Label>
                                 {q.type === 'yes_no' && (
                                   <RadioGroup
@@ -682,9 +687,10 @@ export default function JobDetail() {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground italic">
-                            Screening questions are being prepared. You can still submit your application.
-                          </p>
+                          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm">Screening questions are still being prepared. Please wait a moment and refresh.</span>
+                          </div>
                         )}
                       </div>
                     )}
@@ -697,10 +703,19 @@ export default function JobDetail() {
                         A good cover letter increases your chances of getting noticed.
                       </p>
                     </div>
-                    <Button onClick={handleApply} disabled={isApplying} className="w-full">
+                    <Button 
+                      onClick={handleApply} 
+                      disabled={isApplying || (job?.hiring_style === 'open_ai_top10' && (!questionnaire?.questions || questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim())))}
+                      className="w-full"
+                    >
                       {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Submit Application
                     </Button>
+                    {job?.hiring_style === 'open_ai_top10' && questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()) && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Please answer all screening questions to submit your application.
+                      </p>
+                    )}
                   </div>}
               </div>}
 

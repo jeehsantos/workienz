@@ -206,6 +206,39 @@ Return ONLY valid JSON in this schema:
       });
     }
 
+    // Deterministic post-validation: remove questions that match known profile fields
+    const PROFILE_KEYWORDS = [
+      'visa', 'work rights', 'work permit', 'residency', 'citizenship',
+      'location', 'where do you live', 'city', 'suburb', 'address',
+      'availability', 'available', 'when can you start',
+      'transport', 'car', 'driver', 'license', 'licence', 'vehicle',
+      'heavy lifting', 'standing', 'physical',
+      'ird', 'tax number', 'phone', 'email', 'contact',
+      'languages', 'speak', 'fluent',
+    ];
+
+    const originalCount = questionnaire.questions.length;
+    questionnaire.questions = questionnaire.questions.filter((q: any) => {
+      const prompt = (q.prompt || '').toLowerCase();
+      const matchesProfile = PROFILE_KEYWORDS.some(kw => prompt.includes(kw));
+      if (matchesProfile) {
+        log('Filtered redundant question', { prompt: q.prompt });
+      }
+      return !matchesProfile;
+    });
+
+    if (questionnaire.questions.length < originalCount) {
+      log('Post-validation filtered questions', { original: originalCount, remaining: questionnaire.questions.length });
+    }
+
+    // If all questions were filtered, return error
+    if (questionnaire.questions.length === 0) {
+      return new Response(JSON.stringify({ error: 'All questions were redundant with profile data' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Upsert
     const { error: upsertErr } = await supabase
       .from('job_ai_questionnaires')
@@ -226,6 +259,31 @@ Return ONLY valid JSON in this schema:
     }
 
     log('Questionnaire v2 generated and saved', { questionCount: questionnaire.questions.length });
+
+    // Increment AI usage ledger
+    const { data: jobOwner } = await supabase
+      .from('jobs')
+      .select('contractor_id')
+      .eq('id', job_id)
+      .single();
+
+    if (jobOwner) {
+      const { data: contractorData } = await supabase
+        .from('contractor_profiles')
+        .select('user_id')
+        .eq('id', jobOwner.contractor_id)
+        .single();
+
+      if (contractorData) {
+        await supabase.from('contractor_ai_usage_ledger').insert({
+          contractor_user_id: contractorData.user_id,
+          job_id: job_id,
+          event_type: 'questionnaire_generated',
+          count: 1,
+        });
+        log('AI usage ledger incremented for questionnaire_generated');
+      }
+    }
 
     return new Response(JSON.stringify({ success: true, questionnaire, cached: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

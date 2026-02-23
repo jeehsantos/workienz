@@ -122,46 +122,56 @@ export default function JobApplicants() {
         return;
       }
 
-      // Fetch employee profiles and user profiles
-      const enrichedApplicants = await Promise.all(
-        (applications || []).map(async (app) => {
-          const { data: employee } = await supabase
-            .from("employee_profiles")
-            .select("id, user_id, headline, city, experience_years, skills")
-            .eq("id", app.employee_id)
-            .single();
+      const apps = applications || [];
+      if (apps.length === 0) {
+        setApplicants([]);
+        setIsLoading(false);
+        return;
+      }
 
-          let profile = null;
-          if (employee) {
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("user_id", employee.user_id)
-              .single();
-            profile = profileData;
-          }
+      // Batch fetch employee profiles
+      const employeeIds = apps.map((a) => a.employee_id).filter(Boolean);
+      const { data: employees } = await supabase
+        .from("employee_profiles")
+        .select("id, user_id, headline, city, experience_years, skills")
+        .in("id", employeeIds);
 
-          // Check for existing conversation
-          let conversationId = null;
-          if (employee) {
-            const { data: conv } = await supabase
-              .from("conversations")
-              .select("id")
-              .eq("job_application_id", app.id)
-              .maybeSingle();
-            conversationId = conv?.id || null;
-          }
+      const empMap = new Map((employees || []).map((e) => [e.id, e]));
 
+      // Batch fetch user profiles
+      const userIds = (employees || []).map((e) => e.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", userIds);
+
+      const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+
+      // Batch fetch conversations
+      const appIds = apps.map((a) => a.id);
+      const { data: convos } = await supabase
+        .from("conversations")
+        .select("id, job_application_id")
+        .in("job_application_id", appIds);
+
+      const convoMap = new Map((convos || []).map((c) => [c.job_application_id, c.id]));
+
+      // Enrich
+      const enrichedApplicants = apps
+        .map((app) => {
+          const employee = empMap.get(app.employee_id);
+          if (!employee) return null;
+          const profile = profileMap.get(employee.user_id) || null;
           return {
             ...app,
-            employee: employee!,
-            profile,
-            conversation_id: conversationId,
+            employee,
+            profile: profile ? { full_name: profile.full_name, email: profile.email } : null,
+            conversation_id: convoMap.get(app.id) || null,
           };
         })
-      );
+        .filter(Boolean) as Applicant[];
 
-      setApplicants(enrichedApplicants.filter((a) => a.employee));
+      setApplicants(enrichedApplicants);
       setIsLoading(false);
     }
 

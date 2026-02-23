@@ -6,6 +6,9 @@ export interface AIApplicant {
   ai_score: number | null;
   ai_scoring_status: string;
   ai_reason_summary: string | null;
+  ai_score_updated_at: string | null;
+  ai_model: string | null;
+  ai_prompt_version: string | null;
   application_answers: Record<string, string> | null;
   employee: {
     id: string;
