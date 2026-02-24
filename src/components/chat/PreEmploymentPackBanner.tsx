@@ -14,13 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -28,44 +21,41 @@ import {
   Loader2,
   CheckCircle2,
   Clock,
+  Download,
+  ShieldAlert,
   Eye,
 } from "lucide-react";
 
 interface Pack {
   id: string;
   status: string;
-  answers: Record<string, unknown> | null;
+  template_id: string | null;
   submitted_at: string | null;
   reviewed_at: string | null;
+  downloaded_at: string | null;
+  expires_at: string | null;
+}
+
+interface TemplateField {
+  id: string;
+  label: string;
+  type: "text" | "number" | "date" | "file" | "checkbox" | "textarea";
+  required: boolean;
+}
+
+interface TemplateSection {
+  title: string;
+  fields: TemplateField[];
+}
+
+interface TemplateSchema {
+  sections: TemplateSection[];
 }
 
 interface PreEmploymentPackBannerProps {
   jobApplicationId: string | null;
   isEmployee: boolean;
 }
-
-const PACK_QUESTIONS = [
-  { id: "full_legal_name", label: "Full Legal Name", type: "text", required: true },
-  { id: "date_of_birth", label: "Date of Birth", type: "date", required: true },
-  { id: "phone_number", label: "Phone Number", type: "text", required: true },
-  { id: "address", label: "Current Address", type: "textarea", required: true },
-  { id: "emergency_contact_name", label: "Emergency Contact Name", type: "text", required: true },
-  { id: "emergency_contact_phone", label: "Emergency Contact Phone", type: "text", required: true },
-  { id: "emergency_contact_relationship", label: "Emergency Contact Relationship", type: "text", required: true },
-  { id: "ird_number", label: "IRD Number", type: "text", required: false },
-  { id: "bank_account", label: "Bank Account Number", type: "text", required: false },
-  { id: "visa_type", label: "Visa Type", type: "select", required: true, options: [
-    { value: "citizen", label: "NZ Citizen" },
-    { value: "resident", label: "Permanent Resident" },
-    { value: "work_visa", label: "Work Visa" },
-    { value: "student_visa", label: "Student Visa" },
-    { value: "whv", label: "Working Holiday Visa" },
-    { value: "other", label: "Other" },
-  ]},
-  { id: "work_rights_confirmed", label: "I confirm I have the legal right to work in New Zealand", type: "checkbox", required: true },
-  { id: "health_conditions", label: "Any health conditions or allergies the employer should know about?", type: "textarea", required: false },
-  { id: "additional_notes", label: "Additional Notes", type: "textarea", required: false },
-];
 
 export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmploymentPackBannerProps) {
   const { user } = useAuthContext();
@@ -74,7 +64,10 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [templateSchema, setTemplateSchema] = useState<TemplateSchema | null>(null);
+  const [downloadedAnswers, setDownloadedAnswers] = useState<Record<string, unknown> | null>(null);
 
   const fetchPack = useCallback(async () => {
     if (!jobApplicationId || !user) {
@@ -83,13 +76,23 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
     }
     const { data } = await supabase
       .from("application_pre_employment_packs")
-      .select("id, status, answers, submitted_at, reviewed_at")
+      .select("id, status, template_id, submitted_at, reviewed_at, downloaded_at, expires_at")
       .eq("job_application_id", jobApplicationId)
       .maybeSingle();
 
     if (data) {
       setPack(data as Pack);
-      if (data.answers) setAnswers(data.answers as Record<string, unknown>);
+      // Fetch template schema if template_id exists
+      if (data.template_id) {
+        const { data: tplData } = await supabase
+          .from("contractor_pre_employment_templates")
+          .select("template_schema")
+          .eq("id", data.template_id)
+          .maybeSingle();
+        if (tplData?.template_schema) {
+          setTemplateSchema(tplData.template_schema as unknown as TemplateSchema);
+        }
+      }
     }
     setLoading(false);
   }, [jobApplicationId, user]);
@@ -99,7 +102,6 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
   }, [fetchPack]);
 
   const handleOpenForm = () => {
-    if (pack?.answers) setAnswers(pack.answers);
     setModalOpen(true);
     // Mark as in_progress if still 'required'
     if (pack?.status === "required") {
@@ -108,15 +110,21 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
         .update({ status: "in_progress", started_at: new Date().toISOString() })
         .eq("id", pack.id)
         .then(() => {
-          setPack((prev) => prev ? { ...prev, status: "in_progress" } : prev);
+          setPack((prev) => (prev ? { ...prev, status: "in_progress" } : prev));
         });
     }
   };
 
   const handleSubmit = async () => {
+    if (!pack || !templateSchema) return;
+
     // Validate required fields
-    const missing = PACK_QUESTIONS.filter(
-      (q) => q.required && (!answers[q.id] || (typeof answers[q.id] === "string" && !(answers[q.id] as string).trim()))
+    const allFields = templateSchema.sections.flatMap((s) => s.fields);
+    const missing = allFields.filter(
+      (f) =>
+        f.required &&
+        (!answers[f.id] ||
+          (typeof answers[f.id] === "string" && !(answers[f.id] as string).trim()))
     );
     if (missing.length > 0) {
       toast({
@@ -128,23 +136,93 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
     }
 
     setSubmitting(true);
-    const { error } = await supabase
-      .from("application_pre_employment_packs")
-      .update({
-        answers: answers as unknown as Record<string, string>,
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-      })
-      .eq("id", pack!.id);
+    try {
+      const response = await supabase.functions.invoke("submit-pack-answers", {
+        body: { pack_id: pack.id, answers },
+      });
 
-    setSubmitting(false);
-    if (error) {
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error.message || "Failed to submit form.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = response.data;
+      if (result?.error) {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+        return;
+      }
+
+      setPack((prev) =>
+        prev
+          ? { ...prev, status: "submitted", submitted_at: new Date().toISOString() }
+          : prev
+      );
+      setModalOpen(false);
+      setAnswers({}); // Clear local answers after encrypted submission
+      toast({
+        title: "✅ Form Submitted Securely",
+        description:
+          "Your pre-employment details have been encrypted and sent to the employer.",
+      });
+    } catch {
       toast({ title: "Error", description: "Failed to submit form.", variant: "destructive" });
-      return;
+    } finally {
+      setSubmitting(false);
     }
-    setPack((prev) => prev ? { ...prev, status: "submitted", answers, submitted_at: new Date().toISOString() } : prev);
-    setModalOpen(false);
-    toast({ title: "✅ Form Submitted", description: "Your pre-employment details have been sent to the employer." });
+  };
+
+  const handleDownload = async () => {
+    if (!pack) return;
+    setDownloading(true);
+    try {
+      const response = await supabase.functions.invoke("download-pack-answers", {
+        body: { pack_id: pack.id },
+      });
+
+      if (response.error) {
+        toast({
+          title: "Error",
+          description: response.error.message || "Failed to download pack.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = response.data;
+      if (result?.error) {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+        return;
+      }
+
+      setDownloadedAnswers(result.answers);
+      if (result.template?.template_schema) {
+        setTemplateSchema(result.template.template_schema as unknown as TemplateSchema);
+      }
+      setModalOpen(true);
+      setPack((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "reviewed",
+              downloaded_at: new Date().toISOString(),
+              reviewed_at: new Date().toISOString(),
+            }
+          : prev
+      );
+
+      toast({
+        title: "📥 Pack Downloaded",
+        description: `Data will be auto-deleted after ${result.deletion_scheduled_at ? "48 hours" : "expiry"}.`,
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to download.", variant: "destructive" });
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handleWaive = async () => {
@@ -159,40 +237,36 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
       toast({ title: "Error", description: "Failed to waive pack.", variant: "destructive" });
       return;
     }
-    setPack((prev) => prev ? { ...prev, status: "waived" } : prev);
+    setPack((prev) => (prev ? { ...prev, status: "waived" } : prev));
     toast({ title: "Pack Waived", description: "Pre-employment form requirement has been waived." });
   };
 
-  const handleMarkReviewed = async () => {
-    if (!pack) return;
-    setSubmitting(true);
-    const { error } = await supabase
-      .from("application_pre_employment_packs")
-      .update({ status: "reviewed", reviewed_at: new Date().toISOString() })
-      .eq("id", pack.id);
-    setSubmitting(false);
-    if (error) {
-      toast({ title: "Error", description: "Failed to mark as reviewed.", variant: "destructive" });
-      return;
-    }
-    setPack((prev) => prev ? { ...prev, status: "reviewed" } : prev);
-    toast({ title: "Pack Reviewed", description: "Pre-employment details have been marked as reviewed." });
-  };
-
   if (loading || !pack) return null;
-
-  // Don't show for cancelled packs
   if (pack.status === "cancelled") return null;
+  if (!templateSchema && isEmployee && (pack.status === "required" || pack.status === "in_progress")) {
+    return (
+      <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2.5">
+        <div className="max-w-4xl mx-auto flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-amber-600" />
+          <p className="text-sm">Pre-employment form pending — the employer has not yet assigned a template.</p>
+        </div>
+      </div>
+    );
+  }
 
   const statusConfig: Record<string, { bg: string; icon: React.ReactNode; label: string }> = {
     required: { bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800", icon: <ClipboardList className="w-4 h-4 text-amber-600" />, label: "Required" },
     in_progress: { bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800", icon: <Clock className="w-4 h-4 text-blue-600" />, label: "In Progress" },
     submitted: { bg: "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800", icon: <CheckCircle2 className="w-4 h-4 text-green-600" />, label: "Submitted" },
-    reviewed: { bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />, label: "Reviewed" },
+    reviewed: { bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />, label: "Downloaded" },
     waived: { bg: "bg-muted/50 border-border", icon: <CheckCircle2 className="w-4 h-4 text-muted-foreground" />, label: "Waived" },
   };
 
   const config = statusConfig[pack.status] || statusConfig.required;
+
+  // Determine which data to show in modal
+  const displayAnswers = downloadedAnswers || {};
+  const isViewMode = !isEmployee || pack.status === "submitted" || pack.status === "reviewed";
 
   return (
     <>
@@ -207,39 +281,45 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
                   ? pack.status === "required" || pack.status === "in_progress"
                     ? "Please complete this form before you can be confirmed for the role."
                     : pack.status === "submitted"
-                    ? "Your form has been submitted and is awaiting review."
+                    ? "Your form has been encrypted and submitted. Awaiting download."
                     : pack.status === "reviewed"
-                    ? "Your pre-employment details have been reviewed. ✅"
+                    ? "Your details have been downloaded by the employer. ✅"
                     : "This requirement has been waived."
                   : pack.status === "submitted"
-                  ? "The candidate has submitted their pre-employment details."
+                  ? "The candidate has submitted their encrypted details. Download to view."
                   : pack.status === "reviewed"
-                  ? "You've reviewed this candidate's pre-employment details."
+                  ? "You've downloaded this candidate's details. Data will auto-delete."
                   : pack.status === "waived"
                   ? "You've waived the pre-employment form for this candidate."
                   : "Waiting for the candidate to complete the form."
                 }
               </p>
+              {pack.expires_at && (pack.status === "submitted" || pack.status === "reviewed") && (
+                <p className="text-[10px] text-destructive/80 mt-0.5">
+                  ⏰ Data expires: {new Date(pack.expires_at).toLocaleDateString()}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Badge variant="outline" className="text-xs">{config.label}</Badge>
-            {isEmployee && (pack.status === "required" || pack.status === "in_progress") && (
+            {isEmployee && (pack.status === "required" || pack.status === "in_progress") && templateSchema && (
               <Button size="sm" onClick={handleOpenForm} className="h-8">
                 <ClipboardList className="w-3.5 h-3.5 mr-1.5" />
                 {pack.status === "in_progress" ? "Continue" : "Complete Form"}
               </Button>
             )}
             {!isEmployee && pack.status === "submitted" && (
-              <div className="flex gap-1.5">
-                <Button size="sm" variant="outline" onClick={() => setModalOpen(true)} className="h-8">
-                  <Eye className="w-3.5 h-3.5 mr-1.5" />
-                  View
-                </Button>
-                <Button size="sm" onClick={handleMarkReviewed} disabled={submitting} className="h-8">
-                  Mark Reviewed
-                </Button>
-              </div>
+              <Button size="sm" onClick={handleDownload} disabled={downloading} className="h-8">
+                {downloading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1.5" />}
+                Download & Review
+              </Button>
+            )}
+            {!isEmployee && pack.status === "reviewed" && downloadedAnswers && (
+              <Button size="sm" variant="outline" onClick={() => setModalOpen(true)} className="h-8">
+                <Eye className="w-3.5 h-3.5 mr-1.5" />
+                View (cached)
+              </Button>
             )}
             {!isEmployee && (pack.status === "required" || pack.status === "in_progress") && (
               <Button size="sm" variant="ghost" onClick={handleWaive} disabled={submitting} className="h-8 text-xs">
@@ -250,74 +330,86 @@ export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmp
         </div>
       </div>
 
-      {/* Form Modal */}
+      {/* Form / View Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Pre-Employment Details</DialogTitle>
             <DialogDescription>
-              {isEmployee
-                ? "Please fill in your details below. Fields marked with * are required."
+              {isEmployee && !isViewMode
+                ? "Please fill in your details below. Fields marked with * are required. Your answers will be encrypted."
                 : "Candidate's submitted pre-employment details."
               }
             </DialogDescription>
+            {!isEmployee && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs text-muted-foreground">
+                  Encrypted storage • Auto-deletes after download
+                </span>
+              </div>
+            )}
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            {PACK_QUESTIONS.map((q) => (
-              <div key={q.id} className="space-y-1.5">
-                <Label htmlFor={q.id} className="text-sm">
-                  {q.label} {q.required && <span className="text-destructive">*</span>}
-                </Label>
-                {q.type === "text" || q.type === "date" ? (
-                  <Input
-                    id={q.id}
-                    type={q.type}
-                    value={(answers[q.id] as string) || ""}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    disabled={!isEmployee || pack.status === "submitted" || pack.status === "reviewed"}
-                  />
-                ) : q.type === "textarea" ? (
-                  <Textarea
-                    id={q.id}
-                    value={(answers[q.id] as string) || ""}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                    disabled={!isEmployee || pack.status === "submitted" || pack.status === "reviewed"}
-                    className="min-h-[80px] resize-none"
-                  />
-                ) : q.type === "select" ? (
-                  <Select
-                    value={(answers[q.id] as string) || ""}
-                    onValueChange={(v) => setAnswers((prev) => ({ ...prev, [q.id]: v }))}
-                    disabled={!isEmployee || pack.status === "submitted" || pack.status === "reviewed"}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      {q.options?.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : q.type === "checkbox" ? (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={q.id}
-                      checked={!!answers[q.id]}
-                      onCheckedChange={(checked) => setAnswers((prev) => ({ ...prev, [q.id]: checked }))}
-                      disabled={!isEmployee || pack.status === "submitted" || pack.status === "reviewed"}
-                    />
-                    <Label htmlFor={q.id} className="text-sm font-normal cursor-pointer">{q.label}</Label>
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          {templateSchema ? (
+            <div className="space-y-6 py-2">
+              {templateSchema.sections.map((section, sIdx) => (
+                <div key={sIdx} className="space-y-3">
+                  <h3 className="text-sm font-semibold border-b pb-1">{section.title}</h3>
+                  {section.fields.map((field) => (
+                    <div key={field.id} className="space-y-1.5">
+                      <Label htmlFor={field.id} className="text-sm">
+                        {field.label} {field.required && <span className="text-destructive">*</span>}
+                      </Label>
+                      {field.type === "checkbox" ? (
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={field.id}
+                            checked={!!(isViewMode ? displayAnswers[field.id] : answers[field.id])}
+                            onCheckedChange={(checked) =>
+                              !isViewMode && setAnswers((prev) => ({ ...prev, [field.id]: checked }))
+                            }
+                            disabled={isViewMode}
+                          />
+                          <Label htmlFor={field.id} className="text-sm font-normal cursor-pointer">
+                            {field.label}
+                          </Label>
+                        </div>
+                      ) : field.type === "textarea" ? (
+                        <Textarea
+                          id={field.id}
+                          value={String((isViewMode ? displayAnswers[field.id] : answers[field.id]) || "")}
+                          onChange={(e) =>
+                            !isViewMode && setAnswers((prev) => ({ ...prev, [field.id]: e.target.value }))
+                          }
+                          disabled={isViewMode}
+                          className="min-h-[80px] resize-none"
+                        />
+                      ) : (
+                        <Input
+                          id={field.id}
+                          type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+                          value={String((isViewMode ? displayAnswers[field.id] : answers[field.id]) || "")}
+                          onChange={(e) =>
+                            !isViewMode && setAnswers((prev) => ({ ...prev, [field.id]: e.target.value }))
+                          }
+                          disabled={isViewMode}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">No template assigned to this pack.</p>
+          )}
 
-          {isEmployee && (pack.status === "required" || pack.status === "in_progress") && (
+          {isEmployee && !isViewMode && templateSchema && (
             <DialogFooter>
               <Button onClick={handleSubmit} disabled={submitting}>
                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Submit Form
+                🔒 Submit Securely
               </Button>
             </DialogFooter>
           )}

@@ -13,6 +13,7 @@ const logStep = (step: string, details?: unknown) => {
 interface RespondRequest {
   application_id: string;
   response: 'accept' | 'decline';
+  template_id?: string;
 }
 
 Deno.serve(async (req) => {
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     logStep('Authenticated user', { userId });
 
-    const { application_id, response: offerResponse }: RespondRequest = await req.json();
+    const { application_id, response: offerResponse, template_id }: RespondRequest = await req.json();
 
     if (!application_id || !offerResponse || !['accept', 'decline'].includes(offerResponse)) {
       return new Response(
@@ -148,19 +149,35 @@ Deno.serve(async (req) => {
 
       logStep('Application accepted (shortlisted)');
 
-      // Upsert pre-employment pack (idempotent)
+      // Upsert pre-employment pack with contractor template (idempotent)
+      const packPayload: Record<string, unknown> = {
+        job_application_id: application_id,
+        conversation_id: conversationId,
+        required_by_user_id: contractorProfile?.user_id || '',
+        status: 'required',
+        pack_version: 'v1',
+      };
+
+      // If contractor specified a template, attach it
+      if (template_id) {
+        // Verify template belongs to the contractor
+        const { data: templateData } = await supabase
+          .from('contractor_pre_employment_templates')
+          .select('id')
+          .eq('id', template_id)
+          .eq('contractor_id', contractorProfile?.user_id || '')
+          .maybeSingle();
+
+        if (templateData) {
+          packPayload.template_id = template_id;
+        } else {
+          logStep('Template not found or not owned by contractor', { template_id });
+        }
+      }
+
       const { error: packError } = await supabase
         .from('application_pre_employment_packs')
-        .upsert(
-          {
-            job_application_id: application_id,
-            conversation_id: conversationId,
-            required_by_user_id: contractorProfile?.user_id || '',
-            status: 'required',
-            pack_version: 'v1',
-          },
-          { onConflict: 'job_application_id' }
-        );
+        .upsert(packPayload, { onConflict: 'job_application_id' });
 
       if (packError) {
         logStep('Failed to create pre-employment pack', { error: packError.message });

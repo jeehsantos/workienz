@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Separator } from "@/components/ui/separator";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { ContractorLogoUpload } from "@/components/contractor/ContractorLogoUpload";
 import { useContractorUploadPermission } from "@/hooks/useContractorUploadPermission";
+import { ContractorTemplateManager } from "@/components/contractor/ContractorTemplateManager";
 
 const INDUSTRIES = [
   "Agriculture",
@@ -311,6 +313,10 @@ export default function ContractorProfile() {
             </Button>
           </div>
         </form>
+
+        {/* Pre-Employment Templates Section */}
+        <Separator className="my-8" />
+        <ContractorTemplateManager />
       </div>
     </div>
   );
