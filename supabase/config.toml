@@ -20,3 +20,15 @@ verify_jwt = false
 
 [functions.update-application-status]
 verify_jwt = false
+
+[functions.manage-pre-employment-template]
+verify_jwt = false
+
+[functions.submit-pack-answers]
+verify_jwt = false
+
+[functions.download-pack-answers]
+verify_jwt = false
+
+[functions.cleanup-expired-packs]
+verify_jwt = false

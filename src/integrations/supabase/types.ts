@@ -17,8 +17,12 @@ export type Database = {
       application_pre_employment_packs: {
         Row: {
           answers: Json | null
+          answers_encrypted: string | null
           conversation_id: string | null
           created_at: string
+          downloaded_at: string | null
+          encryption_version: string | null
+          expires_at: string | null
           id: string
           job_application_id: string
           pack_version: string
@@ -27,12 +31,17 @@ export type Database = {
           started_at: string | null
           status: string
           submitted_at: string | null
+          template_id: string | null
           updated_at: string
         }
         Insert: {
           answers?: Json | null
+          answers_encrypted?: string | null
           conversation_id?: string | null
           created_at?: string
+          downloaded_at?: string | null
+          encryption_version?: string | null
+          expires_at?: string | null
           id?: string
           job_application_id: string
           pack_version?: string
@@ -41,12 +50,17 @@ export type Database = {
           started_at?: string | null
           status?: string
           submitted_at?: string | null
+          template_id?: string | null
           updated_at?: string
         }
         Update: {
           answers?: Json | null
+          answers_encrypted?: string | null
           conversation_id?: string | null
           created_at?: string
+          downloaded_at?: string | null
+          encryption_version?: string | null
+          expires_at?: string | null
           id?: string
           job_application_id?: string
           pack_version?: string
@@ -55,6 +69,7 @@ export type Database = {
           started_at?: string | null
           status?: string
           submitted_at?: string | null
+          template_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -63,6 +78,13 @@ export type Database = {
             columns: ["job_application_id"]
             isOneToOne: true
             referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_pre_employment_packs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_pre_employment_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -457,6 +479,36 @@ export type Database = {
           name?: string
           price_cents?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      contractor_pre_employment_templates: {
+        Row: {
+          contractor_id: string
+          created_at: string
+          id: string
+          name: string
+          template_schema: Json
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          contractor_id: string
+          created_at?: string
+          id?: string
+          name: string
+          template_schema?: Json
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          contractor_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          template_schema?: Json
+          updated_at?: string
+          version?: string
         }
         Relationships: []
       }
