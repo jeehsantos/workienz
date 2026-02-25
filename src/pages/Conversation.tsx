@@ -870,6 +870,8 @@ export default function Conversation() {
       <PreEmploymentPackBanner
         jobApplicationId={conversation?.job_application_id || null}
         isEmployee={!isUserContractor}
+        conversationStatus={conversation?.status}
+        contractorUserId={conversation?.contractor_user_id}
       />
 
       {/* Header - Fixed */}

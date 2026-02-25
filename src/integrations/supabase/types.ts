@@ -526,6 +526,8 @@ export type Database = {
           is_entrepreneur: boolean | null
           is_verified: boolean | null
           phone: string | null
+          pre_employment_file_name: string | null
+          pre_employment_file_url: string | null
           suburb: string | null
           updated_at: string
           user_id: string
@@ -544,6 +546,8 @@ export type Database = {
           is_entrepreneur?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
+          pre_employment_file_name?: string | null
+          pre_employment_file_url?: string | null
           suburb?: string | null
           updated_at?: string
           user_id: string
@@ -562,6 +566,8 @@ export type Database = {
           is_entrepreneur?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
+          pre_employment_file_name?: string | null
+          pre_employment_file_url?: string | null
           suburb?: string | null
           updated_at?: string
           user_id?: string
