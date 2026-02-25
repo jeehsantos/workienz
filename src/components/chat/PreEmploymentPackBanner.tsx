@@ -3,418 +3,243 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ClipboardList,
-  Loader2,
-  CheckCircle2,
-  Clock,
-  Download,
-  ShieldAlert,
-  Eye,
-} from "lucide-react";
-
-interface Pack {
-  id: string;
-  status: string;
-  template_id: string | null;
-  submitted_at: string | null;
-  reviewed_at: string | null;
-  downloaded_at: string | null;
-  expires_at: string | null;
-}
-
-interface TemplateField {
-  id: string;
-  label: string;
-  type: "text" | "number" | "date" | "file" | "checkbox" | "textarea";
-  required: boolean;
-}
-
-interface TemplateSection {
-  title: string;
-  fields: TemplateField[];
-}
-
-interface TemplateSchema {
-  sections: TemplateSection[];
-}
+import { FileText, Download, Loader2, Send, CheckCircle2 } from "lucide-react";
 
 interface PreEmploymentPackBannerProps {
   jobApplicationId: string | null;
   isEmployee: boolean;
+  conversationStatus?: string;
+  contractorUserId?: string;
 }
 
-export function PreEmploymentPackBanner({ jobApplicationId, isEmployee }: PreEmploymentPackBannerProps) {
+export function PreEmploymentPackBanner({
+  jobApplicationId,
+  isEmployee,
+  conversationStatus,
+  contractorUserId,
+}: PreEmploymentPackBannerProps) {
   const { user } = useAuthContext();
   const { toast } = useToast();
-  const [pack, setPack] = useState<Pack | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [sending, setSending] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const [templateSchema, setTemplateSchema] = useState<TemplateSchema | null>(null);
-  const [downloadedAnswers, setDownloadedAnswers] = useState<Record<string, unknown> | null>(null);
+  const [sent, setSent] = useState(false);
 
-  const fetchPack = useCallback(async () => {
-    if (!jobApplicationId || !user) {
+  // Check if a pack already exists (file was already shared)
+  const [packExists, setPackExists] = useState(false);
+
+  const fetchContractorFile = useCallback(async () => {
+    if (!contractorUserId && !jobApplicationId) {
       setLoading(false);
       return;
     }
-    const { data } = await supabase
-      .from("application_pre_employment_packs")
-      .select("id, status, template_id, submitted_at, reviewed_at, downloaded_at, expires_at")
-      .eq("job_application_id", jobApplicationId)
-      .maybeSingle();
 
-    if (data) {
-      setPack(data as Pack);
-      // Fetch template schema if template_id exists
-      if (data.template_id) {
-        const { data: tplData } = await supabase
-          .from("contractor_pre_employment_templates")
-          .select("template_schema")
-          .eq("id", data.template_id)
+    try {
+      // Determine the contractor user ID
+      let ctorUserId = contractorUserId;
+      if (!ctorUserId && jobApplicationId) {
+        // Get from the application -> job -> contractor_profiles chain
+        const { data: appData } = await supabase
+          .from("job_applications")
+          .select("job_id")
+          .eq("id", jobApplicationId)
           .maybeSingle();
-        if (tplData?.template_schema) {
-          setTemplateSchema(tplData.template_schema as unknown as TemplateSchema);
+
+        if (appData) {
+          const { data: jobData } = await supabase
+            .from("jobs")
+            .select("contractor_id")
+            .eq("id", appData.job_id)
+            .maybeSingle();
+
+          if (jobData) {
+            const { data: cpData } = await supabase
+              .from("contractor_profiles")
+              .select("user_id, pre_employment_file_url, pre_employment_file_name")
+              .eq("id", jobData.contractor_id)
+              .maybeSingle();
+
+            if (cpData) {
+              ctorUserId = cpData.user_id;
+              setFileUrl((cpData as any).pre_employment_file_url || null);
+              setFileName((cpData as any).pre_employment_file_name || null);
+            }
+          }
+        }
+      } else if (ctorUserId) {
+        const { data: cpData } = await supabase
+          .from("contractor_profiles")
+          .select("pre_employment_file_url, pre_employment_file_name")
+          .eq("user_id", ctorUserId)
+          .maybeSingle();
+
+        if (cpData) {
+          setFileUrl((cpData as any).pre_employment_file_url || null);
+          setFileName((cpData as any).pre_employment_file_name || null);
         }
       }
+
+      // Check if a pack record already exists for this application
+      if (jobApplicationId) {
+        const { data: packData } = await supabase
+          .from("application_pre_employment_packs")
+          .select("id, status")
+          .eq("job_application_id", jobApplicationId)
+          .maybeSingle();
+
+        if (packData && packData.status !== "cancelled") {
+          setPackExists(true);
+          setSent(true);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching pre-employment file:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [jobApplicationId, user]);
+  }, [contractorUserId, jobApplicationId]);
 
   useEffect(() => {
-    fetchPack();
-  }, [fetchPack]);
+    fetchContractorFile();
+  }, [fetchContractorFile]);
 
-  const handleOpenForm = () => {
-    setModalOpen(true);
-    // Mark as in_progress if still 'required'
-    if (pack?.status === "required") {
-      supabase
-        .from("application_pre_employment_packs")
-        .update({ status: "in_progress", started_at: new Date().toISOString() })
-        .eq("id", pack.id)
-        .then(() => {
-          setPack((prev) => (prev ? { ...prev, status: "in_progress" } : prev));
-        });
-    }
-  };
+  const handleShareWithEmployee = async () => {
+    if (!jobApplicationId || !user || !fileUrl) return;
+    setSending(true);
 
-  const handleSubmit = async () => {
-    if (!pack || !templateSchema) return;
-
-    // Validate required fields
-    const allFields = templateSchema.sections.flatMap((s) => s.fields);
-    const missing = allFields.filter(
-      (f) =>
-        f.required &&
-        (!answers[f.id] ||
-          (typeof answers[f.id] === "string" && !(answers[f.id] as string).trim()))
-    );
-    if (missing.length > 0) {
-      toast({
-        title: "Missing required fields",
-        description: `Please complete: ${missing.map((m) => m.label).join(", ")}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSubmitting(true);
     try {
-      const response = await supabase.functions.invoke("submit-pack-answers", {
-        body: { pack_id: pack.id, answers },
-      });
-
-      if (response.error) {
-        toast({
-          title: "Error",
-          description: response.error.message || "Failed to submit form.",
-          variant: "destructive",
+      // Create a pack record marking the file as shared
+      const { error } = await supabase
+        .from("application_pre_employment_packs")
+        .insert({
+          job_application_id: jobApplicationId,
+          required_by_user_id: user.id,
+          status: "submitted",
+          submitted_at: new Date().toISOString(),
+          answers: { file_url: fileUrl, file_name: fileName },
         });
+
+      if (error) {
+        toast({ title: "Error", description: "Failed to share the file.", variant: "destructive" });
         return;
       }
 
-      const result = response.data;
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" });
-        return;
-      }
-
-      setPack((prev) =>
-        prev
-          ? { ...prev, status: "submitted", submitted_at: new Date().toISOString() }
-          : prev
-      );
-      setModalOpen(false);
-      setAnswers({}); // Clear local answers after encrypted submission
+      setSent(true);
+      setPackExists(true);
       toast({
-        title: "✅ Form Submitted Securely",
-        description:
-          "Your pre-employment details have been encrypted and sent to the employer.",
+        title: "Pre-Employment Pack Sent",
+        description: "The candidate can now download the pre-employment document.",
       });
     } catch {
-      toast({ title: "Error", description: "Failed to submit form.", variant: "destructive" });
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
     } finally {
-      setSubmitting(false);
+      setSending(false);
     }
   };
 
   const handleDownload = async () => {
-    if (!pack) return;
+    if (!fileUrl) return;
     setDownloading(true);
+
     try {
-      const response = await supabase.functions.invoke("download-pack-answers", {
-        body: { pack_id: pack.id },
-      });
+      // Generate a signed URL for download
+      const { data, error } = await supabase.storage
+        .from("pre-employment-docs")
+        .createSignedUrl(fileUrl, 60 * 5); // 5 min expiry
 
-      if (response.error) {
-        toast({
-          title: "Error",
-          description: response.error.message || "Failed to download pack.",
-          variant: "destructive",
-        });
+      if (error || !data?.signedUrl) {
+        toast({ title: "Error", description: "Failed to generate download link.", variant: "destructive" });
         return;
       }
 
-      const result = response.data;
-      if (result?.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" });
-        return;
-      }
-
-      setDownloadedAnswers(result.answers);
-      if (result.template?.template_schema) {
-        setTemplateSchema(result.template.template_schema as unknown as TemplateSchema);
-      }
-      setModalOpen(true);
-      setPack((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: "reviewed",
-              downloaded_at: new Date().toISOString(),
-              reviewed_at: new Date().toISOString(),
-            }
-          : prev
-      );
-
-      toast({
-        title: "📥 Pack Downloaded",
-        description: `Data will be auto-deleted after ${result.deletion_scheduled_at ? "48 hours" : "expiry"}.`,
-      });
+      // Open in new tab for download
+      window.open(data.signedUrl, "_blank");
     } catch {
-      toast({ title: "Error", description: "Failed to download.", variant: "destructive" });
+      toast({ title: "Error", description: "Download failed.", variant: "destructive" });
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleWaive = async () => {
-    if (!pack) return;
-    setSubmitting(true);
-    const { error } = await supabase
-      .from("application_pre_employment_packs")
-      .update({ status: "waived", reviewed_at: new Date().toISOString() })
-      .eq("id", pack.id);
-    setSubmitting(false);
-    if (error) {
-      toast({ title: "Error", description: "Failed to waive pack.", variant: "destructive" });
-      return;
-    }
-    setPack((prev) => (prev ? { ...prev, status: "waived" } : prev));
-    toast({ title: "Pack Waived", description: "Pre-employment form requirement has been waived." });
-  };
+  if (loading) return null;
 
-  if (loading || !pack) return null;
-  if (pack.status === "cancelled") return null;
-  if (!templateSchema && isEmployee && (pack.status === "required" || pack.status === "in_progress")) {
+  // No file uploaded by contractor
+  if (!fileUrl || !fileName) return null;
+
+  const isHired = conversationStatus === "active"; // After hire, conversations are active
+
+  // CONTRACTOR VIEW
+  if (!isEmployee) {
+    // Only show after the candidate is hired
+    if (!isHired && !sent) return null;
+
     return (
-      <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2.5">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-amber-600" />
-          <p className="text-sm">Pre-employment form pending — the employer has not yet assigned a template.</p>
+      <div className="bg-muted/40 border-b border-border px-4 py-3 flex-shrink-0">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4.5 h-4.5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{fileName}</p>
+              <p className="text-xs text-muted-foreground">
+                {sent
+                  ? "Pre-employment pack has been shared with the candidate."
+                  : "Share this document with the hired candidate."}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {sent ? (
+              <Badge variant="outline" className="gap-1 text-xs">
+                <CheckCircle2 className="w-3 h-3" />
+                Sent
+              </Badge>
+            ) : (
+              <Button size="sm" onClick={handleShareWithEmployee} disabled={sending} className="h-8">
+                {sending ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Share with Candidate
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  const statusConfig: Record<string, { bg: string; icon: React.ReactNode; label: string }> = {
-    required: { bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800", icon: <ClipboardList className="w-4 h-4 text-amber-600" />, label: "Required" },
-    in_progress: { bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800", icon: <Clock className="w-4 h-4 text-blue-600" />, label: "In Progress" },
-    submitted: { bg: "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800", icon: <CheckCircle2 className="w-4 h-4 text-green-600" />, label: "Submitted" },
-    reviewed: { bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800", icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />, label: "Downloaded" },
-    waived: { bg: "bg-muted/50 border-border", icon: <CheckCircle2 className="w-4 h-4 text-muted-foreground" />, label: "Waived" },
-  };
-
-  const config = statusConfig[pack.status] || statusConfig.required;
-
-  // Determine which data to show in modal
-  const displayAnswers = downloadedAnswers || {};
-  const isViewMode = !isEmployee || pack.status === "submitted" || pack.status === "reviewed";
+  // EMPLOYEE VIEW - only show if the pack has been sent
+  if (!packExists) return null;
 
   return (
-    <>
-      <div className={`${config.bg} border-b px-4 py-2.5 flex-shrink-0`}>
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            {config.icon}
-            <div className="min-w-0">
-              <p className="text-sm font-medium">Pre-Employment Form</p>
-              <p className="text-xs text-muted-foreground">
-                {isEmployee
-                  ? pack.status === "required" || pack.status === "in_progress"
-                    ? "Please complete this form before you can be confirmed for the role."
-                    : pack.status === "submitted"
-                    ? "Your form has been encrypted and submitted. Awaiting download."
-                    : pack.status === "reviewed"
-                    ? "Your details have been downloaded by the employer. ✅"
-                    : "This requirement has been waived."
-                  : pack.status === "submitted"
-                  ? "The candidate has submitted their encrypted details. Download to view."
-                  : pack.status === "reviewed"
-                  ? "You've downloaded this candidate's details. Data will auto-delete."
-                  : pack.status === "waived"
-                  ? "You've waived the pre-employment form for this candidate."
-                  : "Waiting for the candidate to complete the form."
-                }
-              </p>
-              {pack.expires_at && (pack.status === "submitted" || pack.status === "reviewed") && (
-                <p className="text-[10px] text-destructive/80 mt-0.5">
-                  ⏰ Data expires: {new Date(pack.expires_at).toLocaleDateString()}
-                </p>
-              )}
-            </div>
+    <div className="bg-primary/5 border-b border-primary/20 px-4 py-3 flex-shrink-0">
+      <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <FileText className="w-4.5 h-4.5 text-primary" />
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant="outline" className="text-xs">{config.label}</Badge>
-            {isEmployee && (pack.status === "required" || pack.status === "in_progress") && templateSchema && (
-              <Button size="sm" onClick={handleOpenForm} className="h-8">
-                <ClipboardList className="w-3.5 h-3.5 mr-1.5" />
-                {pack.status === "in_progress" ? "Continue" : "Complete Form"}
-              </Button>
-            )}
-            {!isEmployee && pack.status === "submitted" && (
-              <Button size="sm" onClick={handleDownload} disabled={downloading} className="h-8">
-                {downloading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1.5" />}
-                Download & Review
-              </Button>
-            )}
-            {!isEmployee && pack.status === "reviewed" && downloadedAnswers && (
-              <Button size="sm" variant="outline" onClick={() => setModalOpen(true)} className="h-8">
-                <Eye className="w-3.5 h-3.5 mr-1.5" />
-                View (cached)
-              </Button>
-            )}
-            {!isEmployee && (pack.status === "required" || pack.status === "in_progress") && (
-              <Button size="sm" variant="ghost" onClick={handleWaive} disabled={submitting} className="h-8 text-xs">
-                Waive
-              </Button>
-            )}
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Pre-Employment Pack</p>
+            <p className="text-xs text-muted-foreground">
+              Your employer has shared a document for you to complete. Download, fill it in, and send it back via email or attach it in the chat.
+            </p>
           </div>
         </div>
-      </div>
-
-      {/* Form / View Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Pre-Employment Details</DialogTitle>
-            <DialogDescription>
-              {isEmployee && !isViewMode
-                ? "Please fill in your details below. Fields marked with * are required. Your answers will be encrypted."
-                : "Candidate's submitted pre-employment details."
-              }
-            </DialogDescription>
-            {!isEmployee && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs text-muted-foreground">
-                  Encrypted storage • Auto-deletes after download
-                </span>
-              </div>
-            )}
-          </DialogHeader>
-
-          {templateSchema ? (
-            <div className="space-y-6 py-2">
-              {templateSchema.sections.map((section, sIdx) => (
-                <div key={sIdx} className="space-y-3">
-                  <h3 className="text-sm font-semibold border-b pb-1">{section.title}</h3>
-                  {section.fields.map((field) => (
-                    <div key={field.id} className="space-y-1.5">
-                      <Label htmlFor={field.id} className="text-sm">
-                        {field.label} {field.required && <span className="text-destructive">*</span>}
-                      </Label>
-                      {field.type === "checkbox" ? (
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id={field.id}
-                            checked={!!(isViewMode ? displayAnswers[field.id] : answers[field.id])}
-                            onCheckedChange={(checked) =>
-                              !isViewMode && setAnswers((prev) => ({ ...prev, [field.id]: checked }))
-                            }
-                            disabled={isViewMode}
-                          />
-                          <Label htmlFor={field.id} className="text-sm font-normal cursor-pointer">
-                            {field.label}
-                          </Label>
-                        </div>
-                      ) : field.type === "textarea" ? (
-                        <Textarea
-                          id={field.id}
-                          value={String((isViewMode ? displayAnswers[field.id] : answers[field.id]) || "")}
-                          onChange={(e) =>
-                            !isViewMode && setAnswers((prev) => ({ ...prev, [field.id]: e.target.value }))
-                          }
-                          disabled={isViewMode}
-                          className="min-h-[80px] resize-none"
-                        />
-                      ) : (
-                        <Input
-                          id={field.id}
-                          type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-                          value={String((isViewMode ? displayAnswers[field.id] : answers[field.id]) || "")}
-                          onChange={(e) =>
-                            !isViewMode && setAnswers((prev) => ({ ...prev, [field.id]: e.target.value }))
-                          }
-                          disabled={isViewMode}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+        <Button size="sm" onClick={handleDownload} disabled={downloading} className="h-8 flex-shrink-0">
+          {downloading ? (
+            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
           ) : (
-            <p className="text-sm text-muted-foreground py-4">No template assigned to this pack.</p>
+            <Download className="w-3.5 h-3.5 mr-1.5" />
           )}
-
-          {isEmployee && !isViewMode && templateSchema && (
-            <DialogFooter>
-              <Button onClick={handleSubmit} disabled={submitting}>
-                {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                🔒 Submit Securely
-              </Button>
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+          Download
+        </Button>
+      </div>
+    </div>
   );
 }
