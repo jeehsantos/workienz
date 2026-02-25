@@ -89,6 +89,109 @@ const VISA_FILTERS = [
     label: "Tourist",
   },
 ];
+
+function RelatedArticles({
+  currentArticleId,
+  topicId,
+  journeyId,
+  hasSubscription,
+  onArticleClick,
+}: {
+  currentArticleId: string;
+  topicId: string | null;
+  journeyId: string | null;
+  hasSubscription: boolean;
+  onArticleClick: (article: Article) => void;
+}) {
+  const [related, setRelated] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchRelated() {
+      setLoading(true);
+      let results: Article[] = [];
+
+      // Try same topic first
+      if (topicId) {
+        const { data } = await supabase
+          .from("articles")
+          .select("id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id")
+          .eq("is_published", true)
+          .eq("topic_id", topicId)
+          .neq("id", currentArticleId)
+          .order("created_at", { ascending: false })
+          .limit(4);
+        if (data) results = data;
+      }
+
+      // Fall back to same journey if not enough
+      if (results.length < 2 && journeyId) {
+        const { data } = await supabase
+          .from("articles")
+          .select("id, title, slug, summary, visa_type, user_stage, article_type, is_premium, created_at, journey_id, topic_id")
+          .eq("is_published", true)
+          .eq("journey_id", journeyId)
+          .neq("id", currentArticleId)
+          .order("created_at", { ascending: false })
+          .limit(4);
+        if (data) {
+          const existingIds = new Set(results.map((r) => r.id));
+          const additional = data.filter((a) => !existingIds.has(a.id));
+          results = [...results, ...additional].slice(0, 4);
+        }
+      }
+
+      setRelated(results);
+      setLoading(false);
+    }
+
+    fetchRelated();
+  }, [currentArticleId, topicId, journeyId]);
+
+  return (
+    <div className="border-t pt-12 mt-16">
+      <h3 className="text-xl font-bold text-foreground mb-6">Related Questions</h3>
+      {loading ? (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      ) : related.length === 0 ? (
+        <p className="text-muted-foreground text-sm">More related articles coming soon...</p>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {related.map((article) => {
+            const isLocked = article.is_premium && !hasSubscription;
+            return (
+              <button
+                key={article.id}
+                type="button"
+                onClick={() => !isLocked && onArticleClick(article)}
+                className={`text-left p-5 border border-border rounded-xl bg-card hover:border-primary/50 hover:shadow-md transition-all group ${isLocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className="flex items-start gap-3">
+                  <ChevronRight className="w-4 h-4 text-primary mt-1 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                        {article.title}
+                      </h4>
+                      {isLocked && <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                    </div>
+                    {article.summary && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{article.summary}</p>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 export default function GuideHub() {
   const { user, isEmployee, isLoading: authLoading, isAdmin, isWriter } = useAuthContext();
   const [view, setView] = useState<"hub" | "topic" | "article">("hub");
@@ -616,11 +719,14 @@ export default function GuideHub() {
             </div>
           </div>
 
-          {/* Related Section Placeholder */}
-          <div className="border-t pt-12 mt-16">
-            <h3 className="text-xl font-bold text-foreground mb-6">Related Questions</h3>
-            <p className="text-muted-foreground text-sm">More related articles coming soon...</p>
-          </div>
+          {/* Related Articles */}
+          <RelatedArticles
+            currentArticleId={fullArticle.id}
+            topicId={fullArticle.topic_id}
+            journeyId={fullArticle.journey_id}
+            hasSubscription={hasSubscription}
+            onArticleClick={handleSelectArticle}
+          />
 
           <div className="mt-12 space-y-6">
             <ShareArticle title={fullArticle.title} url={`/articles/${fullArticle.slug ?? fullArticle.id}`} />
