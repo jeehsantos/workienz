@@ -15,8 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
-
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
+
 type JobShift = {
   id: string;
   shift_date: string;
@@ -25,6 +25,7 @@ type JobShift = {
   break_minutes: number;
   break_paid: boolean;
 };
+
 type Job = {
   id: string;
   title: string;
@@ -59,7 +60,16 @@ type Job = {
   shifts: JobShift[];
 };
 
-// Inline component to use the hook properly (hooks can't be called conditionally)
+// Advisory hint from validate-application (informational only)
+interface AdvisoryHint {
+  can_apply_hint: boolean;
+  hint_reason: string | null;
+  cooldown_remaining_days: number | null;
+  is_subscribed: boolean;
+  referral_credits_remaining: number;
+  already_applied: boolean;
+}
+
 function UpgradeButtonInline({
   size = "sm",
   className = ""
@@ -67,28 +77,21 @@ function UpgradeButtonInline({
   size?: "sm" | "default" | "lg";
   className?: string;
 }) {
-  const {
-    showUpgrade,
-    upgradeText,
-    upgradeLink
-  } = useUpgradeButtonVisibility();
+  const { showUpgrade, upgradeText, upgradeLink } = useUpgradeButtonVisibility();
   if (!showUpgrade) return null;
-  return <Button asChild size={size} className={className}>
+  return (
+    <Button asChild size={size} className={className}>
       <Link to={upgradeLink}>{upgradeText}</Link>
-    </Button>;
+    </Button>
+  );
 }
+
 export default function JobDetail() {
-  const {
-    id
-  } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const {
-    user,
-    isEmployee
-  } = useAuthContext();
-  const {
-    toast
-  } = useToast();
+  const { user, isEmployee } = useAuthContext();
+  const { toast } = useToast();
+
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasApplied, setHasApplied] = useState(false);
@@ -96,92 +99,71 @@ export default function JobDetail() {
   const [isApplying, setIsApplying] = useState(false);
   const [coverLetter, setCoverLetter] = useState("");
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
-  const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
-  const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
   const [applicationError, setApplicationError] = useState<string | null>(null);
-  
-  
+
+  // Advisory hints (informational warnings, do NOT block submission)
+  const [advisoryHint, setAdvisoryHint] = useState<AdvisoryHint | null>(null);
+
   // Questionnaire state for open_ai_top10
   const [questionnaire, setQuestionnaire] = useState<any>(null);
   const [isLoadingQuestionnaire, setIsLoadingQuestionnaire] = useState(false);
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<Record<string, string>>({});
-  const [cooldownInfo, setCooldownInfo] = useState<{
-    onCooldown: boolean;
-    daysRemaining: number;
-  } | null>(null);
+
+  // Experience advisory (client-side hint only)
+  const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
+  const [employeeIndustry, setEmployeeIndustry] = useState<string | null>(null);
+
   useEffect(() => {
     async function fetchJob() {
       if (!id) return;
-      const {
-        data,
-        error
-      } = await supabase.from("jobs").select(`
-          id,
-          title,
-          description,
-          requirements,
-          job_type,
-          duration,
-          location_city,
-          location_suburb,
-          location_country,
-          hourly_rate_min,
-          hourly_rate_max,
-          skills_required,
-          positions_available,
-          positions_filled,
-          starts_at,
-          ends_at,
-          created_at,
-          contractor_id,
-          industry,
-          schedule_type,
-          experience_required,
-          is_sse,
-          weekly_hours,
-          hiring_style
+      const { data, error } = await supabase.from("jobs").select(`
+          id, title, description, requirements, job_type, duration,
+          location_city, location_suburb, location_country,
+          hourly_rate_min, hourly_rate_max, skills_required,
+          positions_available, positions_filled, starts_at, ends_at,
+          created_at, contractor_id, industry, schedule_type,
+          experience_required, is_sse, weekly_hours, hiring_style
         `).eq("id", id).single();
+
       if (error) {
         console.error("Error fetching job:", error);
         setIsLoading(false);
         return;
       }
 
-      // Fetch contractor info
-      const {
-        data: contractor
-      } = await supabase.from("contractor_profiles").select("id, company_name, company_description, industry, avatar_url").eq("id", data.contractor_id).single();
+      const { data: contractor } = await supabase
+        .from("contractor_profiles")
+        .select("id, company_name, company_description, industry, avatar_url")
+        .eq("id", data.contractor_id)
+        .single();
 
-      // Fetch shifts if schedule_type is shifts
       let shifts: JobShift[] = [];
       if (data.schedule_type === "shifts") {
-        const {
-          data: shiftsData
-        } = await supabase.from("job_shifts").select("*").eq("job_id", id).order("shift_date", {
-          ascending: true
-        });
+        const { data: shiftsData } = await supabase
+          .from("job_shifts")
+          .select("*")
+          .eq("job_id", id)
+          .order("shift_date", { ascending: true });
         shifts = shiftsData || [];
       }
+
       setJob({
         ...data,
         contractor,
         shifts,
         experience_required: (data as any).experience_required ?? false,
         is_sse: (data as any).is_sse ?? false,
-        hiring_style: data.hiring_style || 'slot_1to1'
+        hiring_style: data.hiring_style || 'slot_1to1',
       });
       setIsLoading(false);
 
-      // For open_ai_top10 jobs, fetch questionnaire
       if (data.hiring_style === 'open_ai_top10') {
         setIsLoadingQuestionnaire(true);
         try {
           const qRes = await supabase.functions.invoke('generate-job-questionnaire', {
-            body: { job_id: id }
+            body: { job_id: id },
           });
-          if (qRes.data?.questionnaire) {
-            setQuestionnaire(qRes.data.questionnaire);
-          }
+          if (qRes.data?.questionnaire) setQuestionnaire(qRes.data.questionnaire);
         } catch (e) {
           console.error('Failed to load questionnaire:', e);
         } finally {
@@ -191,164 +173,95 @@ export default function JobDetail() {
     }
     fetchJob();
   }, [id]);
+
+  // Fetch advisory hints + basic profile info
   useEffect(() => {
     async function checkApplication() {
       if (!user || !id || !isEmployee()) return;
 
-      // Get employee profile with last_application_at for cooldown check
-      const {
-        data: profile
-      } = await supabase.from("employee_profiles").select("id, experience_years, industry, last_application_at").eq("user_id", user.id).maybeSingle();
+      // Get employee profile (minimal)
+      const { data: profile } = await supabase
+        .from("employee_profiles")
+        .select("id, experience_years, industry")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
       if (profile) {
         setEmployeeProfileId(profile.id);
         setEmployeeExperienceYears(profile.experience_years);
         setEmployeeIndustry((profile as any).industry);
 
-        // Check if already applied
-        const {
-          data: application
-        } = await supabase.from("job_applications").select("id, status").eq("job_id", id).eq("employee_id", profile.id).maybeSingle();
+        // Check if already applied (for UI display)
+        const { data: application } = await supabase
+          .from("job_applications")
+          .select("id, status")
+          .eq("job_id", id)
+          .eq("employee_id", profile.id)
+          .maybeSingle();
+
         setHasApplied(!!application);
-        if (application) {
-          setApplicationStatus(application.status);
+        if (application) setApplicationStatus(application.status);
+      }
+
+      // Fetch advisory hint from validate-application (non-blocking)
+      try {
+        const { data: hint } = await supabase.functions.invoke('validate-application', {
+          body: { job_id: id },
+        });
+        if (hint && !hint.error) {
+          setAdvisoryHint(hint);
+          if (hint.already_applied) setHasApplied(true);
         }
-
-        // Check cooldown status for free tier users
-        // Fetch subscription status
-        const {
-          data: subscription
-        } = await supabase.from("subscriptions").select("id").eq("user_id", user.id).eq("status", "active").maybeSingle();
-        const isSubscribed = !!subscription;
-        if (!isSubscribed) {
-          // Get active applications count
-          const {
-            count: activeAppsCount
-          } = await supabase.from("job_applications").select("id", {
-            count: "exact",
-            head: true
-          }).eq("employee_id", profile.id).in("status", ["pending", "shortlisted"]);
-          const activeApplications = activeAppsCount || 0;
-
-          // Get referral credits
-          const {
-            data: referralCredits
-          } = await supabase.from("employee_referral_credits").select("bonus_credits_balance, bonus_credits_used, is_shadow_banned").eq("user_id", user.id).maybeSingle();
-          let referralCreditsRemaining = 0;
-          if (referralCredits && !referralCredits.is_shadow_banned) {
-            referralCreditsRemaining = referralCredits.bonus_credits_balance - referralCredits.bonus_credits_used;
-          }
-          const BASE_FREE_TIER_APPLICATIONS = 1;
-
-          // Cooldown only applies if user has exhausted base slot AND has no referral credits
-          const shouldApplyCooldown = activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0;
-          if (shouldApplyCooldown && profile.last_application_at) {
-            // Get cooldown days from platform settings
-            const {
-              data: settings
-            } = await supabase.from("platform_settings").select("setting_value").eq("setting_key", "free_tier_cooldown_days").maybeSingle();
-            const freeTierCooldownDays = settings ? parseInt(settings.setting_value) || 3 : 3;
-            const lastAppDate = new Date(profile.last_application_at);
-            const now = new Date();
-            const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (daysSinceLastApp < freeTierCooldownDays) {
-              const remaining = freeTierCooldownDays - daysSinceLastApp;
-              setCooldownInfo({
-                onCooldown: true,
-                daysRemaining: remaining
-              });
-            } else {
-              setCooldownInfo({
-                onCooldown: false,
-                daysRemaining: 0
-              });
-            }
-          } else {
-            setCooldownInfo({
-              onCooldown: false,
-              daysRemaining: 0
-            });
-          }
-        } else {
-          // Subscribed users - no cooldown warning needed here (backend handles their cooldown)
-          setCooldownInfo({
-            onCooldown: false,
-            daysRemaining: 0
-          });
-        }
+      } catch {
+        // Advisory failure is non-critical
       }
     }
     checkApplication();
   }, [user, id, isEmployee]);
 
-  // Memoize eligibility check
-  const eligibility = useMemo(() => {
-    if (!job || !employeeProfileId) return {
-      allowed: false,
-      reason: "Complete your profile first"
-    };
+  // Experience advisory hint (client-side only, does NOT block)
+  const experienceWarning = useMemo(() => {
+    if (!job || !employeeProfileId) return null;
+    if (!job.experience_required) return null;
 
-    // Check experience requirement - job seeker must have experience in the job's industry
-    if (job.experience_required) {
-      // Check if employee has any experience
-      if (!employeeExperienceYears || employeeExperienceYears === 0) {
-        return {
-          allowed: false,
-          reason: "This job requires experience. Your profile shows no work experience."
-        };
-      }
-      // Check if employee's industry matches job's industry
-      if (job.industry && employeeIndustry && job.industry !== employeeIndustry) {
-        return {
-          allowed: false,
-          reason: `This job requires experience in ${job.industry}. Your profile shows experience in ${employeeIndustry}.`
-        };
-      }
-      // If job has an industry but employee doesn't have one set
-      if (job.industry && !employeeIndustry) {
-        return {
-          allowed: false,
-          reason: `This job requires experience in ${job.industry}. Please update your profile to indicate your industry experience.`
-        };
-      }
+    if (!employeeExperienceYears || employeeExperienceYears === 0) {
+      return "This job requires experience. Your profile shows no work experience.";
     }
-    return {
-      allowed: true,
-      reason: null
-    };
+    if (job.industry && employeeIndustry && job.industry !== employeeIndustry) {
+      return `This job requires experience in ${job.industry}. Your profile shows experience in ${employeeIndustry}.`;
+    }
+    if (job.industry && !employeeIndustry) {
+      return `This job requires experience in ${job.industry}. Please update your profile to indicate your industry experience.`;
+    }
+    return null;
   }, [job, employeeProfileId, employeeExperienceYears, employeeIndustry]);
 
-  // Memoize formatted hourly rate
-  const hourlyRate = useMemo(() => formatHourlyRate(job?.hourly_rate_min, job?.hourly_rate_max), [job?.hourly_rate_min, job?.hourly_rate_max]);
-  const canApply = () => {
-    return eligibility;
-  };
-  const proceedWithApplication = useCallback(async () => {
-    if (!employeeProfileId || !id || !user) return;
+  const hourlyRate = useMemo(
+    () => formatHourlyRate(job?.hourly_rate_min, job?.hourly_rate_max),
+    [job?.hourly_rate_min, job?.hourly_rate_max]
+  );
 
-    // Prevent duplicate submissions
-    if (isApplying) return;
+  const proceedWithApplication = useCallback(async () => {
+    if (!employeeProfileId || !id || !user || isApplying) return;
+
     setIsApplying(true);
     setApplicationError(null);
+
     try {
-      // Build request body
       const requestBody: Record<string, unknown> = {
         job_id: id,
         cover_letter: coverLetter || undefined,
       };
-      
-      // For open_ai_top10, include questionnaire answers
+
       if (job?.hiring_style === 'open_ai_top10' && Object.keys(questionnaireAnswers).length > 0) {
         requestBody.application_answers = questionnaireAnswers;
       }
 
-      // Use backend edge function for server-side validation and submission
       const response = await supabase.functions.invoke('submit-application', {
-        body: requestBody
+        body: requestBody,
       });
 
-      // Handle edge function errors
       if (response.error) {
-        console.error("Error applying:", response.error);
         let errorMessage = "Failed to submit application. Please try again.";
         let isUpgradePrompt = false;
         try {
@@ -370,78 +283,71 @@ export default function JobDetail() {
             }
           }
         } catch {
-          // Keep default message
+          // Keep default
         }
         setApplicationError(errorMessage);
         toast({
           title: isUpgradePrompt ? "Application Limit Reached" : "Application Error",
           description: errorMessage,
-          variant: "destructive"
+          variant: "destructive",
         });
         setIsApplying(false);
         return;
       }
-      const result = response.data;
 
+      const result = response.data;
       if (result?.error) {
         setApplicationError(result.error);
         toast({
           title: result.upgrade_prompt ? "Application Limit Reached" : "Application Error",
           description: result.error,
-          variant: "destructive"
+          variant: "destructive",
         });
         setIsApplying(false);
         return;
       }
+
       if (!result?.success) {
-        const errorMsg = result?.error || "Failed to submit application.";
-        setApplicationError(errorMsg);
-        toast({
-          title: "Application Error",
-          description: errorMsg,
-          variant: "destructive"
-        });
+        const msg = result?.error || "Failed to submit application.";
+        setApplicationError(msg);
+        toast({ title: "Application Error", description: msg, variant: "destructive" });
         setIsApplying(false);
         return;
       }
+
       setIsApplying(false);
       setHasApplied(true);
       setCoverLetter("");
-
       toast({
         title: "Application Submitted!",
-        description: result.data?.conversation_id ? "You're now connected with the employer. Check your dashboard to view the conversation." : "Your application has been sent to the employer."
+        description: result.data?.conversation_id
+          ? "You're now connected with the employer. Check your dashboard to view the conversation."
+          : "Your application has been sent to the employer.",
       });
     } catch (error) {
       console.error("Error applying:", error);
       setApplicationError("An unexpected error occurred. Please try again.");
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
       setIsApplying(false);
     }
   }, [employeeProfileId, id, user, coverLetter, toast, job, questionnaireAnswers, isApplying]);
 
   const handleApply = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
-
-    const eligibility = canApply();
-    if (!eligibility.allowed) {
-      setApplicationError(eligibility.reason);
-      return;
-    }
-
     proceedWithApplication();
-  }, [employeeProfileId, id, user, canApply, proceedWithApplication]);
+  }, [employeeProfileId, id, user, proceedWithApplication]);
+
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background">
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>;
+      </div>
+    );
   }
+
   if (!job) {
-    return <div className="min-h-screen bg-background">
+    return (
+      <div className="min-h-screen bg-background">
         <div className="container-tight py-8">
           <div className="text-center py-16">
             <h1 className="text-2xl font-bold mb-4">Job Not Found</h1>
@@ -450,10 +356,16 @@ export default function JobDetail() {
             </Button>
           </div>
         </div>
-      </div>;
+      </div>
+    );
   }
 
-  return <div className="min-h-screen bg-background">
+  // Determine if there's an advisory warning to show (non-blocking)
+  const showCooldownWarning = advisoryHint && !advisoryHint.can_apply_hint && advisoryHint.cooldown_remaining_days && advisoryHint.cooldown_remaining_days > 0;
+  const showLimitWarning = advisoryHint && !advisoryHint.can_apply_hint && !advisoryHint.cooldown_remaining_days && advisoryHint.hint_reason && !advisoryHint.already_applied;
+
+  return (
+    <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/jobs">
@@ -467,65 +379,79 @@ export default function JobDetail() {
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-card rounded-xl p-6 border border-border/50">
               <div className="flex flex-wrap gap-2 mb-3">
-                <Badge variant="outline" className="capitalize">
-                  {job.job_type}
-                </Badge>
+                <Badge variant="outline" className="capitalize">{job.job_type}</Badge>
                 {job.industry && <Badge variant="secondary">{job.industry}</Badge>}
                 {job.experience_required && <Badge variant="destructive">Experience Required</Badge>}
               </div>
               <h1 className="text-2xl font-bold mb-2 font-display">{job.title}</h1>
-              {user ? <div className="text-muted-foreground mb-4">
+              {user ? (
+                <div className="text-muted-foreground mb-4">
                   <span>{job.contractor?.company_name || "Company"}</span>
-                </div> : <div className="flex items-center gap-1.5 text-muted-foreground mb-4">
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-muted-foreground mb-4">
                   <Lock className="w-3.5 h-3.5" />
                   <span>Sign in to see company details</span>
-                </div>}
+                </div>
+              )}
 
               <div className="flex flex-col gap-2 text-sm text-muted-foreground mb-6">
                 <div className="flex flex-wrap gap-4">
-                  {job.location_city && <span className="flex items-center gap-1">
+                  {job.location_city && (
+                    <span className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
                       {job.location_suburb && `${job.location_suburb}, `}
                       {job.location_city}
                       {job.location_country && `, ${job.location_country}`}
-                    </span>}
-                  {job.duration && <span className="flex items-center gap-1">
+                    </span>
+                  )}
+                  {job.duration && (
+                    <span className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       {job.duration}
-                    </span>}
-                  {hourlyRate && <span className="flex items-center gap-1">
+                    </span>
+                  )}
+                  {hourlyRate && (
+                    <span className="flex items-center gap-1">
                       <DollarSign className="w-4 h-4" />
                       {hourlyRate}
-                    </span>}
+                    </span>
+                  )}
                 </div>
-
-                {job.is_sse && <div className="flex items-center gap-2 text-foreground">
+                {job.is_sse && (
+                  <div className="flex items-center gap-2 text-foreground">
                     <ShieldCheck className="w-4 h-4" />
                     <span className="font-medium">SSE employer</span>
-                  </div>}
+                  </div>
+                )}
               </div>
 
               <JobDescription description={job.description} requirements={job.requirements} />
 
-              {job.skills_required && job.skills_required.length > 0 && <div className="mt-6 pt-4 border-t border-border/50">
+              {job.skills_required && job.skills_required.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-border/50">
                   <h3 className="text-sm font-semibold mb-2">Required Skills</h3>
                   <div className="flex flex-wrap gap-2">
-                    {job.skills_required.map(skill => <Badge key={skill} variant="secondary">
-                        {skill}
-                      </Badge>)}
+                    {job.skills_required.map(skill => (
+                      <Badge key={skill} variant="secondary">{skill}</Badge>
+                    ))}
                   </div>
-                </div>}
+                </div>
+              )}
             </div>
 
             {/* Schedule Section */}
-            {(job.shifts.length > 0 || job.starts_at) && <div className="bg-card rounded-xl p-6 border border-border/50">
+            {(job.shifts.length > 0 || job.starts_at) && (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
                   {job.schedule_type === "shifts" ? "Shift Schedule" : "Contract Period"}
                 </h3>
-                
-                {job.schedule_type === "shifts" && job.shifts.length > 0 && <div className="space-y-3">
-                    {job.shifts.map(shift => <div key={shift.id} className="p-3 bg-muted/50 rounded-lg">
+
+                {job.schedule_type === "shifts" && job.shifts.length > 0 && (
+                  <div className="space-y-3">
+                    {job.shifts.map(shift => (
+                      <div key={shift.id} className="p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">
                             {format(new Date(shift.shift_date), "EEEE, MMM d, yyyy")}
@@ -534,90 +460,132 @@ export default function JobDetail() {
                             {shift.start_time} - {shift.end_time}
                           </span>
                         </div>
-                        {shift.break_minutes > 0 && <p className="text-sm text-muted-foreground mt-1">
+                        {shift.break_minutes > 0 && (
+                          <p className="text-sm text-muted-foreground mt-1">
                             {shift.break_minutes} min break ({shift.break_paid ? "paid" : "unpaid"})
-                          </p>}
-                      </div>)}
-                  </div>}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                {job.schedule_type === "fixed_term" && job.starts_at && <div className="space-y-2">
+                {job.schedule_type === "fixed_term" && job.starts_at && (
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Start Date:</span>
-                      <span className="font-medium">
-                        {format(new Date(job.starts_at), "EEEE, MMM d, yyyy")}
-                      </span>
+                      <span className="font-medium">{format(new Date(job.starts_at), "EEEE, MMM d, yyyy")}</span>
                     </div>
-                    {job.ends_at && <div className="flex items-center gap-2">
+                    {job.ends_at && (
+                      <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">End Date:</span>
-                        <span className="font-medium">
-                          {format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}
-                        </span>
-                      </div>}
-                    {job.weekly_hours && <div className="flex items-center gap-2">
+                        <span className="font-medium">{format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}</span>
+                      </div>
+                    )}
+                    {job.weekly_hours && (
+                      <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Weekly Hours:</span>
-                        <span className="font-medium">
-                          {job.weekly_hours} hours/week
-                        </span>
-                      </div>}
-                  </div>}
-              </div>}
+                        <span className="font-medium">{job.weekly_hours} hours/week</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Apply Section */}
-            {user && isEmployee() && <div className="bg-card rounded-xl p-6 border border-border/50">
-                {hasApplied ? <div className={`flex items-center gap-3 ${applicationStatus === 'rejected' ? 'text-red-600 dark:text-red-400' : applicationStatus === 'hired' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+            {user && isEmployee() && (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
+                {hasApplied ? (
+                  <div className={`flex items-center gap-3 ${
+                    applicationStatus === 'rejected' ? 'text-red-600 dark:text-red-400'
+                    : applicationStatus === 'hired' ? 'text-green-600 dark:text-green-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                  }`}>
                     {applicationStatus === 'rejected' ? <AlertTriangle className="w-6 h-6" /> : <CheckCircle className="w-6 h-6" />}
                     <div>
                       <p className="font-semibold">
-                        {applicationStatus === 'rejected' ? 'Application Not Successful' : applicationStatus === 'hired' ? 'You\'ve Been Hired!' : 'Application Submitted'}
+                        {applicationStatus === 'rejected' ? 'Application Not Successful'
+                          : applicationStatus === 'hired' ? "You've Been Hired!"
+                          : 'Application Submitted'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {applicationStatus === 'rejected' ? 'The employer has decided not to proceed with your application.' : applicationStatus === 'hired' ? 'Congratulations! Check your messages for next steps.' : 'The employer will review your application.'}
+                        {applicationStatus === 'rejected' ? 'The employer has decided not to proceed with your application.'
+                          : applicationStatus === 'hired' ? 'Congratulations! Check your messages for next steps.'
+                          : 'The employer will review your application.'}
                       </p>
                     </div>
-                  </div> : !employeeProfileId ? <div>
-                    <p className="text-muted-foreground mb-3">
-                      Complete your profile to apply for jobs.
-                    </p>
+                  </div>
+                ) : !employeeProfileId ? (
+                  <div>
+                    <p className="text-muted-foreground mb-3">Complete your profile to apply for jobs.</p>
                     <Button asChild>
                       <Link to="/employee/profile">Complete Profile</Link>
                     </Button>
-                  </div> : !eligibility.allowed ? <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="w-6 h-6 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Cannot Apply</p>
-                      <p className="text-sm text-muted-foreground">
-                        {eligibility.reason}
-                      </p>
-                      {eligibility.reason?.includes("Premium") && <UpgradeButtonInline size="sm" className="mt-2" />}
-                      {eligibility.reason?.includes("experience") && <Button asChild size="sm" variant="outline" className="mt-2">
-                          <Link to="/employee/profile">Update Profile</Link>
-                        </Button>}
-                    </div>
-                  </div> : cooldownInfo?.onCooldown ? <div className="flex items-start gap-3 text-amber-600 dark:text-amber-400">
-                    <Clock className="w-6 h-6 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold">Application Cooldown Active</p>
-                      <p className="text-sm text-muted-foreground">
-                        You must wait {cooldownInfo.daysRemaining} more day{cooldownInfo.daysRemaining > 1 ? 's' : ''} before applying to another job. 
-                        This cooldown applies because you've used your free application slot and have no remaining referral credits.
-                      </p>
-                      <div className="flex gap-2 mt-3">
-                        <UpgradeButtonInline />
-                        <Button asChild size="sm" variant="outline">
-                          <Link to="/dashboard?tab=settings">Invite Friends</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </div> : <div className="space-y-4">
+                  </div>
+                ) : (
+                  <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      {job?.hiring_style === 'open_ai_top10' 
+                      {job?.hiring_style === 'open_ai_top10'
                         ? "Answer the screening questions below and submit your application."
                         : "Ready to apply? Add a cover letter to stand out!"}
                     </p>
-                    {applicationError && <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
+
+                    {/* Advisory warnings (non-blocking) */}
+                    {experienceWarning && (
+                      <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg text-sm">
+                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium">Experience Warning</p>
+                          <p>{experienceWarning}</p>
+                          <Button asChild size="sm" variant="outline" className="mt-2">
+                            <Link to="/employee/profile">Update Profile</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {showCooldownWarning && (
+                      <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg text-sm">
+                        <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium">Cooldown Notice</p>
+                          <p>
+                            You may need to wait {advisoryHint!.cooldown_remaining_days} more day{advisoryHint!.cooldown_remaining_days! > 1 ? 's' : ''} before applying.
+                            This cooldown applies when you've used your free application slot and have no remaining referral credits.
+                          </p>
+                          <div className="flex gap-2 mt-2">
+                            <UpgradeButtonInline />
+                            <Button asChild size="sm" variant="outline">
+                              <Link to="/dashboard?tab=settings">Invite Friends</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {showLimitWarning && (
+                      <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg text-sm">
+                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium">Application Limit Notice</p>
+                          <p>{advisoryHint!.hint_reason}</p>
+                          <div className="flex gap-2 mt-2">
+                            <UpgradeButtonInline />
+                            <Button asChild size="sm" variant="outline">
+                              <Link to="/dashboard?tab=settings">Invite Friends</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {applicationError && (
+                      <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
                         {applicationError}
-                      </div>}
-                    
+                      </div>
+                    )}
+
                     {/* Questionnaire for open_ai_top10 */}
                     {job?.hiring_style === 'open_ai_top10' && (
                       <div className="space-y-4">
@@ -668,9 +636,7 @@ export default function JobDetail() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       {q.options.map((opt: any) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                          {opt.label}
-                                        </SelectItem>
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
@@ -695,16 +661,24 @@ export default function JobDetail() {
                       </div>
                     )}
 
-                    {/* Cover letter - always shown */}
+                    {/* Cover letter */}
                     <div className="space-y-2">
                       <Label htmlFor="cover_letter">Cover Letter (Optional)</Label>
-                      <Textarea id="cover_letter" value={coverLetter} onChange={e => setCoverLetter(e.target.value)} placeholder="Tell the employer why you're a great fit for this position..." rows={5} />
+                      <Textarea
+                        id="cover_letter"
+                        value={coverLetter}
+                        onChange={e => setCoverLetter(e.target.value)}
+                        placeholder="Tell the employer why you're a great fit for this position..."
+                        rows={5}
+                      />
                       <p className="text-xs text-muted-foreground">
                         A good cover letter increases your chances of getting noticed.
                       </p>
                     </div>
-                    <Button 
-                      onClick={handleApply} 
+
+                    {/* Submit button — NEVER blocked by advisory hints */}
+                    <Button
+                      onClick={handleApply}
                       disabled={isApplying || (job?.hiring_style === 'open_ai_top10' && (!questionnaire?.questions || questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim())))}
                       className="w-full"
                     >
@@ -716,47 +690,49 @@ export default function JobDetail() {
                         Please answer all screening questions to submit your application.
                       </p>
                     )}
-                  </div>}
-              </div>}
+                  </div>
+                )}
+              </div>
+            )}
 
-            {!user && <div className="bg-card rounded-xl p-6 border border-border/50 text-center">
-                <p className="text-muted-foreground mb-4">
-                  Sign in as a job seeker to apply for this position.
-                </p>
+            {!user && (
+              <div className="bg-card rounded-xl p-6 border border-border/50 text-center">
+                <p className="text-muted-foreground mb-4">Sign in as a job seeker to apply for this position.</p>
                 <Button asChild>
                   <Link to="/auth">Sign In to Apply</Link>
                 </Button>
-              </div>}
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {user ? <div className="bg-card rounded-xl p-6 border border-border/50">
+            {user ? (
+              <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Building2 className="w-5 h-5" />
                   About the Company
                 </h3>
                 <div className="gap-4 flex-col flex items-center justify-center">
                   <ContractorAvatar avatarUrl={job.contractor?.avatar_url} companyName={job.contractor?.company_name} size="xl" />
-                  <p className="font-medium text-lg">
-                    {job.contractor?.company_name || "Company"}
-                  </p>
+                  <p className="font-medium text-lg">{job.contractor?.company_name || "Company"}</p>
                 </div>
-                {job.contractor?.company_description && <p className="text-sm text-muted-foreground mt-3">
-                    {job.contractor.company_description}
-                  </p>}
-              </div> : <div className="bg-card rounded-xl p-6 border border-border/50 text-center">
+                {job.contractor?.company_description && (
+                  <p className="text-sm text-muted-foreground mt-3">{job.contractor.company_description}</p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-card rounded-xl p-6 border border-border/50 text-center">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
                   <Lock className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="font-semibold mb-2">Company Details Hidden</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Sign in to view company information and apply for this job.
-                </p>
+                <p className="text-sm text-muted-foreground mb-4">Sign in to view company information and apply for this job.</p>
                 <Button asChild size="sm">
                   <Link to="/auth">Sign In</Link>
                 </Button>
-              </div>}
+              </div>
+            )}
 
             <div className="bg-card rounded-xl p-6 border border-border/50">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -774,9 +750,7 @@ export default function JobDetail() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Remaining</span>
-                  <span className="font-medium text-primary">
-                    {job.positions_available - job.positions_filled}
-                  </span>
+                  <span className="font-medium text-primary">{job.positions_available - job.positions_filled}</span>
                 </div>
               </div>
             </div>
@@ -789,6 +763,6 @@ export default function JobDetail() {
           </div>
         </div>
       </div>
-      
-    </div>;
+    </div>
+  );
 }
