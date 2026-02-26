@@ -288,6 +288,23 @@ Deno.serve(async (req) => {
 
     if (appError || !appData) {
       console.error('[submit-application] Insert failed:', appError);
+
+      if (
+        appError &&
+        (
+          appError.code === '23505' ||
+          appError.message?.toLowerCase().includes('duplicate key violation')
+        )
+      ) {
+        return new Response(
+          JSON.stringify({
+            code: 'ALREADY_APPLIED',
+            message: 'You have already applied to this job.',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
         JSON.stringify({ error: 'Failed to submit application. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
