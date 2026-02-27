@@ -1777,6 +1777,10 @@ export type Database = {
         }
         Returns: Json
       }
+      execute_hire_transaction: {
+        Args: { p_application_id: string; p_contractor_user_id: string }
+        Returns: Json
+      }
       generate_contractor_referral_code: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_referral_credits_balance: {
