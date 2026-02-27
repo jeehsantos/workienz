@@ -158,13 +158,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ─── Position slot check (atomic) ────────────────────────────────
-    if (job.positions_filled >= job.positions_available) {
-      return new Response(
-        JSON.stringify({ error: 'All positions for this job have been filled.', position_filled: true }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Position slot check removed — now handled atomically in create_job_application_atomic
 
     // ─── Parse settings ──────────────────────────────────────────────
     const settingsMap: Record<string, number> = {};
@@ -237,11 +231,8 @@ Deno.serve(async (req) => {
 
     // ─── Questionnaire validation (open_ai_top10) ────────────────────
     const isOpenAI = job.hiring_style === 'open_ai_top10';
-    const insertPayload: Record<string, unknown> = {
-      job_id,
-      employee_id: emp.id,
-      cover_letter: cover_letter || null,
-    };
+    let aiScoringStatus = 'pending';
+    let validatedAnswers: Record<string, unknown> | null = null;
 
     if (isOpenAI) {
       const { data: questData } = await supabase
@@ -266,50 +257,47 @@ Deno.serve(async (req) => {
           }
         }
       }
-      insertPayload.application_answers = application_answers || null;
-      insertPayload.ai_scoring_status = 'pending';
+      validatedAnswers = application_answers || null;
+      aiScoringStatus = 'pending';
     }
 
-    // ─── Atomic position slot check via DB function ──────────────────
-    const { data: slotAvailable, error: slotError } = await supabase.rpc('check_job_application_slot', { p_job_id: job_id });
-    if (slotError || !slotAvailable) {
-      return new Response(
-        JSON.stringify({ error: 'Someone was quicker! All positions have been filled.', position_filled: true }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // ─── INSERT application ──────────────────────────────────────────
-    const { data: appData, error: appError } = await supabase
-      .from('job_applications')
-      .insert(insertPayload)
-      .select('id')
-      .single();
-
-    if (appError || !appData) {
-      console.error('[submit-application] Insert failed:', appError);
-
-      if (
-        appError &&
-        (
-          appError.code === '23505' ||
-          appError.message?.toLowerCase().includes('duplicate key violation')
-        )
-      ) {
-        return new Response(
-          JSON.stringify({
-            code: 'ALREADY_APPLIED',
-            message: 'You have already applied to this job.',
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    // ─── ATOMIC: lock job row, check slots, check duplicate, insert ──
+    const { data: atomicResult, error: atomicError } = await supabase.rpc(
+      'create_job_application_atomic',
+      {
+        p_job_id: job_id,
+        p_employee_id: emp.id,
+        p_cover_letter: cover_letter || null,
+        p_application_answers: validatedAnswers,
+        p_ai_scoring_status: aiScoringStatus,
       }
+    );
 
+    if (atomicError) {
+      console.error('[submit-application] Atomic RPC failed:', atomicError);
       return new Response(
         JSON.stringify({ error: 'Failed to submit application. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const rpcResult = atomicResult as { code: string; ok: boolean; application_id?: string };
+
+    if (!rpcResult.ok) {
+      const errorMap: Record<string, { error: string; status: number; extra?: Record<string, unknown> }> = {
+        JOB_NOT_FOUND: { error: 'Job not found', status: 404 },
+        JOB_NOT_OPEN: { error: 'This job is no longer accepting applications.', status: 400 },
+        NO_SLOTS: { error: 'Someone was quicker! All positions have been filled.', status: 400, extra: { position_filled: true } },
+        ALREADY_APPLIED: { error: 'You have already applied to this job.', status: 400, extra: { code: 'ALREADY_APPLIED' } },
+      };
+      const mapped = errorMap[rpcResult.code] || { error: 'Application failed.', status: 400 };
+      return new Response(
+        JSON.stringify({ error: mapped.error, ...mapped.extra }),
+        { status: mapped.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const appData = { id: rpcResult.application_id! };
 
     // ─── Post-insert side effects (parallel) ─────────────────────────
     const sideEffects: Promise<any>[] = [

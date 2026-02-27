@@ -1767,6 +1767,16 @@ export type Database = {
         Args: { _contractor_profile_id: string }
         Returns: boolean
       }
+      create_job_application_atomic: {
+        Args: {
+          p_ai_scoring_status?: string
+          p_application_answers?: Json
+          p_cover_letter?: string
+          p_employee_id: string
+          p_job_id: string
+        }
+        Returns: Json
+      }
       generate_contractor_referral_code: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_referral_credits_balance: {
