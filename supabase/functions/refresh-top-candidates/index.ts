@@ -62,12 +62,13 @@ Deno.serve(async (req) => {
 
     lastRefreshed.set(job_id, now);
 
-    // Fetch top scored applications
+    // Fetch top scored applications (exclude rejected/hired to keep rankings consistent)
     const { data: topApps, error: appsErr } = await supabase
       .from('job_applications')
       .select('id, ai_score, created_at')
       .eq('job_id', job_id)
       .eq('ai_scoring_status', 'scored')
+      .in('status', ['pending', 'reviewing', 'shortlisted'])
       .not('ai_score', 'is', null)
       .order('ai_score', { ascending: false })
       .order('created_at', { ascending: true })

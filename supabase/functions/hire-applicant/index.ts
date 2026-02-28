@@ -232,6 +232,19 @@ Deno.serve(async (req) => {
     // Execute all side effects in parallel
     await Promise.all(sideEffects);
 
+    // Refresh top candidates for all affected jobs (fire-and-forget)
+    const affectedJobIds = [...new Set([tx.job_id, ...(rejectedJobIds || [])])].filter(Boolean);
+    for (const jobId of affectedJobIds) {
+      fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/refresh-top-candidates`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId }),
+      }).catch(() => {});
+    }
+
     console.log("[hire-applicant] Complete. Rejected:", rejectedConvIds.length, "other applications");
 
     return new Response(
