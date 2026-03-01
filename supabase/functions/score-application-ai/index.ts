@@ -65,6 +65,65 @@ Deno.serve(async (req) => {
       .update({ ai_scoring_status: 'processing' })
       .eq('id', application_id);
 
+    // ─── Phase 8: AI Usage Cap Enforcement ───────────────────────────
+    const { data: jobOwnerForCap } = await supabase
+      .from('jobs')
+      .select('contractor_id')
+      .eq('id', app.job_id)
+      .single();
+
+    if (jobOwnerForCap) {
+      const { data: contractorForCap } = await supabase
+        .from('contractor_profiles')
+        .select('user_id')
+        .eq('id', jobOwnerForCap.contractor_id)
+        .single();
+
+      if (contractorForCap) {
+        const { data: activeEnt } = await supabase
+          .from('contractor_entitlements')
+          .select('plan_type')
+          .eq('user_id', contractorForCap.user_id)
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+
+        const isPaid = activeEnt && !['free_tier', 'free_contractor'].includes(activeEnt.plan_type);
+        const capKey = isPaid ? 'ai_scoring_cap_paid' : 'ai_scoring_cap_free';
+
+        const { data: capSetting } = await supabase
+          .from('platform_settings')
+          .select('setting_value')
+          .eq('setting_key', capKey)
+          .single();
+
+        const cap = parseInt(capSetting?.setting_value || '500');
+
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const { count: usageCount } = await supabase
+          .from('contractor_ai_usage_ledger')
+          .select('id', { count: 'exact', head: true })
+          .eq('contractor_user_id', contractorForCap.user_id)
+          .eq('event_type', 'application_scored')
+          .gte('created_at', monthStart.toISOString());
+
+        if ((usageCount || 0) >= cap) {
+          log('AI scoring cap reached', { usageCount, cap, isPaid });
+          await supabase.from('job_applications').update({ ai_scoring_status: 'failed' }).eq('id', application_id);
+          return new Response(JSON.stringify({
+            error: 'Monthly AI scoring limit reached for this contractor.',
+            code: 'AI_CAP_REACHED',
+          }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+
     // Fetch candidate profile
     const { data: empProfile } = await supabase
       .from('employee_profiles')

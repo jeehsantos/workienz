@@ -1232,6 +1232,7 @@ export type Database = {
           location_city: string | null
           location_country: string | null
           location_suburb: string | null
+          max_applications: number | null
           positions_available: number
           positions_filled: number
           provides_accommodation: boolean | null
@@ -1268,6 +1269,7 @@ export type Database = {
           location_city?: string | null
           location_country?: string | null
           location_suburb?: string | null
+          max_applications?: number | null
           positions_available?: number
           positions_filled?: number
           provides_accommodation?: boolean | null
@@ -1304,6 +1306,7 @@ export type Database = {
           location_city?: string | null
           location_country?: string | null
           location_suburb?: string | null
+          max_applications?: number | null
           positions_available?: number
           positions_filled?: number
           provides_accommodation?: boolean | null

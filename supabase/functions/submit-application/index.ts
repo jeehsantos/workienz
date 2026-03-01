@@ -287,8 +287,9 @@ Deno.serve(async (req) => {
       const errorMap: Record<string, { error: string; status: number; extra?: Record<string, unknown> }> = {
         JOB_NOT_FOUND: { error: 'Job not found', status: 404 },
         JOB_NOT_OPEN: { error: 'This job is no longer accepting applications.', status: 400 },
-        NO_SLOTS: { error: 'Someone was quicker! All positions have been filled.', status: 400, extra: { position_filled: true } },
+        NO_SLOTS: { error: 'All positions have been filled.', status: 400, extra: { position_filled: true } },
         ALREADY_APPLIED: { error: 'You have already applied to this job.', status: 400, extra: { code: 'ALREADY_APPLIED' } },
+        APPLICATIONS_CLOSED: { error: 'This job has reached its application limit and is no longer accepting new applications.', status: 400, extra: { code: 'APPLICATIONS_CLOSED' } },
       };
       const mapped = errorMap[rpcResult.code] || { error: 'Application failed.', status: 400 };
       return new Response(

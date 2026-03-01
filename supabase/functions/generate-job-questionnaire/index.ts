@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     // Fetch job with skills and physical requirements
     const { data: job, error: jobErr } = await supabase
       .from('jobs')
-      .select('id, title, description, requirements, location_city, location_suburb, location_country, schedule_type, hiring_style, hiring_config, skills_required, requires_car, requires_heavy_lifting, requires_standing')
+      .select('id, title, description, requirements, location_city, location_suburb, location_country, schedule_type, hiring_style, hiring_config, skills_required, requires_car, requires_heavy_lifting, requires_standing, contractor_id')
       .eq('id', job_id)
       .single();
 
@@ -76,6 +76,58 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ─── Phase 8: AI Usage Cap Enforcement ───────────────────────────
+    const { data: contractorData } = await supabase
+      .from('contractor_profiles')
+      .select('user_id')
+      .eq('id', job.contractor_id)
+      .single();
+
+    if (contractorData) {
+      // Check if contractor is on a paid plan
+      const { data: activeEnt } = await supabase
+        .from('contractor_entitlements')
+        .select('plan_type')
+        .eq('user_id', contractorData.user_id)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+
+      const isPaid = activeEnt && !['free_tier', 'free_contractor'].includes(activeEnt.plan_type);
+      const capKey = isPaid ? 'ai_questionnaire_cap_paid' : 'ai_questionnaire_cap_free';
+
+      const { data: capSetting } = await supabase
+        .from('platform_settings')
+        .select('setting_value')
+        .eq('setting_key', capKey)
+        .single();
+
+      const cap = parseInt(capSetting?.setting_value || '100');
+
+      // Count usage this month
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const { count: usageCount } = await supabase
+        .from('contractor_ai_usage_ledger')
+        .select('id', { count: 'exact', head: true })
+        .eq('contractor_user_id', contractorData.user_id)
+        .eq('event_type', 'questionnaire_generated')
+        .gte('created_at', monthStart.toISOString());
+
+      if ((usageCount || 0) >= cap) {
+        log('AI usage cap reached', { usageCount, cap, isPaid });
+        return new Response(JSON.stringify({
+          error: `You have reached your monthly limit of ${cap} AI questionnaire generations. ${isPaid ? 'Contact support for higher limits.' : 'Upgrade your plan for more.'}`,
+          code: 'AI_CAP_REACHED',
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Idempotency check
@@ -260,29 +312,15 @@ Return ONLY valid JSON in this schema:
 
     log('Questionnaire v2 generated and saved', { questionCount: questionnaire.questions.length });
 
-    // Increment AI usage ledger
-    const { data: jobOwner } = await supabase
-      .from('jobs')
-      .select('contractor_id')
-      .eq('id', job_id)
-      .single();
-
-    if (jobOwner) {
-      const { data: contractorData } = await supabase
-        .from('contractor_profiles')
-        .select('user_id')
-        .eq('id', jobOwner.contractor_id)
-        .single();
-
-      if (contractorData) {
-        await supabase.from('contractor_ai_usage_ledger').insert({
-          contractor_user_id: contractorData.user_id,
-          job_id: job_id,
-          event_type: 'questionnaire_generated',
-          count: 1,
-        });
-        log('AI usage ledger incremented for questionnaire_generated');
-      }
+    // Increment AI usage ledger (contractor already fetched above for cap check)
+    if (contractorData) {
+      await supabase.from('contractor_ai_usage_ledger').insert({
+        contractor_user_id: contractorData.user_id,
+        job_id: job_id,
+        event_type: 'questionnaire_generated',
+        count: 1,
+      });
+      log('AI usage ledger incremented for questionnaire_generated');
     }
 
     return new Response(JSON.stringify({ success: true, questionnaire, cached: false }), {
