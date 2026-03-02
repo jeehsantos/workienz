@@ -270,6 +270,22 @@ export default function Dashboard() {
             </Link>
           )}
 
+          {/* Admin Settings */}
+          {showAdminCards && (
+            <Link
+              to="/admin/settings"
+              className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
+            >
+              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-muted/80 transition-colors">
+                <CreditCard className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">
+                Platform Settings
+              </h3>
+              <p className="text-muted-foreground text-sm mb-4">Configure platform-wide settings and limits.</p>
+            </Link>
+          )}
+
           {/* Topics (for employees) */}
           {showEmployeeCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
