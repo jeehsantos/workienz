@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const { job_application_id, new_status, reason } = await req.json();
 
     // Validate input
-    const validStatuses = ["pending", "shortlisted", "rejected", "hired"];
+    const validStatuses = ["pending", "shortlisted", "rejected", "hired", "approved_to_pool"];
     if (!job_application_id || !validStatuses.includes(new_status)) {
       return new Response(
         JSON.stringify({ error: "Invalid input. Provide job_application_id and a valid new_status." }),
