@@ -55,6 +55,7 @@ type Job = {
   hiring_style: string;
   hiring_config: Record<string, unknown>;
   location_city: string | null;
+  job_type: string;
 };
 export default function JobApplicants() {
   const { jobId } = useParams();
@@ -91,7 +92,7 @@ export default function JobApplicants() {
       // Fetch job
       const { data: jobData, error: jobError } = await supabase
         .from("jobs")
-        .select("id, title, positions_available, positions_filled, hiring_style, hiring_config, location_city")
+        .select("id, title, positions_available, positions_filled, hiring_style, hiring_config, location_city, job_type")
         .eq("id", jobId)
         .single();
 
@@ -249,6 +250,7 @@ export default function JobApplicants() {
       pending: { class: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", label: "Pending" },
       shortlisted: { class: "bg-blue-500/10 text-blue-600 border-blue-500/20", label: "Shortlisted" },
       hired: { class: "bg-green-500/10 text-green-600 border-green-500/20", label: "Hired" },
+      approved_to_pool: { class: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", label: "In Talent Pool" },
       rejected: { class: "bg-red-500/10 text-red-600 border-red-500/20", label: "Rejected" },
     };
     const v = variants[status] || variants.pending;
@@ -387,7 +389,11 @@ export default function JobApplicants() {
                       <SelectContent>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="shortlisted">Shortlist</SelectItem>
-                        <SelectItem value="hired">Hire</SelectItem>
+                        {job?.job_type === "shift" ? (
+                          <SelectItem value="approved_to_pool">Add to Talent Pool</SelectItem>
+                        ) : (
+                          <SelectItem value="hired">Hire</SelectItem>
+                        )}
                         <SelectItem value="rejected">Reject</SelectItem>
                       </SelectContent>
                     </Select>

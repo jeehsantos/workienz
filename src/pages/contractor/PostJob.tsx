@@ -256,11 +256,8 @@ export default function PostJob() {
         return true;
       case 5:
         if (scheduleType === "shifts") {
-          const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-          if (validShifts.length === 0) {
-            toast({ title: "Schedule required", description: "Please add at least one shift.", variant: "destructive" });
-            return false;
-          }
+          // Shift-based jobs don't require shift instances at posting time
+          return true;
         } else {
           if (!fixedTermStart) {
             toast({ title: "Start date required", description: "Please select a start date.", variant: "destructive" });
@@ -315,7 +312,7 @@ export default function PostJob() {
       location_city: formData.location_city || null,
       location_suburb: formData.location_suburb || null,
       location_country: formData.location_country || null,
-      job_type: formData.job_type,
+      job_type: scheduleType === "shifts" ? "shift" : "normal",
       duration: formData.duration || null,
       hourly_rate_min: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
       hourly_rate_max: null,
