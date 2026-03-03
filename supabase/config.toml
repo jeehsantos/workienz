@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.cleanup-expired-packs]
 verify_jwt = false
+
+[functions.manage-shifts]
+verify_jwt = false

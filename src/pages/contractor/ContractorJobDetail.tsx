@@ -22,6 +22,7 @@ import { JobDescription } from "@/components/jobs/JobDescription";
 import { formatHourlyRate } from "@/lib/formatters";
 import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
 import { FavoritedWorkersSuggestion } from "@/components/jobs/FavoritedWorkersSuggestion";
+import { ShiftManagement } from "@/components/jobs/ShiftManagement";
 
 type JobShift = {
   id: string;
@@ -320,62 +321,42 @@ export default function ContractorJobDetail() {
               )}
             </div>
 
-            {/* Schedule Section */}
-            {(job.shifts.length > 0 || job.starts_at) && (
+            {/* Shift Management for shift jobs */}
+            {job.job_type === "shift" && job.status === "published" && (
+              <ShiftManagement jobId={job.id} industry={job.industry} />
+            )}
+
+            {/* Schedule Section for fixed-term jobs */}
+            {job.schedule_type === "fixed_term" && job.starts_at && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  {job.schedule_type === "shifts" ? "Shift Schedule" : "Contract Period"}
+                  Contract Period
                 </h3>
-
-                {job.schedule_type === "shifts" && job.shifts.length > 0 && (
-                  <div className="space-y-3">
-                    {job.shifts.map((shift) => (
-                      <div key={shift.id} className="p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">
-                            {format(new Date(shift.shift_date), "EEEE, MMM d, yyyy")}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {shift.start_time} - {shift.end_time}
-                          </span>
-                        </div>
-                        {shift.break_minutes > 0 && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {shift.break_minutes} min break ({shift.break_paid ? "paid" : "unpaid"})
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Start Date:</span>
+                    <span className="font-medium">
+                      {format(new Date(job.starts_at), "EEEE, MMM d, yyyy")}
+                    </span>
                   </div>
-                )}
-
-                {job.schedule_type === "fixed_term" && job.starts_at && (
-                  <div className="space-y-2">
+                  {job.ends_at && (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Start Date:</span>
+                      <span className="text-sm text-muted-foreground">End Date:</span>
                       <span className="font-medium">
-                        {format(new Date(job.starts_at), "EEEE, MMM d, yyyy")}
+                        {format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}
                       </span>
                     </div>
-                    {job.ends_at && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">End Date:</span>
-                        <span className="font-medium">
-                          {format(new Date(job.ends_at), "EEEE, MMM d, yyyy")}
-                        </span>
-                      </div>
-                    )}
-                    {job.weekly_hours && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Weekly Hours:</span>
-                        <span className="font-medium">
-                          {job.weekly_hours} hours/week
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                  {job.weekly_hours && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Weekly Hours:</span>
+                      <span className="font-medium">
+                        {job.weekly_hours} hours/week
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
