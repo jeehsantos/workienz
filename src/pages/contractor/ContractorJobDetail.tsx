@@ -57,6 +57,7 @@ type Job = {
   is_sse: boolean;
   status: string;
   weekly_hours: number | null;
+  shift_allocation_mode: string;
   shifts: JobShift[];
 };
 
@@ -114,7 +115,8 @@ export default function ContractorJobDetail() {
         experience_required,
         is_sse,
         status,
-        weekly_hours
+        weekly_hours,
+        shift_allocation_mode
       `)
       .eq("id", jobId)
       .eq("contractor_id", contractorProfile.id)
@@ -143,6 +145,7 @@ export default function ContractorJobDetail() {
       shifts,
       experience_required: data.experience_required ?? false,
       is_sse: data.is_sse ?? false,
+      shift_allocation_mode: (data as any).shift_allocation_mode ?? "first_come",
     });
     setIsLoading(false);
   }, [jobId, user]);
@@ -323,7 +326,7 @@ export default function ContractorJobDetail() {
 
             {/* Shift Management for shift jobs */}
             {job.job_type === "shift" && job.status === "published" && (
-              <ShiftManagement jobId={job.id} industry={job.industry} />
+              <ShiftManagement jobId={job.id} industry={job.industry} allocationMode={job.shift_allocation_mode} />
             )}
 
             {/* Schedule Section for fixed-term jobs */}

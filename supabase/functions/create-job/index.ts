@@ -40,6 +40,7 @@ interface JobData {
     form_data?: Record<string, unknown>;
     hiring_style?: string;
     hiring_config?: Record<string, unknown>;
+    shift_allocation_mode?: string;
   }
  
  interface Shift {

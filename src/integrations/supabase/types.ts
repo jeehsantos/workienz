@@ -1155,6 +1155,7 @@ export type Database = {
         Row: {
           break_minutes: number | null
           break_paid: boolean | null
+          capacity: number
           created_at: string
           end_time: string
           id: string
@@ -1165,6 +1166,7 @@ export type Database = {
         Insert: {
           break_minutes?: number | null
           break_paid?: boolean | null
+          capacity?: number
           created_at?: string
           end_time: string
           id?: string
@@ -1175,6 +1177,7 @@ export type Database = {
         Update: {
           break_minutes?: number | null
           break_paid?: boolean | null
+          capacity?: number
           created_at?: string
           end_time?: string
           id?: string
@@ -1293,6 +1296,7 @@ export type Database = {
           requires_heavy_lifting: boolean | null
           requires_standing: boolean | null
           schedule_type: string | null
+          shift_allocation_mode: string
           skills_required: string[] | null
           starts_at: string | null
           status: Database["public"]["Enums"]["job_status"]
@@ -1330,6 +1334,7 @@ export type Database = {
           requires_heavy_lifting?: boolean | null
           requires_standing?: boolean | null
           schedule_type?: string | null
+          shift_allocation_mode?: string
           skills_required?: string[] | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -1367,6 +1372,7 @@ export type Database = {
           requires_heavy_lifting?: boolean | null
           requires_standing?: boolean | null
           schedule_type?: string | null
+          shift_allocation_mode?: string
           skills_required?: string[] | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -1867,6 +1873,14 @@ export type Database = {
         Args: { p_job_id: string }
         Returns: boolean
       }
+      claim_shift_atomic: {
+        Args: {
+          p_employee_user_id: string
+          p_job_id: string
+          p_shift_id: string
+        }
+        Returns: Json
+      }
       cleanup_scheduled_conversations: { Args: never; Returns: number }
       contractor_has_published_jobs: {
         Args: { _contractor_profile_id: string }
@@ -1923,6 +1937,14 @@ export type Database = {
           slug: string
           title: string
         }[]
+      }
+      request_shift_atomic: {
+        Args: {
+          p_employee_user_id: string
+          p_job_id: string
+          p_shift_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
