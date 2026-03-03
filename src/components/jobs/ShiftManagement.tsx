@@ -20,6 +20,8 @@ import {
   Loader2,
   Clock,
   Users,
+  Check,
+  X,
 } from "lucide-react";
 
 type ShiftAssignment = {
@@ -36,6 +38,7 @@ type Shift = {
   end_time: string;
   break_minutes: number;
   break_paid: boolean;
+  capacity: number;
   assignments: ShiftAssignment[];
 };
 
@@ -49,36 +52,44 @@ type PoolMember = {
 interface ShiftManagementProps {
   jobId: string;
   industry: string | null;
+  allocationMode?: string;
 }
 
-export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
+export function ShiftManagement({ jobId, industry, allocationMode = "first_come" }: ShiftManagementProps) {
   const { toast } = useToast();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [poolMembers, setPoolMembers] = useState<PoolMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [assigningShiftId, setAssigningShiftId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // New shift form
   const [newShiftDate, setNewShiftDate] = useState<Date | undefined>();
   const [newStartTime, setNewStartTime] = useState("08:00");
   const [newEndTime, setNewEndTime] = useState("16:00");
   const [newBreakMinutes, setNewBreakMinutes] = useState("30");
+  const [newCapacity, setNewCapacity] = useState("1");
   const [showForm, setShowForm] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
 
-    // Fetch shifts with assignments
     const { data: shiftsData } = await supabase
       .from("job_shifts")
       .select("*")
       .eq("job_id", jobId)
       .order("shift_date", { ascending: true });
 
-    const shiftsList = shiftsData || [];
+    const shiftsList = (shiftsData || []) as Array<{
+      id: string;
+      shift_date: string;
+      start_time: string;
+      end_time: string;
+      break_minutes: number;
+      break_paid: boolean;
+      capacity?: number;
+    }>;
 
-    // Fetch assignments for all shifts
     if (shiftsList.length > 0) {
       const shiftIds = shiftsList.map((s) => s.id);
       const { data: assignmentsData } = await supabase
@@ -86,7 +97,6 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
         .select("*")
         .in("shift_id", shiftIds);
 
-      // Fetch employee names
       const employeeIds = [...new Set((assignmentsData || []).map((a) => a.employee_user_id))];
       let nameMap: Record<string, string> = {};
       if (employeeIds.length > 0) {
@@ -101,8 +111,9 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
         }
       }
 
-      const shiftsWithAssignments = shiftsList.map((s) => ({
+      const shiftsWithAssignments: Shift[] = shiftsList.map((s) => ({
         ...s,
+        capacity: (s as any).capacity ?? 1,
         assignments: (assignmentsData || [])
           .filter((a) => a.shift_id === s.id)
           .map((a) => ({
@@ -116,12 +127,12 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
     }
 
     // Fetch talent pool members
-    const { data: user } = await supabase.auth.getUser();
-    if (user.user) {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user) {
       const { data: members } = await supabase
         .from("contractor_talent_pool_members")
         .select("id, employee_id, category")
-        .eq("contractor_id", user.user.id)
+        .eq("contractor_id", userData.user.id)
         .eq("status", "active");
 
       if (members && members.length > 0) {
@@ -131,19 +142,13 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
           .select("user_id, full_name, first_name, last_name")
           .in("user_id", empIds);
 
-        const nameMap: Record<string, string> = {};
+        const nm: Record<string, string> = {};
         if (profiles) {
           for (const p of profiles) {
-            nameMap[p.user_id] = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown";
+            nm[p.user_id] = p.full_name || `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown";
           }
         }
-
-        setPoolMembers(
-          members.map((m) => ({
-            ...m,
-            employee_name: nameMap[m.employee_id] || "Unknown",
-          }))
-        );
+        setPoolMembers(members.map((m) => ({ ...m, employee_name: nm[m.employee_id] || "Unknown" })));
       } else {
         setPoolMembers([]);
       }
@@ -172,6 +177,7 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
         end_time: newEndTime,
         break_minutes: parseInt(newBreakMinutes) || 0,
         break_paid: false,
+        capacity: parseInt(newCapacity) || 1,
       },
     });
 
@@ -184,6 +190,7 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
     toast({ title: "Shift created" });
     setShowForm(false);
     setNewShiftDate(undefined);
+    setNewCapacity("1");
     fetchData();
   };
 
@@ -200,23 +207,13 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
   };
 
   const handleAssignWorker = async (shiftId: string, employeeUserId: string) => {
-    setAssigningShiftId(shiftId);
+    setActionLoadingId(shiftId);
     const { data, error } = await supabase.functions.invoke("manage-shifts", {
-      body: {
-        action: "assign_worker",
-        job_id: jobId,
-        shift_id: shiftId,
-        employee_user_id: employeeUserId,
-      },
+      body: { action: "assign_worker", job_id: jobId, shift_id: shiftId, employee_user_id: employeeUserId },
     });
-
-    setAssigningShiftId(null);
+    setActionLoadingId(null);
     if (error || data?.error) {
-      toast({
-        title: "Error",
-        description: data?.error || "Failed to assign worker.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: data?.error || "Failed to assign worker.", variant: "destructive" });
       return;
     }
     toast({ title: "Worker assigned" });
@@ -225,18 +222,41 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
 
   const handleUnassignWorker = async (shiftId: string, employeeUserId: string) => {
     const { error } = await supabase.functions.invoke("manage-shifts", {
-      body: {
-        action: "unassign_worker",
-        job_id: jobId,
-        shift_id: shiftId,
-        employee_user_id: employeeUserId,
-      },
+      body: { action: "unassign_worker", job_id: jobId, shift_id: shiftId, employee_user_id: employeeUserId },
     });
     if (error) {
       toast({ title: "Error", description: "Failed to unassign worker.", variant: "destructive" });
       return;
     }
     toast({ title: "Worker unassigned" });
+    fetchData();
+  };
+
+  const handleAcceptRequest = async (assignmentId: string) => {
+    setActionLoadingId(assignmentId);
+    const { data, error } = await supabase.functions.invoke("manage-shifts", {
+      body: { action: "accept_request", job_id: jobId, assignment_id: assignmentId },
+    });
+    setActionLoadingId(null);
+    if (error || data?.error) {
+      toast({ title: "Error", description: data?.error || "Failed to accept request.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Request accepted" });
+    fetchData();
+  };
+
+  const handleRejectRequest = async (assignmentId: string) => {
+    setActionLoadingId(assignmentId);
+    const { data, error } = await supabase.functions.invoke("manage-shifts", {
+      body: { action: "reject_request", job_id: jobId, assignment_id: assignmentId },
+    });
+    setActionLoadingId(null);
+    if (error || data?.error) {
+      toast({ title: "Error", description: data?.error || "Failed to reject request.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Request declined" });
     fetchData();
   };
 
@@ -255,8 +275,16 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
     return poolMembers.filter((m) => !assignedIds.includes(m.employee_id));
   };
 
+  const getFilledCount = (shift: Shift) =>
+    shift.assignments.filter((a) => ["confirmed", "assigned"].includes(a.status)).length;
+
+  const getRequestedCount = (shift: Shift) =>
+    shift.assignments.filter((a) => a.status === "requested").length;
+
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case "requested":
+        return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs">Requested</Badge>;
       case "assigned":
         return <Badge variant="outline" className="text-xs">Assigned</Badge>;
       case "confirmed":
@@ -267,6 +295,8 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
         return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs">Completed</Badge>;
       case "no_show":
         return <Badge variant="destructive" className="text-xs">No Show</Badge>;
+      case "cancelled":
+        return <Badge variant="secondary" className="text-xs">Cancelled</Badge>;
       default:
         return <Badge variant="secondary" className="text-xs">{status}</Badge>;
     }
@@ -275,10 +305,18 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Clock className="w-5 h-5" />
-          Shift Management
-        </CardTitle>
+        <div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Shift Management
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Mode: <span className="font-medium capitalize">{allocationMode.replace("_", " ")}</span>
+            {allocationMode === "contractor_select"
+              ? " — Workers request, you approve"
+              : " — Workers claim instantly"}
+          </p>
+        </div>
         <Button size="sm" onClick={() => setShowForm(!showForm)}>
           <Plus className="w-4 h-4 mr-1" />
           Add Shift
@@ -296,10 +334,7 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !newShiftDate && "text-muted-foreground"
-                      )}
+                      className={cn("w-full justify-start text-left font-normal", !newShiftDate && "text-muted-foreground")}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {newShiftDate ? format(newShiftDate, "PPP") : "Pick a date"}
@@ -317,35 +352,24 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
                 </Popover>
               </div>
               <div>
-                <Label className="text-xs">Break (minutes)</Label>
-                <Input
-                  type="number"
-                  value={newBreakMinutes}
-                  onChange={(e) => setNewBreakMinutes(e.target.value)}
-                  min="0"
-                />
+                <Label className="text-xs">Capacity (workers)</Label>
+                <Input type="number" value={newCapacity} onChange={(e) => setNewCapacity(e.target.value)} min="1" />
               </div>
               <div>
                 <Label className="text-xs">Start Time</Label>
-                <Input
-                  type="time"
-                  value={newStartTime}
-                  onChange={(e) => setNewStartTime(e.target.value)}
-                />
+                <Input type="time" value={newStartTime} onChange={(e) => setNewStartTime(e.target.value)} />
               </div>
               <div>
                 <Label className="text-xs">End Time</Label>
-                <Input
-                  type="time"
-                  value={newEndTime}
-                  onChange={(e) => setNewEndTime(e.target.value)}
-                />
+                <Input type="time" value={newEndTime} onChange={(e) => setNewEndTime(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Break (minutes)</Label>
+                <Input type="number" value={newBreakMinutes} onChange={(e) => setNewBreakMinutes(e.target.value)} min="0" />
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
-                Cancel
-              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
               <Button size="sm" onClick={handleCreateShift} disabled={isCreating}>
                 {isCreating && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
                 Create Shift
@@ -359,17 +383,22 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
           <div className="text-center py-8 text-muted-foreground">
             <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No shifts created yet.</p>
-            <p className="text-xs">Add shifts and assign workers from your talent pool.</p>
+            <p className="text-xs">Add shifts for your talent pool workers to {allocationMode === "contractor_select" ? "request" : "claim"}.</p>
           </div>
         )}
 
         {shifts.map((shift) => {
           const availableWorkers = getAvailableWorkers(shift);
+          const filled = getFilledCount(shift);
+          const requested = getRequestedCount(shift);
+          const requestedAssignments = shift.assignments.filter((a) => a.status === "requested");
+          const activeAssignments = shift.assignments.filter((a) => !["declined", "cancelled"].includes(a.status));
+
           return (
             <div key={shift.id} className="border border-border rounded-lg overflow-hidden">
               {/* Shift Header */}
               <div className="flex items-center justify-between p-3 bg-muted/30">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <div>
                     <span className="font-medium text-sm">
                       {format(new Date(shift.shift_date), "EEE, MMM d, yyyy")}
@@ -379,59 +408,75 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
                     </span>
                   </div>
                   {shift.break_minutes > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {shift.break_minutes}min break
-                    </Badge>
+                    <Badge variant="secondary" className="text-xs">{shift.break_minutes}min break</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
                     <Users className="w-3 h-3 mr-1" />
-                    {shift.assignments.length}
+                    {filled}/{shift.capacity}
                   </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive"
-                    onClick={() => handleDeleteShift(shift.id)}
-                  >
+                  {requested > 0 && (
+                    <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs">
+                      {requested} pending
+                    </Badge>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteShift(shift.id)}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
 
-              {/* Assigned Workers */}
+              {/* Assignments */}
               <div className="p-3 space-y-2">
-                {shift.assignments.length > 0 && (
+                {activeAssignments.length > 0 && (
                   <div className="space-y-1.5">
-                    {shift.assignments.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/20"
-                      >
+                    {activeAssignments.map((a) => (
+                      <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/20">
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{a.employee_name}</span>
                           {getStatusBadge(a.status)}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => handleUnassignWorker(shift.id, a.employee_user_id)}
-                        >
-                          <UserMinus className="w-3.5 h-3.5 text-muted-foreground" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {a.status === "requested" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-green-600"
+                                onClick={() => handleAcceptRequest(a.id)}
+                                disabled={actionLoadingId === a.id}
+                              >
+                                {actionLoadingId === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-destructive"
+                                onClick={() => handleRejectRequest(a.id)}
+                                disabled={actionLoadingId === a.id}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          {["assigned", "confirmed"].includes(a.status) && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUnassignWorker(shift.id, a.employee_user_id)}>
+                              <UserMinus className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Assign Worker Dropdown */}
-                {availableWorkers.length > 0 && (
+                {/* Direct assign dropdown (contractor can still push-assign) */}
+                {availableWorkers.length > 0 && filled < shift.capacity && (
                   <div className="pt-1">
                     <Select
                       onValueChange={(val) => handleAssignWorker(shift.id, val)}
-                      disabled={assigningShiftId === shift.id}
+                      disabled={actionLoadingId === shift.id}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <div className="flex items-center gap-1">
@@ -450,10 +495,8 @@ export function ShiftManagement({ jobId, industry }: ShiftManagementProps) {
                   </div>
                 )}
 
-                {availableWorkers.length === 0 && shift.assignments.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-1">
-                    No workers in your talent pool to assign.
-                  </p>
+                {availableWorkers.length === 0 && activeAssignments.length === 0 && (
+                  <p className="text-xs text-muted-foreground py-1">No workers in your talent pool to assign.</p>
                 )}
               </div>
             </div>
