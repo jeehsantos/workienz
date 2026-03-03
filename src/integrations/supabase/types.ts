@@ -749,6 +749,57 @@ export type Database = {
           },
         ]
       }
+      contractor_talent_pool_members: {
+        Row: {
+          category: string
+          contractor_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          source_application_id: string | null
+          source_job_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          contractor_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          source_application_id?: string | null
+          source_job_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          contractor_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          source_application_id?: string | null
+          source_job_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_talent_pool_members_source_application_id_fkey"
+            columns: ["source_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_talent_pool_members_source_job_id_fkey"
+            columns: ["source_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_read_status: {
         Row: {
           conversation_id: string

@@ -54,12 +54,26 @@ Deno.serve(async (req) => {
     // Fetch the application and verify ownership
     const { data: application, error: appErr } = await serviceClient
       .from("job_applications")
-      .select("id, job_id, status")
+      .select("id, job_id, employee_id, status")
       .eq("id", job_application_id)
       .single();
 
     if (appErr || !application) {
       return new Response(JSON.stringify({ error: "Application not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch job details (needed for pool upsert and ownership check)
+    const { data: jobData, error: jobErr } = await serviceClient
+      .from("jobs")
+      .select("id, contractor_id, industry, job_type, contractor_profiles!inner(user_id)")
+      .eq("id", application.job_id)
+      .single();
+
+    if (jobErr || !jobData) {
+      return new Response(JSON.stringify({ error: "Job not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -72,21 +86,7 @@ Deno.serve(async (req) => {
     });
 
     if (!isAdmin) {
-      // Must be the contractor who owns the job
-      const { data: jobOwner, error: ownerErr } = await serviceClient
-        .from("jobs")
-        .select("contractor_id, contractor_profiles!inner(user_id)")
-        .eq("id", application.job_id)
-        .single();
-
-      if (ownerErr || !jobOwner) {
-        return new Response(JSON.stringify({ error: "Job not found" }), {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const contractorUserId = (jobOwner as any).contractor_profiles?.user_id;
+      const contractorUserId = (jobData as any).contractor_profiles?.user_id;
       if (contractorUserId !== user.id) {
         return new Response(JSON.stringify({ error: "Forbidden: You do not own this job." }), {
           status: 403,
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Perform the update
+    // Perform the status update
     const { data: updated, error: updateErr } = await serviceClient
       .from("job_applications")
       .update({ status: new_status })
@@ -108,6 +108,40 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // If approved_to_pool, upsert talent pool membership
+    if (new_status === "approved_to_pool") {
+      // Get the employee's user_id
+      const { data: empProfile } = await serviceClient
+        .from("employee_profiles")
+        .select("user_id")
+        .eq("id", application.employee_id)
+        .single();
+
+      if (empProfile) {
+        const contractorUserId = (jobData as any).contractor_profiles?.user_id;
+        const category = jobData.industry || "General";
+
+        const { error: poolErr } = await serviceClient
+          .from("contractor_talent_pool_members")
+          .upsert(
+            {
+              contractor_id: contractorUserId,
+              employee_id: empProfile.user_id,
+              category,
+              source_job_id: jobData.id,
+              source_application_id: application.id,
+              status: "active",
+            },
+            { onConflict: "contractor_id,employee_id,category" }
+          );
+
+        if (poolErr) {
+          console.error("[update-application-status] Pool upsert error:", poolErr.message);
+          // Non-fatal: status was already updated successfully
+        }
+      }
     }
 
     return new Response(JSON.stringify({ data: updated }), {
