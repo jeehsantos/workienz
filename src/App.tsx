@@ -24,7 +24,9 @@ const ContractorJobDetail = lazy(() => import("./pages/contractor/ContractorJobD
 const SearchWorkers = lazy(() => import("./pages/contractor/SearchWorkers"));
 const ContractorProfile = lazy(() => import("./pages/contractor/ContractorProfile"));
 const JobApplicants = lazy(() => import("./pages/contractor/JobApplicants"));
+const TalentPool = lazy(() => import("./pages/contractor/TalentPool"));
 const JobSearch = lazy(() => import("./pages/employee/JobSearch"));
+const MyPools = lazy(() => import("./pages/employee/MyPools"));
 const EmployeeProfile = lazy(() => import("./pages/employee/EmployeeProfile"));
 const ViewProfile = lazy(() => import("./pages/employee/ViewProfile"));
 const Articles = lazy(() => import("./pages/employee/Articles"));
@@ -91,8 +93,12 @@ const App = () => (
                 <Route path="/contractor/jobs/:jobId" element={<ContractorJobDetail />} />
                 <Route path="/contractor/jobs/:jobId/edit" element={<EditJob />} />
                 <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
+                <Route path="/contractor/talent-pool" element={<TalentPool />} />
                 <Route path="/contractor/profile" element={<ContractorProfile />} />
                 <Route path="/contractor/search-workers" element={<SearchWorkers />} />
+                <Route path="/employee/profile" element={<EmployeeProfile />} />
+                <Route path="/employee/view-profile" element={<ViewProfile />} />
+                <Route path="/employee/pools" element={<MyPools />} />
                 <Route path="/employee/profile" element={<EmployeeProfile />} />
                 <Route path="/employee/view-profile" element={<ViewProfile />} />
                 <Route path="/workers/:id" element={<WorkerProfile />} />
