@@ -34,6 +34,14 @@ const MatchBadge = memo(({ score }: { score: number | null }) => {
 });
 MatchBadge.displayName = "MatchBadge";
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  shortlisted: "Shortlisted",
+  hired: "Hired",
+  approved_to_pool: "In Talent Pool",
+  rejected: "Rejected",
+};
+
 const StatusBadge = memo(({ status }: { status: string }) => {
   const styles: Record<string, string> = {
     pending: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
@@ -44,7 +52,7 @@ const StatusBadge = memo(({ status }: { status: string }) => {
   };
   return (
     <Badge className={styles[status] || styles.pending} variant="outline">
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {STATUS_LABELS[status] || status.charAt(0).toUpperCase() + status.slice(1)}
     </Badge>
   );
 });

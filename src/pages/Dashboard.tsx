@@ -12,6 +12,7 @@ import {
   BarChart3,
   CreditCard,
   FolderEdit,
+  CalendarCheck,
 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 import { SettingsCard } from "@/components/dashboard/SettingsCard";
@@ -172,6 +173,20 @@ export default function Dashboard() {
               <p className="text-muted-foreground text-sm mb-4">Browse available positions and apply for jobs.</p>
               <Button variant="outline" size="sm" asChild>
                 <Link to="/jobs">Browse Jobs</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Employee: My Shifts */}
+          {showEmployeeCards && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                <CalendarCheck className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">My Shifts</h3>
+              <p className="text-muted-foreground text-sm mb-4">View your shift assignments and browse available shifts.</p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/employee/shifts">View Shifts</Link>
               </Button>
             </div>
           )}
