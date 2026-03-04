@@ -11,6 +11,7 @@ interface PreEmploymentPackBannerProps {
   isEmployee: boolean;
   conversationStatus?: string;
   contractorUserId?: string;
+  applicationStatus?: string;
 }
 
 export function PreEmploymentPackBanner({
@@ -18,6 +19,7 @@ export function PreEmploymentPackBanner({
   isEmployee,
   conversationStatus,
   contractorUserId,
+  applicationStatus,
 }: PreEmploymentPackBannerProps) {
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -169,12 +171,12 @@ export function PreEmploymentPackBanner({
   // No file uploaded by contractor
   if (!fileUrl || !fileName) return null;
 
-  const isHired = conversationStatus === "active"; // After hire, conversations are active
+  const isHiredOrPooled = applicationStatus === "hired" || applicationStatus === "approved_to_pool";
 
   // CONTRACTOR VIEW
   if (!isEmployee) {
-    // Only show after the candidate is hired
-    if (!isHired && !sent) return null;
+    // Only show after the candidate is hired or added to pool
+    if (!isHiredOrPooled && !sent) return null;
 
     return (
       <div className="bg-muted/40 border-b border-border px-4 py-3 flex-shrink-0">
