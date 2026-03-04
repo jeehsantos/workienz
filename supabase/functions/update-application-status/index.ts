@@ -104,8 +104,12 @@ Deno.serve(async (req) => {
       .single();
 
     if (updateErr) {
+      const isInvalidStatusTransition =
+        updateErr.message?.includes("Cannot set status to hired for shift jobs") ||
+        updateErr.code === "P0001";
+
       return new Response(JSON.stringify({ error: updateErr.message }), {
-        status: 500,
+        status: isInvalidStatusTransition ? 400 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

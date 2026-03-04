@@ -44,4 +44,4 @@ export interface Questionnaire {
   questions: QuestionnaireQuestion[];
 }
 
-export type ApplicantTab = "top10" | "all" | "shortlisted" | "hired" | "rejected";
+export type ApplicantTab = "top10" | "all" | "shortlisted" | "hired" | "approved_to_pool" | "rejected";
