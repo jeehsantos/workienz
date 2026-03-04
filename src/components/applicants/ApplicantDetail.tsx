@@ -34,6 +34,7 @@ interface ApplicantDetailProps {
   onStatusChange: (applicationId: string, newStatus: string) => void;
   onStartConversation: (applicant: AIApplicant) => void;
   isUpdating: boolean;
+  isShiftJob: boolean;
 }
 
 function ApplicantDetail({
@@ -42,6 +43,7 @@ function ApplicantDetail({
   onStatusChange,
   onStartConversation,
   isUpdating,
+  isShiftJob,
 }: ApplicantDetailProps) {
   const { user } = useAuthContext();
   const [note, setNote] = useState("");
@@ -205,7 +207,11 @@ function ApplicantDetail({
           <SelectContent>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="shortlisted">Shortlist</SelectItem>
-            <SelectItem value="hired">Hire</SelectItem>
+            {isShiftJob ? (
+              <SelectItem value="approved_to_pool">Add to Talent Pool</SelectItem>
+            ) : (
+              <SelectItem value="hired">Hire</SelectItem>
+            )}
             <SelectItem value="rejected">Reject</SelectItem>
           </SelectContent>
         </Select>

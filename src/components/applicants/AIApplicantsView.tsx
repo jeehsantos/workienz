@@ -25,6 +25,7 @@ interface AIApplicantsViewProps {
     positions_filled: number;
     location_city: string | null;
     hiring_config: Record<string, unknown>;
+    job_type: string;
   };
 }
 
@@ -64,6 +65,8 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
     }
     fetchQuestionnaire();
   }, [jobId]);
+
+  const isShiftJob = job.job_type === "shift";
 
   const fetchApplicants = useCallback(
     async (tab: ApplicantTab, pageNum: number, append = false) => {
@@ -112,7 +115,8 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
             .eq("job_id", jobId);
 
           if (tab === "shortlisted") query = query.eq("status", "shortlisted");
-          else if (tab === "hired") query = query.eq("status", "hired");
+          else if (tab === "hired" && !isShiftJob) query = query.eq("status", "hired");
+          else if (tab === "approved_to_pool" && isShiftJob) query = query.eq("status", "approved_to_pool");
           else if (tab === "rejected") query = query.eq("status", "rejected");
 
           query = query
@@ -134,7 +138,7 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
         setIsLoading(false);
       }
     },
-    [jobId, user]
+    [jobId, user, isShiftJob]
   );
 
   async function enrichApplicants(
@@ -239,9 +243,11 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
 
   const handleStatusChange = useCallback(
     async (applicationId: string, newStatus: string) => {
+      const targetStatus = isShiftJob && newStatus === "hired" ? "approved_to_pool" : newStatus;
+
       setUpdatingId(applicationId);
       const { data, error } = await supabase.functions.invoke("update-application-status", {
-        body: { job_application_id: applicationId, new_status: newStatus },
+        body: { job_application_id: applicationId, new_status: targetStatus },
       });
 
       setUpdatingId(null);
@@ -251,24 +257,27 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
       }
 
       setApplicants((prev) =>
-        prev.map((a) => (a.id === applicationId ? { ...a, status: newStatus } : a))
+        prev.map((a) => (a.id === applicationId ? { ...a, status: targetStatus } : a))
       );
-      toast({ title: "Status Updated", description: `Application marked as ${newStatus}.` });
+      toast({ title: "Status Updated", description: `Application marked as ${targetStatus}.` });
     },
-    [toast]
+    [toast, isShiftJob]
   );
 
   const handleBulkAction = useCallback(
     async (newStatus: string) => {
+      const targetStatus = isShiftJob && newStatus === "hired" ? "approved_to_pool" : newStatus;
       let failCount = 0;
+
       for (const id of selectedIds) {
         const { data, error } = await supabase.functions.invoke("update-application-status", {
-          body: { job_application_id: id, new_status: newStatus },
+          body: { job_application_id: id, new_status: targetStatus },
         });
         if (error || data?.error) failCount++;
       }
+
       setApplicants((prev) =>
-        prev.map((a) => (selectedIds.includes(a.id) ? { ...a, status: newStatus } : a))
+        prev.map((a) => (selectedIds.includes(a.id) ? { ...a, status: targetStatus } : a))
       );
       setSelectedIds([]);
       toast({
@@ -279,7 +288,7 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
         variant: failCount ? "destructive" : undefined,
       });
     },
-    [selectedIds, toast]
+    [selectedIds, toast, isShiftJob]
   );
 
   const handleStartConversation = useCallback(
@@ -353,7 +362,9 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
               <TabsTrigger value="top10">Top 10</TabsTrigger>
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="shortlisted">Shortlisted</TabsTrigger>
-              <TabsTrigger value="hired">Hired</TabsTrigger>
+              <TabsTrigger value={isShiftJob ? "approved_to_pool" : "hired"}>
+                {isShiftJob ? "Talent Pool" : "Hired"}
+              </TabsTrigger>
               <TabsTrigger value="rejected">Rejected</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -429,6 +440,7 @@ export default function AIApplicantsView({ jobId, job }: AIApplicantsViewProps) 
               onStatusChange={handleStatusChange}
               onStartConversation={handleStartConversation}
               isUpdating={updatingId === selectedApplicant.id}
+              isShiftJob={isShiftJob}
             />
           </div>
         ) : (
