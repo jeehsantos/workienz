@@ -73,6 +73,7 @@ type ConversationData = {
       id: string;
       title: string;
       status: string;
+      job_type: string;
     };
   } | null;
   other_party: {
@@ -199,6 +200,7 @@ export default function Conversation() {
       let jobTitle = "Direct Contact";
       let jobId = null;
       let jobStatus = "";
+      let jobType = "normal";
       let applicationStatus = "pending";
       if (convData.job_application_id) {
         const { data: appData } = await supabase
@@ -211,13 +213,14 @@ export default function Conversation() {
           applicationStatus = appData.status;
           const { data: jobData } = await supabase
             .from("jobs")
-            .select("id, title, status")
+            .select("id, title, status, job_type")
             .eq("id", appData.job_id)
             .single();
           if (jobData) {
             jobTitle = jobData.title;
             jobId = jobData.id;
             jobStatus = jobData.status;
+            jobType = jobData.job_type || "normal";
           }
         }
       }
@@ -278,7 +281,7 @@ export default function Conversation() {
           ? {
               id: convData.job_application_id,
               status: applicationStatus,
-              job: { id: jobId || "", title: jobTitle, status: jobStatus },
+              job: { id: jobId || "", title: jobTitle, status: jobStatus, job_type: jobType },
             }
           : null,
         other_party: profileData ? { ...profileData, phone } : null,
@@ -698,6 +701,8 @@ export default function Conversation() {
   const isClosed = conversation?.status === "closed";
   const isUserContractor = conversation?.contractor_user_id === user?.id;
   const isHired = conversation?.job_application?.status === "hired";
+  const isInPool = conversation?.job_application?.status === "approved_to_pool";
+  const isShiftJob = conversation?.job_application?.job.job_type === "shift";
   // Check if this is a hired conversation (has job_application and is hired)
   const isHiredConversation = isHired && conversation?.job_application_id;
   // Check if this is a private job offer pending employee response
@@ -705,6 +710,8 @@ export default function Conversation() {
     !isUserContractor &&
     conversation?.job_application?.job.status === "private" &&
     conversation?.job_application?.status === "pending";
+  // Can show hire button: only for normal jobs, not shift jobs
+  const canShowHireButton = conversation?.job_application && isUserContractor && !isHired && !isInPool && !isShiftJob;
 
   // Memoize hired countdown status - for 48h archive warning after hiring
   const hiredCountdown = useMemo(() => {
@@ -872,6 +879,7 @@ export default function Conversation() {
         isEmployee={!isUserContractor}
         conversationStatus={conversation?.status}
         contractorUserId={conversation?.contractor_user_id}
+        applicationStatus={conversation?.job_application?.status}
       />
 
       {/* Header - Fixed */}
@@ -914,6 +922,11 @@ export default function Conversation() {
                         Hired
                       </Badge>
                     )}
+                    {isInPool && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                        In Talent Pool
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -932,7 +945,7 @@ export default function Conversation() {
               {/* Desktop Actions */}
               {!isClosed && (
                 <div className="hidden sm:flex items-center gap-1">
-                  {conversation.job_application && isUserContractor && !isHired && (
+                  {canShowHireButton && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="default" size="sm" disabled={isHiring} className="h-9">
@@ -1010,7 +1023,7 @@ export default function Conversation() {
                     <>
                       <DropdownMenuSeparator />
 
-                      {conversation.job_application && isUserContractor && !isHired && (
+                      {canShowHireButton && (
                         <DropdownMenuItem onClick={handleHireApplicant} disabled={isHiring} className="h-11">
                           <CheckCircle2 className="w-4 h-4 mr-3" />
                           Hire Applicant
