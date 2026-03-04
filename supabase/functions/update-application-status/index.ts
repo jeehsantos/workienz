@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     // Fetch job details (needed for pool upsert and ownership check)
     const { data: jobData, error: jobErr } = await serviceClient
       .from("jobs")
-      .select("id, contractor_id, industry, job_type, contractor_profiles!inner(user_id)")
+      .select("id, contractor_id, industry, job_type, contractor_profiles!inner(user_id, company_name)")
       .eq("id", application.job_id)
       .single();
 
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // If approved_to_pool, upsert talent pool membership
+    // If approved_to_pool, upsert talent pool membership + send chat message + notification
     if (new_status === "approved_to_pool") {
       // Get the employee's user_id
       const { data: empProfile } = await serviceClient
@@ -125,8 +125,10 @@ Deno.serve(async (req) => {
 
       if (empProfile) {
         const contractorUserId = (jobData as any).contractor_profiles?.user_id;
+        const companyName = (jobData as any).contractor_profiles?.company_name || "the contractor";
         const category = jobData.industry || "General";
 
+        // Upsert talent pool membership
         const { error: poolErr } = await serviceClient
           .from("contractor_talent_pool_members")
           .upsert(
@@ -143,8 +145,33 @@ Deno.serve(async (req) => {
 
         if (poolErr) {
           console.error("[update-application-status] Pool upsert error:", poolErr.message);
-          // Non-fatal: status was already updated successfully
         }
+
+        // Send chat message in existing conversation
+        const { data: conversation } = await serviceClient
+          .from("conversations")
+          .select("id")
+          .eq("job_application_id", job_application_id)
+          .maybeSingle();
+
+        const poolMessage = `🎉 Great news! You've been added to ${companyName}'s talent pool for ${category}. You can now browse and request available shifts from your My Shifts page.`;
+
+        if (conversation) {
+          await serviceClient.from("messages").insert({
+            conversation_id: conversation.id,
+            sender_user_id: contractorUserId,
+            content: poolMessage,
+          });
+        }
+
+        // Create notification for employee
+        await serviceClient.from("notifications").insert({
+          user_id: empProfile.user_id,
+          title: "Added to Talent Pool",
+          message: `You've been added to ${companyName}'s talent pool for ${category}. Browse available shifts now!`,
+          type: "pool_approval",
+          action_url: "/employee/shifts",
+        });
       }
     }
 
