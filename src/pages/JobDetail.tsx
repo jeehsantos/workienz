@@ -508,7 +508,6 @@ export default function JobDetail() {
                     <p className="text-sm text-muted-foreground">
                       Ready to apply? Add a cover letter to stand out!
                     </p>
-                    </p>
 
                     {/* Advisory warnings (non-blocking) */}
                     {experienceWarning && (
