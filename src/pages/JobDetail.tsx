@@ -440,8 +440,8 @@ export default function JobDetail() {
               )}
             </div>
 
-            {/* Schedule Section */}
-            {(job.shifts.length > 0 || job.starts_at) && (
+            {/* Schedule Section - hide shift details from employees; they browse via My Shifts */}
+            {((!isEmployee && job.shifts.length > 0) || job.starts_at) && (
               <div className="bg-card rounded-xl p-6 border border-border/50">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
