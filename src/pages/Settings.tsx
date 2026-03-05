@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResetPasswordSection } from "@/components/dashboard/settings/ResetPasswordSection";
 import { ReferralProgramSection } from "@/components/dashboard/settings/ReferralProgramSection";
 
-type SettingsSection = "password" | "referral";
+type SettingsSection = "password" | "referral" | "billing";
 
 interface SidebarItem {
   id: SettingsSection;
@@ -16,6 +16,7 @@ interface SidebarItem {
 const sidebarItems: SidebarItem[] = [
   { id: "password", label: "Password" },
   { id: "referral", label: "Referral Program" },
+  { id: "billing", label: "Billing & Subscription" },
 ];
 
 export default function Settings() {
@@ -46,6 +47,20 @@ export default function Settings() {
               </p>
             </div>
             <ReferralProgramSection inline />
+          </div>
+        );
+      case "billing":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold font-display">Billing & Subscription</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                View your plan details and manage your billing preferences.
+              </p>
+            </div>
+            <Button asChild>
+              <Link to="/subscription">Manage Subscription</Link>
+            </Button>
           </div>
         );
       default:
