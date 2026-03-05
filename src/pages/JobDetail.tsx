@@ -310,7 +310,7 @@ export default function JobDetail() {
       toast({ title: "Error", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
       setIsApplying(false);
     }
-  }, [employeeProfileId, id, user, coverLetter, toast, job, questionnaireAnswers, isApplying]);
+  }, [employeeProfileId, id, user, coverLetter, toast, job, isApplying]);
 
   const handleApply = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
