@@ -352,8 +352,8 @@ export function ShiftManagement({ jobId, industry, allocationMode = "first_come"
                 </Popover>
               </div>
               <div>
-                <Label className="text-xs">Capacity (workers)</Label>
-                <Input type="number" value={newCapacity} onChange={(e) => setNewCapacity(e.target.value)} min="1" />
+                <Label className="text-xs">Workers Required</Label>
+                <Input type="number" value={newCapacity} onChange={(e) => setNewCapacity(e.target.value)} min="1" placeholder="Number of people needed" />
               </div>
               <div>
                 <Label className="text-xs">Start Time</Label>

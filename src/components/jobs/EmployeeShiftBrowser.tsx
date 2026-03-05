@@ -146,9 +146,15 @@ export function EmployeeShiftBrowser({ jobId, jobTitle, allocationMode }: Employ
   }
 
   // Filter to future shifts only
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const futureShifts = shifts.filter((s) => new Date(s.shift_date) >= now);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const futureShifts = shifts.filter((s) => {
+      const isFuture = new Date(s.shift_date) >= now;
+      const isFull = s.filled >= s.capacity;
+      const hasMyAssignment = !!s.myAssignment;
+      // Hide full shifts unless the employee already has an assignment on it
+      return isFuture && (!isFull || hasMyAssignment);
+    });
 
   if (futureShifts.length === 0) {
     return (
