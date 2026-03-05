@@ -1,48 +1,26 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Gift, ChevronLeft, User, Shield } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { ResetPasswordSection } from "@/components/dashboard/settings/ResetPasswordSection";
 import { ReferralProgramSection } from "@/components/dashboard/settings/ReferralProgramSection";
-import { useAuthContext } from "@/contexts/AuthContext";
 
 type SettingsSection = "password" | "referral";
 
 interface SidebarItem {
   id: SettingsSection;
   label: string;
-  icon: React.ElementType;
-  description: string;
-  requiresRole?: string;
 }
 
 const sidebarItems: SidebarItem[] = [
-  {
-    id: "password",
-    label: "Password",
-    icon: Lock,
-    description: "Change your account password",
-  },
-  {
-    id: "referral",
-    label: "Referral Program",
-    icon: Gift,
-    description: "Invite friends and earn credits",
-    requiresRole: "contractor",
-  },
+  { id: "password", label: "Password" },
+  { id: "referral", label: "Referral Program" },
 ];
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("password");
   const navigate = useNavigate();
-  const { roles } = useAuthContext();
-
-  const visibleItems = sidebarItems.filter(
-    (item) => !item.requiresRole || roles.includes(item.requiresRole as any)
-  );
 
   const renderContent = () => {
     switch (activeSection) {
@@ -55,7 +33,6 @@ export default function Settings() {
                 Update your account password to keep your account secure.
               </p>
             </div>
-            <Separator />
             <ResetPasswordSection inline />
           </div>
         );
@@ -68,7 +45,6 @@ export default function Settings() {
                 Share your referral code and earn bonus credits when friends sign up.
               </p>
             </div>
-            <Separator />
             <ReferralProgramSection inline />
           </div>
         );
@@ -80,72 +56,50 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container-tight px-4 sm:px-6 py-4 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/dashboard")}
-            className="shrink-0"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold font-display">Settings</h1>
-            <p className="text-sm text-muted-foreground hidden sm:block">
-              Manage your account preferences
-            </p>
-          </div>
-        </div>
+      <div className="container-tight px-4 sm:px-6 pt-8 pb-2 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/dashboard")}
+          className="shrink-0 -ml-2"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-2xl font-semibold font-display text-foreground">Settings</h1>
       </div>
 
-      {/* Main layout */}
-      <div className="container-tight px-4 sm:px-6 py-6">
-        <div className="flex flex-col md:flex-row gap-6 md:gap-0 rounded-xl border bg-card overflow-hidden shadow-soft">
-          {/* Sidebar */}
-          <nav className="md:w-64 md:border-r bg-muted/30 shrink-0">
-            <ScrollArea className="md:h-[calc(100vh-180px)]">
-              <div className="p-2">
-                {visibleItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeSection === item.id;
-                  return (
+      {/* Main layout — Claude-style */}
+      <div className="container-tight px-4 sm:px-6 pt-6 pb-12">
+        <div className="flex flex-col md:flex-row gap-8 md:gap-16">
+          {/* Sidebar — plain text links with active left border */}
+          <nav className="shrink-0 md:w-48">
+            <ul className="flex flex-row md:flex-col gap-1">
+              {sidebarItems.map((item) => {
+                const isActive = activeSection === item.id;
+                return (
+                  <li key={item.id}>
                     <button
-                      key={item.id}
                       onClick={() => setActiveSection(item.id)}
                       className={cn(
-                        "w-full flex items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors",
+                        "w-full text-left px-4 py-2 rounded-md text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                          ? "bg-primary/10 text-primary border-l-2 border-primary"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       )}
                     >
-                      <div
-                        className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-lg shrink-0",
-                          isActive ? "bg-primary/10 text-primary" : "bg-muted"
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{item.label}</p>
-                        <p className="text-xs text-muted-foreground truncate hidden sm:block">
-                          {item.description}
-                        </p>
-                      </div>
+                      {item.label}
                     </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                  </li>
+                );
+              })}
+            </ul>
           </nav>
 
-          {/* Content */}
+          {/* Content area */}
           <div className="flex-1 min-w-0">
-            <ScrollArea className="md:h-[calc(100vh-180px)]">
-              <div className="p-6 sm:p-8">{renderContent()}</div>
-            </ScrollArea>
+            <div className="rounded-xl border bg-card p-6 sm:p-8 shadow-soft">
+              {renderContent()}
+            </div>
           </div>
         </div>
       </div>
