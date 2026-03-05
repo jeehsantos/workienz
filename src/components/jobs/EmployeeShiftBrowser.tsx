@@ -101,24 +101,51 @@ export function EmployeeShiftBrowser({ jobId, jobTitle, allocationMode }: Employ
 
   const handleRequestShift = async (shiftId: string) => {
     setActionLoadingId(shiftId);
-    const { data, error } = await supabase.functions.invoke("manage-shifts", {
-      body: { action: "request_shift", job_id: jobId, shift_id: shiftId },
-    });
-
-    setActionLoadingId(null);
-
-    if (error || data?.error) {
-      toast({
-        title: "Unable to request shift",
-        description: data?.error || "Something went wrong.",
-        variant: "destructive",
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-shifts", {
+        body: { action: "request_shift", job_id: jobId, shift_id: shiftId },
       });
-      return;
-    }
 
-    const isInstant = data?.code === "CLAIMED";
-    toast({ title: isInstant ? "Shift claimed!" : "Shift requested", description: isInstant ? "You're confirmed for this shift." : "Waiting for contractor approval." });
-    fetchShifts();
+      setActionLoadingId(null);
+
+      if (error) {
+        // Parse error body from FunctionsHttpError
+        let errorMessage = "Something went wrong.";
+        try {
+          const errorBody = await (error as any)?.context?.json?.();
+          if (errorBody?.error) errorMessage = errorBody.error;
+        } catch {
+          // If context parsing fails, try the message
+          if (error.message) errorMessage = error.message;
+        }
+        toast({
+          title: "Unable to request shift",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        // Refresh shifts so full ones disappear
+        fetchShifts();
+        return;
+      }
+
+      if (data?.error) {
+        toast({
+          title: "Unable to request shift",
+          description: data.error,
+          variant: "destructive",
+        });
+        fetchShifts();
+        return;
+      }
+
+      const isInstant = data?.code === "CLAIMED";
+      toast({ title: isInstant ? "Shift claimed!" : "Shift requested", description: isInstant ? "You're confirmed for this shift." : "Waiting for contractor approval." });
+      fetchShifts();
+    } catch (err) {
+      setActionLoadingId(null);
+      toast({ title: "Error", description: "Failed to request shift. Please try again.", variant: "destructive" });
+      fetchShifts();
+    }
   };
 
   const handleCancelRequest = async (assignmentId: string) => {
