@@ -1,22 +1,13 @@
-import { useState } from "react";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ResetPasswordSection } from "./settings/ResetPasswordSection";
-import { ReferralProgramSection } from "./settings/ReferralProgramSection";
+import { useNavigate } from "react-router-dom";
 
 interface SettingsCardProps {
   showReferralProgram: boolean;
 }
 
 export function SettingsCard({ showReferralProgram }: SettingsCardProps) {
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
@@ -27,22 +18,9 @@ export function SettingsCard({ showReferralProgram }: SettingsCardProps) {
       <p className="text-muted-foreground text-sm mb-4">
         Manage your account settings and preferences.
       </p>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm">
-            Open Settings
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-display">Settings</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <ResetPasswordSection />
-            {showReferralProgram && <ReferralProgramSection />}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Button variant="outline" size="sm" onClick={() => navigate("/settings")}>
+        Open Settings
+      </Button>
     </div>
   );
 }
