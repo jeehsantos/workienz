@@ -7,7 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useUpgradeButtonVisibility } from "@/hooks/useUpgradeButtonVisibility";
-import { Loader2, ArrowLeft, MapPin, Clock, DollarSign, Building2, CheckCircle, Users, AlertTriangle, Calendar, ShieldCheck, Lock } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Clock, DollarSign, Building2, CheckCircle, Users, AlertTriangle, Calendar, ShieldCheck, Lock, ClipboardList } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { JobDescription } from "@/components/jobs/JobDescription";
@@ -101,6 +104,10 @@ export default function JobDetail() {
   // Advisory hints (informational warnings, do NOT block submission)
   const [advisoryHint, setAdvisoryHint] = useState<AdvisoryHint | null>(null);
 
+  // Questionnaire state for open_ai_top10
+  const [questionnaire, setQuestionnaire] = useState<any>(null);
+  const [isLoadingQuestionnaire, setIsLoadingQuestionnaire] = useState(false);
+  const [questionnaireAnswers, setQuestionnaireAnswers] = useState<Record<string, string>>({});
 
   // Experience advisory (client-side hint only)
   const [employeeExperienceYears, setEmployeeExperienceYears] = useState<number | null>(null);
@@ -146,10 +153,23 @@ export default function JobDetail() {
         shifts,
         experience_required: (data as any).experience_required ?? false,
         is_sse: (data as any).is_sse ?? false,
-        hiring_style: 'slot_1to1',
+        hiring_style: data.hiring_style || 'slot_1to1',
       });
       setIsLoading(false);
 
+      if (data.hiring_style === 'open_ai_top10') {
+        setIsLoadingQuestionnaire(true);
+        try {
+          const qRes = await supabase.functions.invoke('generate-job-questionnaire', {
+            body: { job_id: id },
+          });
+          if (qRes.data?.questionnaire) setQuestionnaire(qRes.data.questionnaire);
+        } catch (e) {
+          console.error('Failed to load questionnaire:', e);
+        } finally {
+          setIsLoadingQuestionnaire(false);
+        }
+      }
     }
     fetchJob();
   }, [id]);
@@ -233,6 +253,9 @@ export default function JobDetail() {
         cover_letter: coverLetter || undefined,
       };
 
+      if (job?.hiring_style === 'open_ai_top10' && Object.keys(questionnaireAnswers).length > 0) {
+        requestBody.application_answers = questionnaireAnswers;
+      }
 
       const response = await supabase.functions.invoke('submit-application', {
         body: requestBody,
@@ -307,7 +330,7 @@ export default function JobDetail() {
       toast({ title: "Error", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
       setIsApplying(false);
     }
-  }, [employeeProfileId, id, user, coverLetter, toast, job, isApplying]);
+  }, [employeeProfileId, id, user, coverLetter, toast, job, questionnaireAnswers, isApplying]);
 
   const handleApply = useCallback(async () => {
     if (!employeeProfileId || !id || !user) return;
@@ -503,7 +526,9 @@ export default function JobDetail() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Ready to apply? Add a cover letter to stand out!
+                      {job?.hiring_style === 'open_ai_top10'
+                        ? "Answer the screening questions below and submit your application."
+                        : "Ready to apply? Add a cover letter to stand out!"}
                     </p>
 
                     {/* Advisory warnings (non-blocking) */}
@@ -561,6 +586,81 @@ export default function JobDetail() {
                       </div>
                     )}
 
+                    {/* Questionnaire for open_ai_top10 */}
+                    {job?.hiring_style === 'open_ai_top10' && (
+                      <div className="space-y-4">
+                        {isLoadingQuestionnaire ? (
+                          <div className="flex items-center gap-2 text-muted-foreground p-4">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">Loading screening questions...</span>
+                          </div>
+                        ) : questionnaire?.questions ? (
+                          <div className="space-y-4 border border-border/50 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-sm font-medium">
+                                <ClipboardList className="w-4 h-4 text-primary" />
+                                Screening Questions
+                              </div>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Answered {Object.keys(questionnaireAnswers).filter(k => questionnaireAnswers[k]?.trim()).length} / {questionnaire.questions.length}
+                              </span>
+                            </div>
+                            {questionnaire.questions.map((q: any, idx: number) => (
+                              <div key={q.id || idx} className="space-y-2">
+                                <Label className="text-sm font-medium">
+                                  {idx + 1}. {q.prompt} <span className="text-destructive">*</span>
+                                </Label>
+                                {q.type === 'yes_no' && (
+                                  <RadioGroup
+                                    value={questionnaireAnswers[q.id] || ''}
+                                    onValueChange={(val) => setQuestionnaireAnswers(prev => ({ ...prev, [q.id]: val }))}
+                                    className="flex gap-4"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <RadioGroupItem value="yes" id={`${q.id}-yes`} />
+                                      <Label htmlFor={`${q.id}-yes`} className="text-sm cursor-pointer">Yes</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <RadioGroupItem value="no" id={`${q.id}-no`} />
+                                      <Label htmlFor={`${q.id}-no`} className="text-sm cursor-pointer">No</Label>
+                                    </div>
+                                  </RadioGroup>
+                                )}
+                                {q.type === 'single_select' && q.options && (
+                                  <Select
+                                    value={questionnaireAnswers[q.id] || ''}
+                                    onValueChange={(val) => setQuestionnaireAnswers(prev => ({ ...prev, [q.id]: val }))}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select an option" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {q.options.map((opt: any) => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                                {q.type === 'short_text' && (
+                                  <Input
+                                    value={questionnaireAnswers[q.id] || ''}
+                                    onChange={(e) => setQuestionnaireAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                    placeholder="Your answer..."
+                                    maxLength={300}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm">Screening questions are still being prepared. Please wait a moment and refresh.</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Cover letter */}
                     <div className="space-y-2">
                       <Label htmlFor="cover_letter">Cover Letter (Optional)</Label>
@@ -579,12 +679,17 @@ export default function JobDetail() {
                     {/* Submit button — NEVER blocked by advisory hints */}
                     <Button
                       onClick={handleApply}
-                      disabled={isApplying}
+                      disabled={isApplying || (job?.hiring_style === 'open_ai_top10' && (!questionnaire?.questions || questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim())))}
                       className="w-full"
                     >
                       {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Submit Application
                     </Button>
+                    {job?.hiring_style === 'open_ai_top10' && questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()) && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Please answer all screening questions to submit your application.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
