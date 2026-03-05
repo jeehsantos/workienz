@@ -147,7 +147,7 @@ export default function EditJob() {
       setScheduleType(job.schedule_type === "fixed_term" ? "fixed_term" : "shifts");
       setSkills(job.skills_required || []);
       setJobStatus(job.status);
-      setHiringStyle((job as any).hiring_style === "open_ai_top10" ? "open_ai_top10" : "slot_1to1");
+      // hiring_style is now always slot_1to1
       setWeeklyHours((job as any).weekly_hours?.toString() || "");
 
       // Set wizard step
@@ -297,10 +297,8 @@ export default function EditJob() {
       requires_car: requiresCar,
       provides_training: selectedBenefits.includes("Provides training"),
       provides_accommodation: selectedBenefits.includes("Provides accommodation"),
-      hiring_style: hiringStyle,
-      hiring_config: hiringStyle === "open_ai_top10"
-        ? { top_n: 10, question_count: 8, score_version: "v1", refresh_debounce_seconds: 60 }
-        : {},
+      hiring_style: "slot_1to1",
+      hiring_config: {},
     };
 
     // Prepare shifts data
@@ -361,8 +359,6 @@ export default function EditJob() {
           <JobDetailsStep
             formData={formData}
             maxPositions={maxPositions}
-            hiringStyle={hiringStyle}
-            onHiringStyleChange={setHiringStyle}
             onChange={updateFormData}
           />
         );
