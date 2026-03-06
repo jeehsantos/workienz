@@ -76,7 +76,21 @@ export function PreEmploymentFileUpload({
 
       const url = signedData?.signedUrl || fileName;
 
-      // Save file path (not signed URL) so we can generate new signed URLs later
+      // Auto-save to DB immediately so it persists
+      const { error: updateError } = await supabase
+        .from("contractor_profiles")
+        .update({
+          pre_employment_file_url: fileName,
+          pre_employment_file_name: file.name,
+        })
+        .eq("user_id", userId);
+
+      if (updateError) {
+        console.error("Error saving file to profile:", updateError);
+        toast({ title: "Upload failed", description: "Could not save file to profile.", variant: "destructive" });
+        return;
+      }
+
       onUploadComplete(fileName, file.name);
       toast({ title: "File uploaded", description: `${file.name} uploaded successfully.` });
     } catch {
@@ -92,6 +106,16 @@ export function PreEmploymentFileUpload({
     setIsRemoving(true);
     try {
       await supabase.storage.from("pre-employment-docs").remove([currentFileUrl]);
+
+      // Auto-save removal to DB
+      await supabase
+        .from("contractor_profiles")
+        .update({
+          pre_employment_file_url: null,
+          pre_employment_file_name: null,
+        })
+        .eq("user_id", userId);
+
       onRemove();
       toast({ title: "File removed" });
     } catch {
