@@ -460,12 +460,19 @@ export default function Conversation() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user || !id || conversation?.status !== "active") return;
+    console.log("[chat-upload] File selected:", file?.name, file?.type, file?.size);
+    console.log("[chat-upload] User:", !!user, "ID:", id, "Conv status:", conversation?.status);
+    
+    if (!file || !user || !id || conversation?.status !== "active") {
+      console.log("[chat-upload] Early return - missing prereqs");
+      return;
+    }
 
     // Reset input so re-selecting the same file triggers onChange
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      console.log("[chat-upload] Rejected file type:", file.type);
       toast({
         title: "Invalid File Type",
         description: "Only PDF and DOC/DOCX files are allowed.",
@@ -488,13 +495,17 @@ export default function Conversation() {
     try {
       const ext = file.name.split(".").pop() || "pdf";
       const storagePath = `chat-attachments/${id}/${crypto.randomUUID()}.${ext}`;
+      console.log("[chat-upload] Uploading to:", storagePath);
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from("pre-employment-docs")
         .upload(storagePath, file, { contentType: file.type });
 
+      console.log("[chat-upload] Upload result:", { data: uploadData, error: uploadError });
+
       if (uploadError) {
-        toast({ title: "Upload Failed", description: "Could not upload the file.", variant: "destructive" });
+        console.error("[chat-upload] Upload error:", uploadError);
+        toast({ title: "Upload Failed", description: uploadError.message || "Could not upload the file.", variant: "destructive" });
         return;
       }
 
@@ -511,9 +522,11 @@ export default function Conversation() {
       });
 
       if (msgError) {
+        console.error("[chat-upload] Message error:", msgError);
         toast({ title: "Error", description: "File uploaded but failed to send message.", variant: "destructive" });
       }
-    } catch {
+    } catch (err) {
+      console.error("[chat-upload] Caught error:", err);
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
     } finally {
       setIsUploading(false);
