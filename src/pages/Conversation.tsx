@@ -22,6 +22,7 @@ import {
   UserCircle,
   Share2,
   Flag,
+  Paperclip,
 } from "lucide-react";
 import { dispatchUnreadRefresh } from "@/hooks/useProfileRefresh";
 import {
@@ -45,7 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
 import { PreEmploymentPackBanner } from "@/components/chat/PreEmploymentPackBanner";
-import { PreEmploymentPackMessage, parsePreEmploymentPackMessage } from "@/components/chat/PreEmploymentPackMessage";
+import { ChatFileMessage, parseChatFileMessage, CHAT_FILE_PREFIX } from "@/components/chat/ChatFileMessage";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
