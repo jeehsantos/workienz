@@ -451,6 +451,75 @@ export default function Conversation() {
     inputRef.current?.focus();
   };
 
+  const ALLOWED_FILE_TYPES = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !id || conversation?.status !== "active") return;
+
+    // Reset input so re-selecting the same file triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Only PDF and DOC/DOCX files are allowed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File Too Large",
+        description: "Maximum file size is 10MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const ext = file.name.split(".").pop() || "pdf";
+      const storagePath = `chat-attachments/${id}/${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("pre-employment-docs")
+        .upload(storagePath, file, { contentType: file.type });
+
+      if (uploadError) {
+        toast({ title: "Upload Failed", description: "Could not upload the file.", variant: "destructive" });
+        return;
+      }
+
+      // Send a special message with file metadata
+      const messageContent = `${CHAT_FILE_PREFIX}${JSON.stringify({
+        file_url: storagePath,
+        file_name: file.name,
+      })}`;
+
+      const { error: msgError } = await supabase.from("messages").insert({
+        conversation_id: id,
+        sender_user_id: user.id,
+        content: messageContent,
+      });
+
+      if (msgError) {
+        toast({ title: "Error", description: "File uploaded but failed to send message.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleCloseConversation = async () => {
     if (!id) return;
 
@@ -1141,15 +1210,16 @@ export default function Conversation() {
 
           {messages.map((message) => {
             const isOwn = message.sender_user_id === user?.id;
-            const packData = parsePreEmploymentPackMessage(message.content);
-            if (packData) {
+            const fileData = parseChatFileMessage(message.content);
+            if (fileData) {
               return (
-                <PreEmploymentPackMessage
+                <ChatFileMessage
                   key={message.id}
-                  fileUrl={packData.file_url}
-                  fileName={packData.file_name}
+                  fileUrl={fileData.file_url}
+                  fileName={fileData.file_name}
                   isOwn={isOwn}
                   timestamp={message.created_at}
+                  bucket={fileData.bucket || "pre-employment-docs"}
                 />
               );
             }
