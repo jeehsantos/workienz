@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Download, Loader2, Send, CheckCircle2 } from "lucide-react";
+import { FileText, Loader2, Send, CheckCircle2 } from "lucide-react";
 
 interface PreEmploymentPackBannerProps {
   jobApplicationId: string | null;
@@ -12,6 +11,8 @@ interface PreEmploymentPackBannerProps {
   conversationStatus?: string;
   contractorUserId?: string;
   applicationStatus?: string;
+  conversationId?: string;
+  onPackShared?: () => void;
 }
 
 export function PreEmploymentPackBanner({
@@ -20,6 +21,8 @@ export function PreEmploymentPackBanner({
   conversationStatus,
   contractorUserId,
   applicationStatus,
+  conversationId,
+  onPackShared,
 }: PreEmploymentPackBannerProps) {
   const { user } = useAuthContext();
   const { toast } = useToast();
@@ -27,11 +30,7 @@ export function PreEmploymentPackBanner({
   const [fileName, setFileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [sent, setSent] = useState(false);
-
-  // Check if a pack already exists (file was already shared)
-  const [packExists, setPackExists] = useState(false);
 
   const fetchContractorFile = useCallback(async () => {
     if (!contractorUserId && !jobApplicationId) {
@@ -40,10 +39,8 @@ export function PreEmploymentPackBanner({
     }
 
     try {
-      // Determine the contractor user ID
       let ctorUserId = contractorUserId;
       if (!ctorUserId && jobApplicationId) {
-        // Get from the application -> job -> contractor_profiles chain
         const { data: appData } = await supabase
           .from("job_applications")
           .select("job_id")
@@ -93,7 +90,6 @@ export function PreEmploymentPackBanner({
           .maybeSingle();
 
         if (packData && packData.status !== "cancelled") {
-          setPackExists(true);
           setSent(true);
         }
       }
@@ -109,12 +105,12 @@ export function PreEmploymentPackBanner({
   }, [fetchContractorFile]);
 
   const handleShareWithEmployee = async () => {
-    if (!jobApplicationId || !user || !fileUrl) return;
+    if (!jobApplicationId || !user || !fileUrl || !conversationId) return;
     setSending(true);
 
     try {
-      // Create a pack record marking the file as shared
-      const { error } = await supabase
+      // 1. Create a pack record
+      const { error: packError } = await supabase
         .from("application_pre_employment_packs")
         .insert({
           job_application_id: jobApplicationId,
@@ -124,16 +120,29 @@ export function PreEmploymentPackBanner({
           answers: { file_url: fileUrl, file_name: fileName },
         });
 
-      if (error) {
+      if (packError) {
         toast({ title: "Error", description: "Failed to share the file.", variant: "destructive" });
+        setSending(false);
         return;
       }
 
+      // 2. Send a special message in the chat so it appears for both parties
+      const messageContent = `[PRE_EMPLOYMENT_PACK]${JSON.stringify({ file_url: fileUrl, file_name: fileName })}`;
+      const { error: msgError } = await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_user_id: user.id,
+        content: messageContent,
+      });
+
+      if (msgError) {
+        console.error("Error sending pack message:", msgError);
+      }
+
       setSent(true);
-      setPackExists(true);
+      onPackShared?.();
       toast({
         title: "Pre-Employment Pack Sent",
-        description: "The candidate can now download the pre-employment document.",
+        description: "The document has been shared in the chat.",
       });
     } catch {
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
@@ -142,104 +151,33 @@ export function PreEmploymentPackBanner({
     }
   };
 
-  const handleDownload = async () => {
-    if (!fileUrl) return;
-    setDownloading(true);
-
-    try {
-      // Generate a signed URL for download
-      const { data, error } = await supabase.storage
-        .from("pre-employment-docs")
-        .createSignedUrl(fileUrl, 60 * 5); // 5 min expiry
-
-      if (error || !data?.signedUrl) {
-        toast({ title: "Error", description: "Failed to generate download link.", variant: "destructive" });
-        return;
-      }
-
-      // Open in new tab for download
-      window.open(data.signedUrl, "_blank");
-    } catch {
-      toast({ title: "Error", description: "Download failed.", variant: "destructive" });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   if (loading) return null;
-
-  // No file uploaded by contractor
   if (!fileUrl || !fileName) return null;
+
+  // Only show for contractors (employees see it in chat)
+  if (isEmployee) return null;
 
   const isHiredOrPooled = applicationStatus === "hired" || applicationStatus === "approved_to_pool";
 
-  // CONTRACTOR VIEW
-  if (!isEmployee) {
-    // Only show after the candidate is hired or added to pool
-    if (!isHiredOrPooled && !sent) return null;
-
-    return (
-      <div className="bg-muted/40 border-b border-border px-4 py-3 flex-shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4.5 h-4.5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{fileName}</p>
-              <p className="text-xs text-muted-foreground">
-                {sent
-                  ? "Pre-employment pack has been shared with the candidate."
-                  : "Share this document with the hired candidate."}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {sent ? (
-              <Badge variant="outline" className="gap-1 text-xs">
-                <CheckCircle2 className="w-3 h-3" />
-                Sent
-              </Badge>
-            ) : (
-              <Button size="sm" onClick={handleShareWithEmployee} disabled={sending} className="h-8">
-                {sending ? (
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5 mr-1.5" />
-                )}
-                Share with Candidate
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // EMPLOYEE VIEW - only show if the pack has been sent
-  if (!packExists) return null;
+  // Only show after the candidate is hired or added to pool, and not yet sent
+  if (!isHiredOrPooled || sent) return null;
 
   return (
-    <div className="bg-primary/5 border-b border-primary/20 px-4 py-3 flex-shrink-0">
+    <div className="bg-muted/40 border-b border-border px-4 py-2.5 flex-shrink-0">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-            <FileText className="w-4.5 h-4.5 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Pre-Employment Pack</p>
-            <p className="text-xs text-muted-foreground">
-              Your employer has shared a document for you to complete. Download, fill it in, and send it back via email or attach it in the chat.
-            </p>
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="text-xs text-muted-foreground truncate">
+            Share <span className="font-medium text-foreground">{fileName}</span> with the candidate
+          </p>
         </div>
-        <Button size="sm" onClick={handleDownload} disabled={downloading} className="h-8 flex-shrink-0">
-          {downloading ? (
-            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+        <Button size="sm" variant="outline" onClick={handleShareWithEmployee} disabled={sending} className="h-7 text-xs flex-shrink-0">
+          {sending ? (
+            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           ) : (
-            <Download className="w-3.5 h-3.5 mr-1.5" />
+            <Send className="w-3 h-3 mr-1" />
           )}
-          Download
+          Send in Chat
         </Button>
       </div>
     </div>
