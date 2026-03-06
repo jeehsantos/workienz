@@ -45,6 +45,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
 import { PreEmploymentPackBanner } from "@/components/chat/PreEmploymentPackBanner";
+import { PreEmploymentPackMessage, parsePreEmploymentPackMessage } from "@/components/chat/PreEmploymentPackMessage";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -873,13 +874,14 @@ export default function Conversation() {
         </div>
       )}
 
-      {/* Pre-Employment Pack Banner */}
+      {/* Pre-Employment Pack Banner (contractor only - subtle prompt to share) */}
       <PreEmploymentPackBanner
         jobApplicationId={conversation?.job_application_id || null}
         isEmployee={!isUserContractor}
         conversationStatus={conversation?.status}
         contractorUserId={conversation?.contractor_user_id}
         applicationStatus={conversation?.job_application?.status}
+        conversationId={conversation?.id}
       />
 
       {/* Header - Fixed */}
@@ -1136,6 +1138,18 @@ export default function Conversation() {
 
           {messages.map((message) => {
             const isOwn = message.sender_user_id === user?.id;
+            const packData = parsePreEmploymentPackMessage(message.content);
+            if (packData) {
+              return (
+                <PreEmploymentPackMessage
+                  key={message.id}
+                  fileUrl={packData.file_url}
+                  fileName={packData.file_name}
+                  isOwn={isOwn}
+                  timestamp={message.created_at}
+                />
+              );
+            }
             return <MessageBubble key={message.id} message={message} isOwn={isOwn} />;
           })}
           <div ref={messagesEndRef} />
