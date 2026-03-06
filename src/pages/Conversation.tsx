@@ -22,6 +22,7 @@ import {
   UserCircle,
   Share2,
   Flag,
+  Paperclip,
 } from "lucide-react";
 import { dispatchUnreadRefresh } from "@/hooks/useProfileRefresh";
 import {
@@ -45,7 +46,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
 import { PreEmploymentPackBanner } from "@/components/chat/PreEmploymentPackBanner";
-import { PreEmploymentPackMessage, parsePreEmploymentPackMessage } from "@/components/chat/PreEmploymentPackMessage";
+import { ChatFileMessage, parseChatFileMessage, CHAT_FILE_PREFIX } from "@/components/chat/ChatFileMessage";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -114,6 +115,8 @@ export default function Conversation() {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [conversation, setConversation] = useState<ConversationData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -446,6 +449,75 @@ export default function Conversation() {
 
     setNewMessage("");
     inputRef.current?.focus();
+  };
+
+  const ALLOWED_FILE_TYPES = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !id || conversation?.status !== "active") return;
+
+    // Reset input so re-selecting the same file triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Only PDF and DOC/DOCX files are allowed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File Too Large",
+        description: "Maximum file size is 10MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const ext = file.name.split(".").pop() || "pdf";
+      const storagePath = `chat-attachments/${id}/${crypto.randomUUID()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("pre-employment-docs")
+        .upload(storagePath, file, { contentType: file.type });
+
+      if (uploadError) {
+        toast({ title: "Upload Failed", description: "Could not upload the file.", variant: "destructive" });
+        return;
+      }
+
+      // Send a special message with file metadata
+      const messageContent = `${CHAT_FILE_PREFIX}${JSON.stringify({
+        file_url: storagePath,
+        file_name: file.name,
+      })}`;
+
+      const { error: msgError } = await supabase.from("messages").insert({
+        conversation_id: id,
+        sender_user_id: user.id,
+        content: messageContent,
+      });
+
+      if (msgError) {
+        toast({ title: "Error", description: "File uploaded but failed to send message.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleCloseConversation = async () => {
@@ -1138,15 +1210,16 @@ export default function Conversation() {
 
           {messages.map((message) => {
             const isOwn = message.sender_user_id === user?.id;
-            const packData = parsePreEmploymentPackMessage(message.content);
-            if (packData) {
+            const fileData = parseChatFileMessage(message.content);
+            if (fileData) {
               return (
-                <PreEmploymentPackMessage
+                <ChatFileMessage
                   key={message.id}
-                  fileUrl={packData.file_url}
-                  fileName={packData.file_name}
+                  fileUrl={fileData.file_url}
+                  fileName={fileData.file_name}
                   isOwn={isOwn}
                   timestamp={message.created_at}
+                  bucket={fileData.bucket || "pre-employment-docs"}
                 />
               );
             }
@@ -1161,6 +1234,24 @@ export default function Conversation() {
         <div className="border-t border-border/50 bg-card flex-shrink-0 safe-area-bottom">
           <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3">
             <form onSubmit={handleSendMessage} className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 flex-shrink-0"
+                disabled={isUploading || isSending}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach a file (PDF, DOC, DOCX)"
+              >
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+              </Button>
               <Input
                 ref={inputRef}
                 value={newMessage}
