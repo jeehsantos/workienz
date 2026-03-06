@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Loader2, Send, CheckCircle2 } from "lucide-react";
+import { FileText, Loader2, Send } from "lucide-react";
+import { PRE_EMPLOYMENT_PACK_PREFIX } from "@/components/chat/ChatFileMessage";
 
 interface PreEmploymentPackBannerProps {
   jobApplicationId: string | null;
@@ -127,7 +128,7 @@ export function PreEmploymentPackBanner({
       }
 
       // 2. Send a special message in the chat so it appears for both parties
-      const messageContent = `[PRE_EMPLOYMENT_PACK]${JSON.stringify({ file_url: fileUrl, file_name: fileName })}`;
+      const messageContent = `${PRE_EMPLOYMENT_PACK_PREFIX}${JSON.stringify({ file_url: fileUrl, file_name: fileName })}`;
       const { error: msgError } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_user_id: user.id,
