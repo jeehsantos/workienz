@@ -1234,6 +1234,24 @@ export default function Conversation() {
         <div className="border-t border-border/50 bg-card flex-shrink-0 safe-area-bottom">
           <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3">
             <form onSubmit={handleSendMessage} className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 flex-shrink-0"
+                disabled={isUploading || isSending}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach a file (PDF, DOC, DOCX)"
+              >
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+              </Button>
               <Input
                 ref={inputRef}
                 value={newMessage}
