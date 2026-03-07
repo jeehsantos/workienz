@@ -704,9 +704,8 @@ export default function Subscription() {
                           <div>
                             <p className="font-medium text-amber-800 dark:text-amber-200">Free Plan Limitations</p>
                             <ul className="mt-2 text-sm text-amber-700 dark:text-amber-300 space-y-1">
-                              <li>• Limited to 1 active job application</li>
-                              <li>• 3-day cooldown between applications</li>
                               <li>• Basic profile visibility</li>
+                              <li>• Standard job applications only</li>
                             </ul>
                           </div>
                         </div>

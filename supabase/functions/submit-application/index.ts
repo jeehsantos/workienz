@@ -179,22 +179,7 @@ Deno.serve(async (req) => {
       referralCreditsRemaining = refData.bonus_credits_balance - refData.bonus_credits_used;
     }
 
-    // ─── Cooldown enforcement ────────────────────────────────────────
-    const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
-    const shouldApplyCooldown = isSubscribed || (activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0);
-
-    if (shouldApplyCooldown && emp.last_application_at) {
-      const daysSince = Math.floor((Date.now() - new Date(emp.last_application_at).getTime()) / (1000 * 60 * 60 * 24));
-      if (daysSince < cooldownDays) {
-        const remaining = cooldownDays - daysSince;
-        return new Response(
-          JSON.stringify({ error: `You must wait ${remaining} more day${remaining > 1 ? 's' : ''} before applying to another job.` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // ─── Application slot limits ─────────────────────────────────────
+    // ─── Application slot limits (subscribers only) ────────────────
     if (isSubscribed) {
       if (activeApplications >= paidTierMaxActiveApps) {
         return new Response(
@@ -202,32 +187,8 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else {
-      // Concurrency cap
-      if (activeApplications >= MAX_CONCURRENT_APPLICATIONS) {
-        return new Response(
-          JSON.stringify({
-            error: `You have ${activeApplications} active applications. Maximum concurrent is ${MAX_CONCURRENT_APPLICATIONS}. Wait for a response or withdraw an application.`,
-            remaining_credits: referralCreditsRemaining,
-            active_applications: activeApplications,
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      // Credit-based limit
-      const totalAllowed = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
-      if (activeApplications >= totalAllowed) {
-        return new Response(
-          JSON.stringify({
-            error: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications and access to our premium features! Alternatively, invite friends to earn more application credits.",
-            upgrade_prompt: true,
-            remaining_credits: referralCreditsRemaining,
-            active_applications: activeApplications,
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
     }
+    // Free-tier users have no cooldown or slot limits for normal job applications
 
     // ─── Questionnaire validation (open_ai_top10) ────────────────────
     const isOpenAI = job.hiring_style === 'open_ai_top10';

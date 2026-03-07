@@ -62,11 +62,9 @@ type Job = {
 
 // Advisory hint from validate-application (informational only)
 interface AdvisoryHint {
-  can_apply_hint: boolean;
+   can_apply_hint: boolean;
   hint_reason: string | null;
-  cooldown_remaining_days: number | null;
   is_subscribed: boolean;
-  referral_credits_remaining: number;
   already_applied: boolean;
 }
 
@@ -361,8 +359,7 @@ export default function JobDetail() {
   }
 
   // Determine if there's an advisory warning to show (non-blocking)
-  const showCooldownWarning = advisoryHint && !advisoryHint.can_apply_hint && advisoryHint.cooldown_remaining_days && advisoryHint.cooldown_remaining_days > 0;
-  const showLimitWarning = advisoryHint && !advisoryHint.can_apply_hint && !advisoryHint.cooldown_remaining_days && advisoryHint.hint_reason && !advisoryHint.already_applied;
+  const showLimitWarning = advisoryHint && !advisoryHint.can_apply_hint && advisoryHint.hint_reason && !advisoryHint.already_applied;
 
   return (
     <div className="min-h-screen bg-background">
@@ -541,25 +538,6 @@ export default function JobDetail() {
                           <Button asChild size="sm" variant="outline" className="mt-2">
                             <Link to="/employee/profile">Update Profile</Link>
                           </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {showCooldownWarning && (
-                      <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg text-sm">
-                        <Clock className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-medium">Cooldown Notice</p>
-                          <p>
-                            You may need to wait {advisoryHint!.cooldown_remaining_days} more day{advisoryHint!.cooldown_remaining_days! > 1 ? 's' : ''} before applying.
-                            This cooldown applies when you've used your free application slot and have no remaining referral credits.
-                          </p>
-                          <div className="flex gap-2 mt-2">
-                            <UpgradeButtonInline />
-                            <Button asChild size="sm" variant="outline">
-                              <Link to="/dashboard?tab=settings">Invite Friends</Link>
-                            </Button>
-                          </div>
                         </div>
                       </div>
                     )}
