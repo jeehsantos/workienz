@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -357,11 +358,11 @@ export function ShiftManagement({ jobId, industry, allocationMode = "first_come"
               </div>
               <div>
                 <Label className="text-xs">Start Time</Label>
-                <Input type="time" value={newStartTime} onChange={(e) => setNewStartTime(e.target.value)} />
+                <TimePicker value={newStartTime} onChange={setNewStartTime} placeholder="Start time" />
               </div>
               <div>
                 <Label className="text-xs">End Time</Label>
-                <Input type="time" value={newEndTime} onChange={(e) => setNewEndTime(e.target.value)} />
+                <TimePicker value={newEndTime} onChange={setNewEndTime} placeholder="End time" />
               </div>
               <div>
                 <Label className="text-xs">Break (minutes)</Label>
