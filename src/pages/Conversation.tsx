@@ -433,26 +433,50 @@ export default function Conversation() {
     }
 
     setIsSending(true);
+    setNewMessage("");
 
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: id,
-      sender_user_id: user.id,
+    // Optimistic insert so message appears instantly
+    const optimisticId = crypto.randomUUID();
+    const optimisticMsg: Message = {
+      id: optimisticId,
       content: trimmedMessage,
-    });
+      sender_user_id: user.id,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    const { data: insertedData, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: id,
+        sender_user_id: user.id,
+        content: trimmedMessage,
+      })
+      .select("id")
+      .single();
 
     setIsSending(false);
 
     if (error) {
       console.error("Error sending message:", error);
+      // Remove the optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",
         variant: "destructive",
       });
+      setNewMessage(trimmedMessage); // Restore the message
       return;
     }
 
-    setNewMessage("");
+    // Replace optimistic ID with real ID so realtime dedup works
+    if (insertedData?.id) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticId ? { ...m, id: insertedData.id } : m))
+      );
+    }
+
     inputRef.current?.focus();
   };
 
