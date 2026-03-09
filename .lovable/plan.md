@@ -1,63 +1,82 @@
 
 
-## Plan: Fix 4 Pooling Process Issues
+## NZ Privacy Act 2020 Compliance Review
 
-### Issue 1: "Approved_to_pool" status label is unprofessional
+### Gap Analysis Against the 13 Information Privacy Principles
 
-**Problem**: Raw database status `approved_to_pool` is displayed as-is in badges across the UI.
+| Principle | Status | Gap |
+|-----------|--------|-----|
+| 1. Purpose for collection | Partial | Privacy policy lists what's collected but doesn't clearly state purpose *per category* |
+| 2. Source of information | OK | Collected directly from individuals |
+| 3. What to tell individuals | **Missing** | No consent checkbox at signup; users aren't explicitly told *at collection time* |
+| 4. Manner of collection | OK | Standard web forms |
+| 5. Storage and security | OK | RLS, encryption, secure auth in place |
+| 6. Access to information | **Missing** | No data export/download feature exists |
+| 7. Correction of information | Partial | Users can edit profiles, but no formal correction request mechanism |
+| 8. Accuracy before use | OK | Profile editing available |
+| 9. Retention limits | **Missing** | No account deletion feature; retention policy is vague |
+| 10. Use of information | Partial | Privacy policy covers this but lacks specificity |
+| 11. Disclosing information | Partial | Cookie policy mentions Supabase by name (should be abstracted) |
+| 12. Disclosure outside NZ | **Missing** | No mention that data is stored overseas (Supabase/Stripe servers) |
+| 13. Unique identifiers | OK | Using UUIDs, no government ID reuse |
 
-**Fix**: Add a display label map in `ApplicantList.tsx` StatusBadge and any other location showing this status. Map `approved_to_pool` to "In Talent Pool" (already done in `JobApplicants.tsx` but missing in `ApplicantList.tsx`).
+Additionally:
+- **No cookie consent banner** exists (Cookie Policy page exists but no interactive consent mechanism)
+- **No notifiable breach process** documented in the privacy policy
+- **No Terms/Privacy acceptance checkbox** during signup
 
-**Files to edit**:
-- `src/components/applicants/ApplicantList.tsx` -- Update `StatusBadge` to use friendly labels: `approved_to_pool` -> "In Talent Pool", `pending` -> "Pending", etc.
-- `src/pages/contractor/ContractorJobDetail.tsx` -- If status badges appear here, apply the same label map.
+### Plan: Address Critical Gaps (5 changes)
 
----
+#### 1. Add Terms & Privacy consent checkbox to signup form
+**File:** `src/pages/Auth.tsx`
+- Add a checkbox with label: "I agree to the [Terms of Service](/terms) and [Privacy Policy](/privacy)"
+- Add state `agreedToTerms` and validation — block signup if unchecked
+- Add error message if unchecked on submit
 
-### Issue 2: No chat message sent when applicant is approved to pool
+#### 2. Add Cookie Consent Banner component
+**File:** `src/components/CookieConsentBanner.tsx` (new)
+- Persistent bottom banner shown to first-time visitors (check `localStorage` for `cookie_consent`)
+- Two buttons: "Accept All" and "Essential Only"
+- Links to Cookie Policy page
+- Stores preference in `localStorage`
 
-**Problem**: The `update-application-status` edge function upserts the pool membership but never sends a message to the existing conversation or creates a notification.
+**File:** `src/App.tsx`
+- Render `CookieConsentBanner` inside the app
 
-**Fix**: After successful pool upsert in the edge function, insert a system-style message into the conversation (if one exists) and create a notification for the employee.
+#### 3. Update Privacy Policy for full IPP compliance
+**File:** `src/pages/PrivacyPolicy.tsx`
+- **Principle 3**: Add explicit collection notice section explaining *why* each data type is collected
+- **Principle 9**: Add specific retention periods (e.g., "48 hours after conversation closure for messages", "until account deletion for profile data")
+- **Principle 11**: Replace "Supabase" with "cloud database provider" in disclosure section
+- **Principle 12**: Add new section "International Data Transfers" disclosing that data may be processed on servers outside NZ (cloud infrastructure, Stripe payment processing), with assurance of comparable privacy protections
+- **Notifiable Breach**: Add section explaining breach notification process (72-hour commitment to Privacy Commissioner and affected users)
+- Update `lastUpdated` to current date
 
-**File to edit**:
-- `supabase/functions/update-application-status/index.ts` -- After the `approved_to_pool` block (line ~148), look up the conversation for this application, insert a message like: "You've been added to [Company]'s talent pool for [category]. You can now browse and request available shifts from your Talent Pools page." Also insert a notification row.
+#### 4. Update Cookie Policy
+**File:** `src/pages/CookiePolicy.tsx`
+- Replace "Supabase" references with "Cloud authentication provider"
+- Keep the table structure but abstract provider names
 
----
+#### 5. Add Privacy & Data section to Settings page
+**File:** `src/pages/Settings.tsx`
+- Add new sidebar item "Privacy & Data"
+- Content includes:
+  - "Request My Data" button — triggers email to privacy@workie.co.nz with user ID (simple mailto link for now, satisfies Principle 6)
+  - "Request Account Deletion" button — triggers email to privacy@workie.co.nz (satisfies Principle 9)
+  - Link to Privacy Policy
+  - Note explaining users can contact privacy@workie.co.nz for corrections (Principle 7)
 
-### Issue 3: No dedicated "My Shifts" page for employees
+### Files to edit
+- `src/pages/Auth.tsx` — consent checkbox
+- `src/components/CookieConsentBanner.tsx` — new file
+- `src/App.tsx` — render cookie banner
+- `src/pages/PrivacyPolicy.tsx` — IPP compliance updates
+- `src/pages/CookiePolicy.tsx` — abstract provider names
+- `src/pages/Settings.tsx` — privacy & data section
 
-**Problem**: Employees can only see shifts buried inside the "My Pools" page by expanding each pool. There's no unified view of all their shift assignments (confirmed, requested, completed).
-
-**Fix**: Create a new `src/pages/employee/MyShifts.tsx` page showing all the employee's shift assignments across all jobs/pools, grouped by status (Upcoming Confirmed, Pending Requests, Past/Completed). Add a route `/employee/shifts` and a dashboard card.
-
-**Files to create/edit**:
-- `src/pages/employee/MyShifts.tsx` (new) -- Query `shift_assignments` for the current user, join with `job_shifts` and `jobs` for context. Group by: Upcoming Confirmed, Pending Requests, Past shifts.
-- `src/App.tsx` -- Add lazy import and route for `/employee/shifts`.
-- `src/pages/Dashboard.tsx` -- Add a "My Shifts" card for employees linking to `/employee/shifts`.
-
----
-
-### Issue 4: Employee self-assignment to shifts (configurable by contractor)
-
-**Problem**: Currently only contractors can assign workers to shifts. Employees should be able to self-assign based on the job's `shift_allocation_mode` (already partially implemented via `EmployeeShiftBrowser`).
-
-**Analysis**: The `EmployeeShiftBrowser` component and the `manage-shifts` edge function already support `request_shift` and `claim_shift` actions with atomic RPCs. The `MyPools` page already renders `EmployeeShiftBrowser` per job. The new `MyShifts` page will also link to available shifts. The infrastructure is largely in place.
-
-**Fix**: Ensure the new `MyShifts` page includes a section/link to browse available shifts. The `EmployeeShiftBrowser` already handles both modes. Add a prominent "Browse Available Shifts" link from `MyShifts` to `MyPools` (where shift browsing lives). Optionally, surface available shifts directly on `MyShifts` as well.
-
-**Files to edit**:
-- `src/pages/employee/MyShifts.tsx` (new, from Issue 3) -- Include an "Available Shifts" section that reuses `EmployeeShiftBrowser` or links to pools page.
-
----
-
-### Summary of changes
-
-| File | Action |
-|------|--------|
-| `src/components/applicants/ApplicantList.tsx` | Fix status label display |
-| `supabase/functions/update-application-status/index.ts` | Add chat message + notification on pool approval |
-| `src/pages/employee/MyShifts.tsx` | New page: employee shift dashboard |
-| `src/App.tsx` | Add route `/employee/shifts` |
-| `src/pages/Dashboard.tsx` | Add "My Shifts" card for employees |
+### What this does NOT change
+- No database migrations needed
+- No edge function changes
+- No changes to existing RLS policies or auth flow
+- No regressions to existing functionality — all changes are additive (new component, new settings section, updated static content, one checkbox addition to form)
 
