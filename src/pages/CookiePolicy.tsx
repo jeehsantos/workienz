@@ -24,7 +24,7 @@ export default function CookiePolicy() {
         <li>Security features and fraud prevention</li>
         <li>Load balancing and server optimization</li>
       </ul>
-      <p><strong>Provider:</strong> Supabase (authentication), Workie</p>
+      <p><strong>Provider:</strong> Cloud authentication provider, Workie</p>
 
       <h3>2.2 Functional Cookies</h3>
       <p>
@@ -71,9 +71,9 @@ export default function CookiePolicy() {
         </thead>
         <tbody>
           <tr className="border-b border-border/50">
-            <td className="py-3 px-4">Supabase</td>
+            <td className="py-3 px-4">Cloud Authentication Provider</td>
             <td className="py-3 px-4">Authentication & Database</td>
-            <td className="py-3 px-4"><a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer">View Policy</a></td>
+            <td className="py-3 px-4">Available on request</td>
           </tr>
           <tr className="border-b border-border/50">
             <td className="py-3 px-4">Stripe</td>

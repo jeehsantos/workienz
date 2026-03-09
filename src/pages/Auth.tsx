@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Briefcase, User, ArrowLeft, Loader2, Check, X, Mail, RefreshCw } from "lucide-react";
 import { z } from "zod";
 import { TwoFactorVerify } from "@/components/auth/TwoFactorVerify";
+import { Checkbox } from "@/components/ui/checkbox";
 import workieLogo from "@/assets/workie-logo.png";
 
 type UserType = "contractor" | "employee";
@@ -117,12 +118,14 @@ export default function Auth() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [userType, setUserType] = useState<UserType | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [errors, setErrors] = useState<{ 
     email?: string; 
     password?: string; 
     confirmPassword?: string;
     firstName?: string;
     lastName?: string;
+    terms?: string;
   }>({});
   
   // 2FA state
@@ -204,10 +207,14 @@ export default function Auth() {
     if (isSignUp && !lastName.trim()) {
       newErrors.lastName = "Last name is required";
     }
+
+    if (isSignUp && !agreedToTerms) {
+      newErrors.terms = "You must agree to the Terms of Service and Privacy Policy";
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [email, password, confirmPassword, firstName, lastName, isSignUp]);
+  }, [email, password, confirmPassword, firstName, lastName, isSignUp, agreedToTerms]);
 
   // Stabilize user type selection callbacks - MUST be before any early returns
   const handleSelectContractor = useCallback(() => {
@@ -715,6 +722,33 @@ export default function Auth() {
                     <Check className="w-3.5 h-3.5" />
                     Passwords match
                   </p>
+                )}
+              </div>
+            )}
+
+            {/* Terms & Privacy consent - signup only */}
+            {isSignUp && (
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="terms"
+                    checked={agreedToTerms}
+                    onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="terms" className="text-sm text-muted-foreground leading-snug cursor-pointer">
+                    I agree to the{" "}
+                    <Link to="/terms" className="text-primary hover:underline" target="_blank">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy" className="text-primary hover:underline" target="_blank">
+                      Privacy Policy
+                    </Link>
+                  </label>
+                </div>
+                {errors.terms && (
+                  <p className="text-sm text-destructive">{errors.terms}</p>
                 )}
               </div>
             )}
