@@ -179,6 +179,7 @@ export default function Auth() {
       confirmPassword?: string;
       firstName?: string;
       lastName?: string;
+      terms?: string;
     } = {};
     
     const emailResult = emailSchema.safeParse(email);
