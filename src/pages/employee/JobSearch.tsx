@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
-import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock, Filter, AlertCircle, Zap } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock, Filter, AlertCircle, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { JOB_TYPE_CONFIG, JobType } from "@/data/jobTypes";
 import { INDUSTRIES, Industry } from "@/data/industries";
@@ -165,6 +165,8 @@ export default function JobSearch() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const JOBS_PER_PAGE = 18;
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -194,6 +196,7 @@ export default function JobSearch() {
     setCityFilter("");
     setJobTypeFilter("all");
     setIndustryFilter("all");
+    setCurrentPage(1);
   }, []);
 
   // Stabilize retry callback
@@ -294,6 +297,7 @@ export default function JobSearch() {
         }));
 
         setJobs(filtered);
+        setCurrentPage(1);
         setError(null);
       } catch (err) {
         console.error("Unexpected error:", err);
@@ -546,12 +550,89 @@ export default function JobSearch() {
           hasActiveFilters={activeFilterCount > 0}
           onClearFilters={handleClearAllFilters} /> :
 
+        (() => {
+          const totalPages = Math.ceil(jobs.length / JOBS_PER_PAGE);
+          const paginatedJobs = jobs.slice((currentPage - 1) * JOBS_PER_PAGE, currentPage * JOBS_PER_PAGE);
 
-        <div className="space-y-4">
-            {jobs.map((job) =>
-          <JobCard key={job.id} job={job} user={user} />
-          )}
-          </div>
+          return (
+            <>
+              <div className="space-y-4">
+                {paginatedJobs.map((job) =>
+                  <JobCard key={job.id} job={job} user={user} />
+                )}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8 pb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    disabled={currentPage === 1}
+                    className="h-10 min-h-[44px] gap-1"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        // Show first, last, current, and neighbors
+                        if (page === 1 || page === totalPages) return true;
+                        if (Math.abs(page - currentPage) <= 1) return true;
+                        return false;
+                      })
+                      .reduce<(number | "ellipsis")[]>((acc, page, idx, arr) => {
+                        if (idx > 0 && page - (arr[idx - 1] as number) > 1) {
+                          acc.push("ellipsis");
+                        }
+                        acc.push(page);
+                        return acc;
+                      }, [])
+                      .map((item, idx) =>
+                        item === "ellipsis" ? (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground text-sm">…</span>
+                        ) : (
+                          <Button
+                            key={item}
+                            variant={currentPage === item ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => { setCurrentPage(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                            className="h-10 w-10 min-h-[44px] min-w-[44px] p-0"
+                            aria-label={`Page ${item}`}
+                            aria-current={currentPage === item ? "page" : undefined}
+                          >
+                            {item}
+                          </Button>
+                        )
+                      )
+                    }
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    disabled={currentPage === totalPages}
+                    className="h-10 min-h-[44px] gap-1"
+                    aria-label="Next page"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Page info */}
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Showing {(currentPage - 1) * JOBS_PER_PAGE + 1}–{Math.min(currentPage * JOBS_PER_PAGE, jobs.length)} of {jobs.length} jobs
+              </p>
+            </>
+          );
+        })()
         }
       </div>
     </div>);
