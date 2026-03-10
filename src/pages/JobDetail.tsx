@@ -167,7 +167,7 @@ export default function JobDetail() {
         } finally {
           setIsLoadingQuestionnaire(false);
         }
-      }
+      
     }
     fetchJob();
   }, [id]);
