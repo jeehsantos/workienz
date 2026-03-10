@@ -155,7 +155,7 @@ export default function JobDetail() {
       });
       setIsLoading(false);
 
-      if (data.hiring_style === 'open_ai_top10') {
+      // Always load questionnaire for AI-powered screening
         setIsLoadingQuestionnaire(true);
         try {
           const qRes = await supabase.functions.invoke('generate-job-questionnaire', {
