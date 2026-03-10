@@ -564,8 +564,8 @@ export default function JobDetail() {
                       </div>
                     )}
 
-                    {/* Questionnaire for open_ai_top10 */}
-                    {job?.hiring_style === 'open_ai_top10' && (
+                    {/* Screening Questionnaire */}
+                    {(
                       <div className="space-y-4">
                         {isLoadingQuestionnaire ? (
                           <div className="flex items-center gap-2 text-muted-foreground p-4">
