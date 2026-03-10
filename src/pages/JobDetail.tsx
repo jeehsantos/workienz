@@ -251,7 +251,7 @@ export default function JobDetail() {
         cover_letter: coverLetter || undefined,
       };
 
-      if (job?.hiring_style === 'open_ai_top10' && Object.keys(questionnaireAnswers).length > 0) {
+      if (Object.keys(questionnaireAnswers).length > 0) {
         requestBody.application_answers = questionnaireAnswers;
       }
 
