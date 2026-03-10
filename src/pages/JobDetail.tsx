@@ -523,7 +523,7 @@ export default function JobDetail() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      {job?.hiring_style === 'open_ai_top10'
+                      {questionnaire?.questions
                         ? "Answer the screening questions below and submit your application."
                         : "Ready to apply? Add a cover letter to stand out!"}
                     </p>
