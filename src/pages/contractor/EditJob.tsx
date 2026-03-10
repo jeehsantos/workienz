@@ -147,7 +147,7 @@ export default function EditJob() {
       setScheduleType(job.schedule_type === "fixed_term" ? "fixed_term" : "shifts");
       setSkills(job.skills_required || []);
       setJobStatus(job.status);
-      setHiringStyle((job as any).hiring_style === "open_ai_top10" ? "open_ai_top10" : "slot_1to1");
+      
       setWeeklyHours((job as any).weekly_hours?.toString() || "");
 
       // Set wizard step
