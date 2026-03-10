@@ -72,7 +72,7 @@ export default function PostJob() {
   const [selectedBenefits, setSelectedBenefits] = useState<string[]>([]);
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [isSSE, setIsSSE] = useState(false);
-  const [hiringStyle, setHiringStyle] = useState<"slot_1to1" | "open_ai_top10">("slot_1to1");
+  
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   const [shifts, setShifts] = useState<Shift[]>([
     { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
