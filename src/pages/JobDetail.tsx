@@ -657,7 +657,7 @@ export default function JobDetail() {
                     {/* Submit button — NEVER blocked by advisory hints */}
                     <Button
                       onClick={handleApply}
-                      disabled={isApplying || (job?.hiring_style === 'open_ai_top10' && (!questionnaire?.questions || questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim())))}
+                      disabled={isApplying || (questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()))}
                       className="w-full"
                     >
                       {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
