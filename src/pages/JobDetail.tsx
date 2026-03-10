@@ -151,11 +151,11 @@ export default function JobDetail() {
         shifts,
         experience_required: (data as any).experience_required ?? false,
         is_sse: (data as any).is_sse ?? false,
-        hiring_style: data.hiring_style || 'slot_1to1',
+        hiring_style: data.hiring_style || 'open_ai_top10',
       });
       setIsLoading(false);
 
-      if (data.hiring_style === 'open_ai_top10') {
+      // Always load questionnaire for AI-powered screening
         setIsLoadingQuestionnaire(true);
         try {
           const qRes = await supabase.functions.invoke('generate-job-questionnaire', {
@@ -167,7 +167,7 @@ export default function JobDetail() {
         } finally {
           setIsLoadingQuestionnaire(false);
         }
-      }
+      
     }
     fetchJob();
   }, [id]);
@@ -251,7 +251,7 @@ export default function JobDetail() {
         cover_letter: coverLetter || undefined,
       };
 
-      if (job?.hiring_style === 'open_ai_top10' && Object.keys(questionnaireAnswers).length > 0) {
+      if (Object.keys(questionnaireAnswers).length > 0) {
         requestBody.application_answers = questionnaireAnswers;
       }
 
@@ -523,7 +523,7 @@ export default function JobDetail() {
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      {job?.hiring_style === 'open_ai_top10'
+                      {questionnaire?.questions
                         ? "Answer the screening questions below and submit your application."
                         : "Ready to apply? Add a cover letter to stand out!"}
                     </p>
@@ -564,8 +564,8 @@ export default function JobDetail() {
                       </div>
                     )}
 
-                    {/* Questionnaire for open_ai_top10 */}
-                    {job?.hiring_style === 'open_ai_top10' && (
+                    {/* Screening Questionnaire */}
+                    {(
                       <div className="space-y-4">
                         {isLoadingQuestionnaire ? (
                           <div className="flex items-center gap-2 text-muted-foreground p-4">
@@ -657,13 +657,13 @@ export default function JobDetail() {
                     {/* Submit button — NEVER blocked by advisory hints */}
                     <Button
                       onClick={handleApply}
-                      disabled={isApplying || (job?.hiring_style === 'open_ai_top10' && (!questionnaire?.questions || questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim())))}
+                      disabled={isApplying || (questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()))}
                       className="w-full"
                     >
                       {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Submit Application
                     </Button>
-                    {job?.hiring_style === 'open_ai_top10' && questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()) && (
+                    {questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()) && (
                       <p className="text-xs text-muted-foreground text-center">
                         Please answer all screening questions to submit your application.
                       </p>
