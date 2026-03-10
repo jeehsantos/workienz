@@ -471,8 +471,6 @@ export default function PostJob() {
             formData={formData}
             maxPositions={maxPositions}
             isFreeTier={isFreeTier}
-            hiringStyle={hiringStyle}
-            onHiringStyleChange={setHiringStyle}
             onChange={updateFormData}
           />
         );

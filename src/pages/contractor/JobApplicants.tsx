@@ -280,10 +280,8 @@ export default function JobApplicants() {
     );
   }
 
-  // Render AI Top-10 view for open_ai_top10 hiring style
-  if (job.hiring_style === "open_ai_top10") {
-    return <AIApplicantsView jobId={jobId!} job={job} />;
-  }
+  // Always render AI Applicants view (all jobs use AI-powered analysis)
+  return <AIApplicantsView jobId={jobId!} job={job} />;
 
   // Existing slot_1to1 view
   return (

@@ -359,8 +359,6 @@ export default function EditJob() {
           <JobDetailsStep
             formData={formData}
             maxPositions={maxPositions}
-            hiringStyle={hiringStyle}
-            onHiringStyleChange={setHiringStyle}
             onChange={updateFormData}
           />
         );
