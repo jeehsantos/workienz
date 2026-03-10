@@ -663,7 +663,7 @@ export default function JobDetail() {
                       {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Submit Application
                     </Button>
-                    {job?.hiring_style === 'open_ai_top10' && questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()) && (
+                    {questionnaire?.questions && questionnaire.questions.some((q: any) => !questionnaireAnswers[q.id]?.trim()) && (
                       <p className="text-xs text-muted-foreground text-center">
                         Please answer all screening questions to submit your application.
                       </p>
