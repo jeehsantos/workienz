@@ -151,7 +151,7 @@ export default function JobDetail() {
         shifts,
         experience_required: (data as any).experience_required ?? false,
         is_sse: (data as any).is_sse ?? false,
-        hiring_style: data.hiring_style || 'slot_1to1',
+        hiring_style: data.hiring_style || 'open_ai_top10',
       });
       setIsLoading(false);
 
