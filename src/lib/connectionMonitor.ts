@@ -38,7 +38,7 @@ class ConnectionPoolMonitor {
   private acquisitionTimes: number[] = [];
   private poolExhaustionCount = 0;
   private alerts: ConnectionPoolAlert[] = [];
-  private monitoringInterval: NodeJS.Timeout | null = null;
+  private monitoringInterval: ReturnType<typeof setInterval> | null = null;
   
   // Thresholds for alerts
   private readonly THRESHOLDS = {

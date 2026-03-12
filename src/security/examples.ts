@@ -240,7 +240,7 @@ export async function example8_CompleteAudit() {
 }
 
 // Run all examples if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (typeof globalThis !== 'undefined' && import.meta.url) {
   (async () => {
     await example1_BasicScan();
     console.log('\n' + '='.repeat(60) + '\n');
