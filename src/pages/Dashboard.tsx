@@ -330,7 +330,8 @@ export default function Dashboard() {
                 <Link to="/guide">Browse Topics</Link>
               </Button>
             </div>
-          )
+          )}
+
           {/* Settings Card - for employees and contractors */}
           {(showEmployeeCards || showContractorCards) && <SettingsCard showReferralProgram={showReferralDashboard} />}
         </div>
