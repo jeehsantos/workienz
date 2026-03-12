@@ -29,6 +29,7 @@ const TalentPool = lazy(() => import("./pages/contractor/TalentPool"));
 const JobSearch = lazy(() => import("./pages/employee/JobSearch"));
 const MyPools = lazy(() => import("./pages/employee/MyPools"));
 const MyShifts = lazy(() => import("./pages/employee/MyShifts"));
+const VerifyWorkRights = lazy(() => import("./pages/employee/VerifyWorkRights"));
 const EmployeeProfile = lazy(() => import("./pages/employee/EmployeeProfile"));
 const ViewProfile = lazy(() => import("./pages/employee/ViewProfile"));
 const Articles = lazy(() => import("./pages/employee/Articles"));
