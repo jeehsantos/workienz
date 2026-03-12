@@ -13,6 +13,7 @@ import {
   CreditCard,
   FolderEdit,
   CalendarCheck,
+  ShieldCheck,
 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 import { SettingsCard } from "@/components/dashboard/SettingsCard";
