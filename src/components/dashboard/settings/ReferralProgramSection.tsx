@@ -8,8 +8,16 @@ import {
 } from "@/components/ui/collapsible";
 import { ReferralDashboard } from "@/components/referrals/ReferralDashboard";
 
-export function ReferralProgramSection() {
+interface ReferralProgramSectionProps {
+  inline?: boolean;
+}
+
+export function ReferralProgramSection({ inline }: ReferralProgramSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  if (inline) {
+    return <ReferralDashboard />;
+  }
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>

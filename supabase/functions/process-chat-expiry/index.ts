@@ -107,15 +107,34 @@ serve(async (req) => {
         if (hoursSinceStart >= 72) {
           logStep("Closing conversation due to inactivity", { conversationId: conv.id, hoursSinceStart });
 
-          // Update conversation status to closed
+          // Update conversation status to closed and schedule deletion in 24h
+          const deletionAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
           const { error: updateError } = await supabaseAdmin
             .from("conversations")
-            .update({ status: "closed" })
+            .update({ 
+              status: "closed",
+              scheduled_deletion_at: deletionAt.toISOString(),
+            })
             .eq("id", conv.id);
 
           if (updateError) {
             errors.push(`Close ${conv.id}: ${updateError.message}`);
             continue;
+          }
+
+          // Expire the linked job application so the slot is freed
+          if (conv.job_application_id) {
+            const { error: appUpdateError } = await supabaseAdmin
+              .from("job_applications")
+              .update({ status: "expired", updated_at: now.toISOString() })
+              .eq("id", conv.job_application_id)
+              .in("status", ["pending"]);
+
+            if (appUpdateError) {
+              logStep("Failed to expire application", { appId: conv.job_application_id, error: appUpdateError.message });
+            } else {
+              logStep("Expired linked application", { appId: conv.job_application_id });
+            }
           }
 
           // Create notifications for both parties

@@ -2,6 +2,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Clock } from "lucide-react";
 
 interface TimePickerProps {
@@ -13,8 +14,7 @@ interface TimePickerProps {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, "0"));
-const MINUTES = ["00", "15", "30", "45"];
-const QUICK_TIMES = ["06:00", "07:00", "08:00", "09:00", "12:00", "13:00", "17:00", "18:00"];
+const MINUTES = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, "0"));
 
 export function TimePicker({
   value,
@@ -23,18 +23,61 @@ export function TimePicker({
   disabled = false,
   className,
 }: TimePickerProps) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
 
-  const handleTimeSelect = (time: string) => {
-    onChange(time);
-    setOpen(false);
-  };
+  const selectedHour = value?.split(":")[0] || "";
+  const selectedMinute = value?.split(":")[1] || "";
 
-  const handleHourMinuteSelect = (hour: string, minute: string) => {
+  const hourListRef = React.useRef<HTMLDivElement>(null);
+  const minuteListRef = React.useRef<HTMLDivElement>(null);
+
+  // Scroll to selected values when popover opens
+  React.useEffect(() => {
+    if (open && selectedHour) {
+      requestAnimationFrame(() => {
+        const hourIdx = HOURS.indexOf(selectedHour);
+        if (hourIdx >= 0 && hourListRef.current) {
+          const item = hourListRef.current.children[hourIdx] as HTMLElement;
+          item?.scrollIntoView({ block: "center", behavior: "instant" });
+        }
+        const minIdx = MINUTES.indexOf(selectedMinute);
+        if (minIdx >= 0 && minuteListRef.current) {
+          const item = minuteListRef.current.children[minIdx] as HTMLElement;
+          item?.scrollIntoView({ block: "center", behavior: "instant" });
+        }
+      });
+    }
+  }, [open, selectedHour, selectedMinute]);
+
+  const handleSelect = (hour: string, minute: string) => {
     onChange(`${hour}:${minute}`);
-    setOpen(false);
   };
 
+  // Mobile: use native time input for best OS-level UX
+  if (isMobile) {
+    return (
+      <div className={cn("relative", className)}>
+        <div className="relative">
+          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="time"
+            value={value || ""}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            className={cn(
+              "flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              !value && "text-muted-foreground"
+            )}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: clean scrollable columns
   return (
     <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
@@ -51,75 +94,58 @@ export function TimePicker({
           <span>{value || placeholder}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent 
-        className="w-[280px] p-0" 
-        align="start" 
+      <PopoverContent
+        className="w-[200px] p-0"
+        align="start"
         sideOffset={4}
-        side="top"
       >
-        {/* Quick select times */}
-        <div className="p-3 border-b">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Quick select</p>
-          <div className="grid grid-cols-4 gap-1">
-            {QUICK_TIMES.map((time) => (
-              <Button
-                key={time}
-                variant={value === time ? "default" : "outline"}
-                size="sm"
-                className="text-xs h-8"
-                onClick={() => handleTimeSelect(time)}
+        <div className="flex border-b border-border px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground flex-1 text-center">Hour</span>
+          <span className="text-xs font-medium text-muted-foreground flex-1 text-center">Min</span>
+        </div>
+        <div className="flex h-[220px]">
+          {/* Hours column */}
+          <div
+            ref={hourListRef}
+            className="flex-1 overflow-y-auto border-r border-border scrollbar-thin py-1"
+          >
+            {HOURS.map((hour) => (
+              <button
+                key={hour}
+                type="button"
+                onClick={() => handleSelect(hour, selectedMinute || "00")}
+                className={cn(
+                  "w-full px-3 py-1.5 text-sm text-center transition-colors hover:bg-accent",
+                  selectedHour === hour
+                    ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                    : "text-foreground"
+                )}
               >
-                {time}
-              </Button>
+                {hour}
+              </button>
             ))}
           </div>
-        </div>
 
-        {/* Hour and Minute grid */}
-        <div className="p-3">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Or select hour & minute</p>
-          <div className="flex gap-3">
-            {/* Hours */}
-            <div className="flex-1">
-              <p className="text-[10px] text-muted-foreground mb-1 text-center">Hour</p>
-              <div className="grid grid-cols-4 gap-1 max-h-[140px] overflow-y-auto">
-                {HOURS.map((hour) => (
-                  <Button
-                    key={hour}
-                    variant={value?.startsWith(hour + ":") ? "default" : "ghost"}
-                    size="sm"
-                    className="text-xs h-7 px-2"
-                    onClick={() => {
-                      const currentMinute = value?.split(":")[1] || "00";
-                      handleHourMinuteSelect(hour, currentMinute);
-                    }}
-                  >
-                    {hour}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Minutes */}
-            <div className="w-16">
-              <p className="text-[10px] text-muted-foreground mb-1 text-center">Min</p>
-              <div className="flex flex-col gap-1">
-                {MINUTES.map((minute) => (
-                  <Button
-                    key={minute}
-                    variant={value?.endsWith(":" + minute) ? "default" : "ghost"}
-                    size="sm"
-                    className="text-xs h-7"
-                    onClick={() => {
-                      const currentHour = value?.split(":")[0] || "09";
-                      handleHourMinuteSelect(currentHour, minute);
-                    }}
-                  >
-                    :{minute}
-                  </Button>
-                ))}
-              </div>
-            </div>
+          {/* Minutes column */}
+          <div
+            ref={minuteListRef}
+            className="flex-1 overflow-y-auto scrollbar-thin py-1"
+          >
+            {MINUTES.map((minute) => (
+              <button
+                key={minute}
+                type="button"
+                onClick={() => handleSelect(selectedHour || "08", minute)}
+                className={cn(
+                  "w-full px-3 py-1.5 text-sm text-center transition-colors hover:bg-accent",
+                  selectedMinute === minute
+                    ? "bg-primary text-primary-foreground font-medium hover:bg-primary/90"
+                    : "text-foreground"
+                )}
+              >
+                {minute}
+              </button>
+            ))}
           </div>
         </div>
       </PopoverContent>

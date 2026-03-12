@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_pre_employment_packs: {
+        Row: {
+          answers: Json | null
+          answers_encrypted: string | null
+          conversation_id: string | null
+          created_at: string
+          downloaded_at: string | null
+          encryption_version: string | null
+          expires_at: string | null
+          id: string
+          job_application_id: string
+          pack_version: string
+          required_by_user_id: string
+          reviewed_at: string | null
+          started_at: string | null
+          status: string
+          submitted_at: string | null
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json | null
+          answers_encrypted?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          downloaded_at?: string | null
+          encryption_version?: string | null
+          expires_at?: string | null
+          id?: string
+          job_application_id: string
+          pack_version?: string
+          required_by_user_id: string
+          reviewed_at?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json | null
+          answers_encrypted?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          downloaded_at?: string | null
+          encryption_version?: string | null
+          expires_at?: string | null
+          id?: string
+          job_application_id?: string
+          pack_version?: string
+          required_by_user_id?: string
+          reviewed_at?: string | null
+          started_at?: string | null
+          status?: string
+          submitted_at?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_pre_employment_packs_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: true
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_pre_employment_packs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_pre_employment_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       article_categories: {
         Row: {
           created_at: string
@@ -46,6 +121,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      article_chunks: {
+        Row: {
+          article_id: string
+          chunk_index: number
+          chunk_text: string
+          embedding: string | null
+          id: string
+          search_vector: unknown
+          token_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          chunk_index: number
+          chunk_text: string
+          embedding?: string | null
+          id?: string
+          search_vector?: unknown
+          token_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          chunk_index?: number
+          chunk_text?: string
+          embedding?: string | null
+          id?: string
+          search_vector?: unknown
+          token_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_chunks_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       article_reports: {
         Row: {
@@ -95,6 +211,7 @@ export type Database = {
         Row: {
           article_type: string | null
           author_id: string
+          canonical_text: string | null
           category: string | null
           content: string
           content_blocks: Json | null
@@ -116,6 +233,7 @@ export type Database = {
         Insert: {
           article_type?: string | null
           author_id: string
+          canonical_text?: string | null
           category?: string | null
           content: string
           content_blocks?: Json | null
@@ -137,6 +255,7 @@ export type Database = {
         Update: {
           article_type?: string | null
           author_id?: string
+          canonical_text?: string | null
           category?: string | null
           content?: string
           content_blocks?: Json | null
@@ -171,6 +290,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contractor_ai_usage_ledger: {
+        Row: {
+          contractor_user_id: string
+          count: number
+          created_at: string
+          event_type: string
+          id: string
+          job_id: string
+        }
+        Insert: {
+          contractor_user_id: string
+          count?: number
+          created_at?: string
+          event_type: string
+          id?: string
+          job_id: string
+        }
+        Update: {
+          contractor_user_id?: string
+          count?: number
+          created_at?: string
+          event_type?: string
+          id?: string
+          job_id?: string
+        }
+        Relationships: []
+      }
+      contractor_application_notes: {
+        Row: {
+          application_id: string
+          contractor_user_id: string
+          created_at: string
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          contractor_user_id: string
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          contractor_user_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       contractor_entitlements: {
         Row: {
@@ -243,6 +416,39 @@ export type Database = {
           },
         ]
       }
+      contractor_favorite_workers: {
+        Row: {
+          contractor_user_id: string
+          created_at: string
+          employee_profile_id: string
+          employee_user_id: string
+          id: string
+          job_id: string | null
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          contractor_user_id: string
+          created_at?: string
+          employee_profile_id: string
+          employee_user_id: string
+          id?: string
+          job_id?: string | null
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contractor_user_id?: string
+          created_at?: string
+          employee_profile_id?: string
+          employee_user_id?: string
+          id?: string
+          job_id?: string | null
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contractor_packages: {
         Row: {
           created_at: string
@@ -276,6 +482,36 @@ export type Database = {
         }
         Relationships: []
       }
+      contractor_pre_employment_templates: {
+        Row: {
+          contractor_id: string
+          created_at: string
+          id: string
+          name: string
+          template_schema: Json
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          contractor_id: string
+          created_at?: string
+          id?: string
+          name: string
+          template_schema?: Json
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          contractor_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          template_schema?: Json
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
       contractor_profiles: {
         Row: {
           avatar_url: string | null
@@ -290,6 +526,8 @@ export type Database = {
           is_entrepreneur: boolean | null
           is_verified: boolean | null
           phone: string | null
+          pre_employment_file_name: string | null
+          pre_employment_file_url: string | null
           suburb: string | null
           updated_at: string
           user_id: string
@@ -308,6 +546,8 @@ export type Database = {
           is_entrepreneur?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
+          pre_employment_file_name?: string | null
+          pre_employment_file_url?: string | null
           suburb?: string | null
           updated_at?: string
           user_id: string
@@ -326,10 +566,132 @@ export type Database = {
           is_entrepreneur?: boolean | null
           is_verified?: boolean | null
           phone?: string | null
+          pre_employment_file_name?: string | null
+          pre_employment_file_url?: string | null
           suburb?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null
+        }
+        Relationships: []
+      }
+      contractor_referral_codes: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          referral_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          referral_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          referral_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contractor_referral_rewards: {
+        Row: {
+          created_at: string
+          days_granted: number
+          entitlement_id: string | null
+          granted_at: string
+          id: string
+          job_post_id: string
+          referral_id: string
+          referrer_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_granted: number
+          entitlement_id?: string | null
+          granted_at?: string
+          id?: string
+          job_post_id: string
+          referral_id: string
+          referrer_user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_granted?: number
+          entitlement_id?: string | null
+          granted_at?: string
+          id?: string
+          job_post_id?: string
+          referral_id?: string
+          referrer_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_referral_rewards_entitlement_id_fkey"
+            columns: ["entitlement_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_entitlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_referral_rewards_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contractor_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: unknown
+          qualified_at: string | null
+          referral_code: string
+          referred_user_id: string
+          referrer_user_id: string
+          status: string
+          updated_at: string
+          user_agent: string | null
+          voided_at: string | null
+          voided_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          qualified_at?: string | null
+          referral_code: string
+          referred_user_id: string
+          referrer_user_id: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          qualified_at?: string | null
+          referral_code?: string
+          referred_user_id?: string
+          referrer_user_id?: string
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          voided_at?: string | null
+          voided_reason?: string | null
         }
         Relationships: []
       }
@@ -383,6 +745,57 @@ export type Database = {
             columns: ["package_id"]
             isOneToOne: false
             referencedRelation: "contractor_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contractor_talent_pool_members: {
+        Row: {
+          category: string
+          contractor_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          source_application_id: string | null
+          source_job_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          contractor_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          source_application_id?: string | null
+          source_job_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          contractor_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          source_application_id?: string | null
+          source_job_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contractor_talent_pool_members_source_application_id_fkey"
+            columns: ["source_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contractor_talent_pool_members_source_job_id_fkey"
+            columns: ["source_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -616,8 +1029,45 @@ export type Database = {
         }
         Relationships: []
       }
+      job_ai_questionnaires: {
+        Row: {
+          generated_at: string
+          job_id: string
+          model: string
+          prompt_version: string
+          questionnaire: Json
+        }
+        Insert: {
+          generated_at?: string
+          job_id: string
+          model: string
+          prompt_version?: string
+          questionnaire: Json
+        }
+        Update: {
+          generated_at?: string
+          job_id?: string
+          model?: string
+          prompt_version?: string
+          questionnaire?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_ai_questionnaires_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_applications: {
         Row: {
+          ai_reason_summary: string | null
+          ai_score: number | null
+          ai_score_updated_at: string | null
+          ai_scoring_status: string
+          application_answers: Json | null
           cover_letter: string | null
           created_at: string
           employee_id: string
@@ -627,6 +1077,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_reason_summary?: string | null
+          ai_score?: number | null
+          ai_score_updated_at?: string | null
+          ai_scoring_status?: string
+          application_answers?: Json | null
           cover_letter?: string | null
           created_at?: string
           employee_id: string
@@ -636,6 +1091,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_reason_summary?: string | null
+          ai_score?: number | null
+          ai_score_updated_at?: string | null
+          ai_scoring_status?: string
+          application_answers?: Json | null
           cover_letter?: string | null
           created_at?: string
           employee_id?: string
@@ -695,6 +1155,7 @@ export type Database = {
         Row: {
           break_minutes: number | null
           break_paid: boolean | null
+          capacity: number
           created_at: string
           end_time: string
           id: string
@@ -705,6 +1166,7 @@ export type Database = {
         Insert: {
           break_minutes?: number | null
           break_paid?: boolean | null
+          capacity?: number
           created_at?: string
           end_time: string
           id?: string
@@ -715,6 +1177,7 @@ export type Database = {
         Update: {
           break_minutes?: number | null
           break_paid?: boolean | null
+          capacity?: number
           created_at?: string
           end_time?: string
           id?: string
@@ -725,6 +1188,48 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "job_shifts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_top_candidates: {
+        Row: {
+          id: string
+          job_application_id: string
+          job_id: string
+          rank: number
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          job_application_id: string
+          job_id: string
+          rank: number
+          score: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          job_application_id?: string
+          job_id?: string
+          rank?: number
+          score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_top_candidates_job_application_id_fkey"
+            columns: ["job_application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_top_candidates_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -770,6 +1275,8 @@ export type Database = {
           ends_at: string | null
           experience_required: boolean | null
           form_data: Json | null
+          hiring_config: Json
+          hiring_style: string
           hourly_rate_max: number | null
           hourly_rate_min: number | null
           id: string
@@ -779,6 +1286,7 @@ export type Database = {
           location_city: string | null
           location_country: string | null
           location_suburb: string | null
+          max_applications: number | null
           positions_available: number
           positions_filled: number
           provides_accommodation: boolean | null
@@ -788,6 +1296,7 @@ export type Database = {
           requires_heavy_lifting: boolean | null
           requires_standing: boolean | null
           schedule_type: string | null
+          shift_allocation_mode: string
           skills_required: string[] | null
           starts_at: string | null
           status: Database["public"]["Enums"]["job_status"]
@@ -804,6 +1313,8 @@ export type Database = {
           ends_at?: string | null
           experience_required?: boolean | null
           form_data?: Json | null
+          hiring_config?: Json
+          hiring_style?: string
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
@@ -813,6 +1324,7 @@ export type Database = {
           location_city?: string | null
           location_country?: string | null
           location_suburb?: string | null
+          max_applications?: number | null
           positions_available?: number
           positions_filled?: number
           provides_accommodation?: boolean | null
@@ -822,6 +1334,7 @@ export type Database = {
           requires_heavy_lifting?: boolean | null
           requires_standing?: boolean | null
           schedule_type?: string | null
+          shift_allocation_mode?: string
           skills_required?: string[] | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -838,6 +1351,8 @@ export type Database = {
           ends_at?: string | null
           experience_required?: boolean | null
           form_data?: Json | null
+          hiring_config?: Json
+          hiring_style?: string
           hourly_rate_max?: number | null
           hourly_rate_min?: number | null
           id?: string
@@ -847,6 +1362,7 @@ export type Database = {
           location_city?: string | null
           location_country?: string | null
           location_suburb?: string | null
+          max_applications?: number | null
           positions_available?: number
           positions_filled?: number
           provides_accommodation?: boolean | null
@@ -856,6 +1372,7 @@ export type Database = {
           requires_heavy_lifting?: boolean | null
           requires_standing?: boolean | null
           schedule_type?: string | null
+          shift_allocation_mode?: string
           skills_required?: string[] | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -1185,6 +1702,57 @@ export type Database = {
         }
         Relationships: []
       }
+      shift_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          created_at: string
+          employee_user_id: string
+          id: string
+          job_id: string
+          shift_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          created_at?: string
+          employee_user_id: string
+          id?: string
+          job_id: string
+          shift_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          created_at?: string
+          employee_user_id?: string
+          id?: string
+          job_id?: string
+          shift_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_assignments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_assignments_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "job_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -1301,11 +1869,38 @@ export type Database = {
         Args: { verified_count: number }
         Returns: number
       }
+      check_job_application_slot: {
+        Args: { p_job_id: string }
+        Returns: boolean
+      }
+      claim_shift_atomic: {
+        Args: {
+          p_employee_user_id: string
+          p_job_id: string
+          p_shift_id: string
+        }
+        Returns: Json
+      }
       cleanup_scheduled_conversations: { Args: never; Returns: number }
       contractor_has_published_jobs: {
         Args: { _contractor_profile_id: string }
         Returns: boolean
       }
+      create_job_application_atomic: {
+        Args: {
+          p_ai_scoring_status?: string
+          p_application_answers?: Json
+          p_cover_letter?: string
+          p_employee_id: string
+          p_job_id: string
+        }
+        Returns: Json
+      }
+      execute_hire_transaction: {
+        Args: { p_application_id: string; p_contractor_user_id: string }
+        Returns: Json
+      }
+      generate_contractor_referral_code: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_referral_credits_balance: {
         Args: { _user_id: string }
@@ -1328,11 +1923,34 @@ export type Database = {
         }
         Returns: boolean
       }
+      match_article_chunks: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          query_text: string
+          scope_article_id?: string
+        }
+        Returns: {
+          article_id: string
+          chunk_text: string
+          similarity: number
+          slug: string
+          title: string
+        }[]
+      }
+      request_shift_atomic: {
+        Args: {
+          p_employee_user_id: string
+          p_job_id: string
+          p_shift_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "contractor" | "employee" | "writer"
       article_type: "qa" | "guide" | "checklist"
-      job_status: "draft" | "published" | "closed" | "filled"
+      job_status: "draft" | "published" | "closed" | "filled" | "private"
       referral_status: "pending" | "verified" | "voided"
       subscription_status: "active" | "cancelled" | "expired" | "pending"
       user_stage: "before_arrival" | "arrival" | "first_30_days" | "living_here"
@@ -1466,7 +2084,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "contractor", "employee", "writer"],
       article_type: ["qa", "guide", "checklist"],
-      job_status: ["draft", "published", "closed", "filled"],
+      job_status: ["draft", "published", "closed", "filled", "private"],
       referral_status: ["pending", "verified", "voided"],
       subscription_status: ["active", "cancelled", "expired", "pending"],
       user_stage: ["before_arrival", "arrival", "first_30_days", "living_here"],

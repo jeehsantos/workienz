@@ -12,6 +12,7 @@ import {
   BarChart3,
   CreditCard,
   FolderEdit,
+  CalendarCheck,
 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 import { SettingsCard } from "@/components/dashboard/SettingsCard";
@@ -176,6 +177,20 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Employee: My Shifts */}
+          {showEmployeeCards && (
+            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                <CalendarCheck className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display">My Shifts</h3>
+              <p className="text-muted-foreground text-sm mb-4">View your shift assignments and browse available shifts.</p>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/employee/shifts">View Shifts</Link>
+              </Button>
+            </div>
+          )}
+
           {/* Writer-specific */}
           {showWriterCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
@@ -185,7 +200,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold mb-2 font-display">Write Topic</h3>
               <p className="text-muted-foreground text-sm mb-4">Create educational content for employees.</p>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/writer/new-article">Write Topic</Link>
+                <Link to="/writer/new-guide">Write Topic</Link>
               </Button>
             </div>
           )}
@@ -270,6 +285,22 @@ export default function Dashboard() {
             </Link>
           )}
 
+          {/* Admin Settings */}
+          {showAdminCards && (
+            <Link
+              to="/admin/settings"
+              className="bg-card rounded-xl p-6 shadow-soft border border-border/50 hover:shadow-md transition-all hover:border-primary/30 group block"
+            >
+              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-muted/80 transition-colors">
+                <CreditCard className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2 font-display group-hover:text-primary transition-colors">
+                Platform Settings
+              </h3>
+              <p className="text-muted-foreground text-sm mb-4">Configure platform-wide settings and limits.</p>
+            </Link>
+          )}
+
           {/* Topics (for employees) */}
           {showEmployeeCards && (
             <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
@@ -286,17 +317,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Billing & Subscription - for all users */}
-          <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-              <CreditCard className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2 font-display">Billing & Subscription</h3>
-            <p className="text-muted-foreground text-sm mb-4">View your plan details and manage billing.</p>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/subscription">Manage Subscription</Link>
-            </Button>
-          </div>
 
           {/* Settings Card - for employees and contractors */}
           {(showEmployeeCards || showContractorCards) && <SettingsCard showReferralProgram={showReferralDashboard} />}

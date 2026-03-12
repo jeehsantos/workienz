@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimePicker } from "@/components/ui/time-picker";
-import { Clock, Plus, X } from "lucide-react";
+import { Clock, Plus, X, Users } from "lucide-react";
 
 type Shift = {
   id: string;
@@ -92,76 +92,17 @@ export function ScheduleStep({
 
       {scheduleType === "shifts" ? (
         <div className="space-y-4">
-          {shifts.map((shift, index) => (
-            <div key={shift.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Shift {index + 1}</span>
-                {shifts.length > 1 && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeShift(shift.id)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Date *</Label>
-                  <DatePicker
-                    value={shift.date}
-                    onChange={(date) => updateShift(shift.id, "date", date)}
-                    placeholder="Select date"
-                    disabledDates={(date) => date < new Date()}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Start Time *</Label>
-                    <TimePicker
-                      value={shift.start_time}
-                      onChange={(value) => updateShift(shift.id, "start_time", value)}
-                      placeholder="Start time"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">End Time *</Label>
-                    <TimePicker
-                      value={shift.end_time}
-                      onChange={(value) => updateShift(shift.id, "end_time", value)}
-                      placeholder="End time"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Break (min)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={shift.break_minutes}
-                      onChange={(e) => updateShift(shift.id, "break_minutes", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Break Paid?</Label>
-                    <Select
-                      value={shift.break_paid ? "yes" : "no"}
-                      onValueChange={(v) => updateShift(shift.id, "break_paid", v === "yes")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent position="popper" sideOffset={4}>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="yes">Yes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+          <div className="p-6 bg-muted/50 rounded-lg border border-border/50">
+            <div className="flex items-start gap-3">
+              <Users className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm mb-1">Shift-Based Role</p>
+                <p className="text-sm text-muted-foreground">
+                  This is a shift-based role. You'll add and manage shifts after you've screened and built your Talent Pool.
+                </p>
               </div>
             </div>
-          ))}
-          <Button type="button" variant="outline" onClick={addShift} className="w-full">
-            <Plus className="w-4 h-4 mr-2" />Add Another Shift
-          </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

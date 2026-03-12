@@ -11,7 +11,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export function ResetPasswordSection() {
+interface ResetPasswordSectionProps {
+  inline?: boolean;
+}
+
+export function ResetPasswordSection({ inline }: ResetPasswordSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -55,6 +59,45 @@ export function ResetPasswordSection() {
     }
   };
 
+  const formContent = (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="new-password">New Password</Label>
+        <Input
+          id="new-password"
+          type="password"
+          placeholder="Enter new password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          disabled={isLoading}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="confirm-password">Confirm New Password</Label>
+        <Input
+          id="confirm-password"
+          type="password"
+          placeholder="Confirm new password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          disabled={isLoading}
+        />
+      </div>
+      <Button
+        onClick={handleResetPassword}
+        disabled={isLoading}
+        className="w-full sm:w-auto"
+      >
+        {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+        Save Password
+      </Button>
+    </div>
+  );
+
+  if (inline) {
+    return formContent;
+  }
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
@@ -82,36 +125,7 @@ export function ResetPasswordSection() {
       </CollapsibleTrigger>
       <CollapsibleContent className="px-4 pb-4">
         <div className="space-y-4 pt-4 border-t mt-2">
-          <div className="space-y-2">
-            <Label htmlFor="new-password">New Password</Label>
-            <Input
-              id="new-password"
-              type="password"
-              placeholder="Enter new password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm New Password</Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-          <Button
-            onClick={handleResetPassword}
-            disabled={isLoading}
-            className="w-full sm:w-auto"
-          >
-            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save Password
-          </Button>
+          {formContent}
         </div>
       </CollapsibleContent>
     </Collapsible>

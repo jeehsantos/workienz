@@ -1,103 +1,37 @@
-project_id = "xzrlnezeuubdoqllvodi"
+project_id = "dkhcdzxelkkpxhmxazqi"
 
-# Database connection pooling configuration
-[db]
-# Connection pool settings for optimal performance
-pooler_enabled = true
-pool_mode = "transaction"  # Use transaction pooling for better performance
-default_pool_size = 15     # Default pool size per user
-max_client_conn = 100      # Maximum client connections
-pool_timeout = 30          # Connection timeout in seconds
-
-[functions.send-password-reset]
+[functions.generate-job-questionnaire]
 verify_jwt = false
 
-[functions.generate-2fa-secret]
-verify_jwt = true
-
-[functions.verify-2fa-code]
+[functions.score-application-ai]
 verify_jwt = false
 
-[functions.send-contact-email]
+[functions.refresh-top-candidates]
 verify_jwt = false
 
-[functions.create-checkout-session]
+[functions.ingest-article-embeddings]
 verify_jwt = false
 
-[functions.customer-portal]
-verify_jwt = true
-
-[functions.stripe-webhook]
+[functions.rag-chat-answer]
 verify_jwt = false
 
-[functions.create-payment-intent]
+[functions.bulk-ingest-articles]
 verify_jwt = false
 
-[functions.send-subscription-email]
+[functions.update-application-status]
 verify_jwt = false
 
-[functions.check-subscription-expiry]
+[functions.manage-pre-employment-template]
 verify_jwt = false
 
-[functions.process-chat-expiry]
+[functions.submit-pack-answers]
 verify_jwt = false
 
-[functions.send-chat-reminder]
+[functions.download-pack-answers]
 verify_jwt = false
 
-[functions.hire-applicant]
+[functions.cleanup-expired-packs]
 verify_jwt = false
 
-[functions.validate-application]
-verify_jwt = false
-
-[functions.submit-application]
-verify_jwt = false
-
-[functions.finalize-purchase]
-verify_jwt = false
-
-[functions.get-contractor-entitlements]
-verify_jwt = false
-
-[functions.validate-job-posting]
-verify_jwt = false
-
-[functions.create-job]
-verify_jwt = false
-
-[functions.get-worker-profile]
-verify_jwt = false
-
-[functions.search-workers]
-verify_jwt = false
-
-[functions.update-subscription]
-verify_jwt = false
-
-[functions.cancel-subscription]
-verify_jwt = false
-
-[functions.cleanup-hired-conversations]
-verify_jwt = false
-
-[functions.get-pending-changes]
-verify_jwt = false
-
-[functions.seed-test-users]
-verify_jwt = false
-
-[functions.activate-entitlement]
-verify_jwt = false
-
-[functions.request-reimbursement]
-verify_jwt = false
-
-[functions.manage-partner]
-verify_jwt = false
-
-[functions.get-active-partners]
-verify_jwt = false
-
-[functions.send-confirmation-email]
+[functions.manage-shifts]
 verify_jwt = false

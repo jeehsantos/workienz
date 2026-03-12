@@ -174,15 +174,55 @@ serve(async (req) => {
     // Check for free tier - support both 'free_tier' and 'free_contractor' plan types
     const isFreeTier = selectedEntitlement.plan_type === "free_tier" || selectedEntitlement.plan_type === "free_contractor";
 
-    const result: ValidationResult = {
+    // BLOCKING LOGIC: Check if contractor has unresolved private job offers
+    const { data: privateJobs } = await supabaseClient
+      .from("jobs")
+      .select("id, title")
+      .eq("contractor_id", (await supabaseClient.from("contractor_profiles").select("id").eq("user_id", user.id).single()).data?.id)
+      .eq("status", "private");
+
+    if (privateJobs && privateJobs.length > 0) {
+      // Check if any private jobs have pending applications (unresolved offers)
+      const privateJobIds = privateJobs.map(j => j.id);
+      const { data: pendingApps } = await supabaseClient
+        .from("job_applications")
+        .select("id, job_id")
+        .in("job_id", privateJobIds)
+        .in("status", ["pending", "shortlisted"]);
+
+      if (pendingApps && pendingApps.length > 0) {
+        const unresolvedJob = privateJobs.find(j => pendingApps.some(a => a.job_id === j.id));
+        // Phase 7: Convert to warning only — do NOT block posting
+        logStep("Warning - unresolved private offer (non-blocking)", { unresolvedJob });
+        // Fall through to success with a warning attached
+      }
+    }
+
+    // Check for unresolved private offer warning
+    let warningMessage: string | null = null;
+    if (privateJobs && privateJobs.length > 0) {
+      const { data: pendingAppsCheck } = await supabaseClient
+        .from("job_applications")
+        .select("id, job_id")
+        .in("job_id", privateJobs.map(j => j.id))
+        .in("status", ["pending", "shortlisted"])
+        .limit(1);
+      if (pendingAppsCheck && pendingAppsCheck.length > 0) {
+        const unresolvedJob = privateJobs.find(j => pendingAppsCheck.some(a => a.job_id === j.id));
+        warningMessage = `You have an unresolved position offer for "${unresolvedJob?.title || 'a job'}". Consider hiring or rejecting the applicant.`;
+      }
+    }
+
+    const result: ValidationResult & { warning?: string | null } = {
       can_post: true,
       remaining_posts: remaining,
       error_code: null,
-      message: null,
+      message: warningMessage,
       current_tier: selectedEntitlement.plan_type,
       plan_type: selectedEntitlement.plan_type,
       upgrade_options: [],
       entitlement_id: selectedEntitlement.id,
+      warning: warningMessage,
     };
 
     logStep("Validation passed", result);

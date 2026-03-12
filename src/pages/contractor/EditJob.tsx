@@ -60,6 +60,7 @@ export default function EditJob() {
   const [selectedBenefits, setSelectedBenefits] = useState<string[]>([]);
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [isSSE, setIsSSE] = useState(false);
+  
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   const [shifts, setShifts] = useState<Shift[]>([
     { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
@@ -146,6 +147,7 @@ export default function EditJob() {
       setScheduleType(job.schedule_type === "fixed_term" ? "fixed_term" : "shifts");
       setSkills(job.skills_required || []);
       setJobStatus(job.status);
+      
       setWeeklyHours((job as any).weekly_hours?.toString() || "");
 
       // Set wizard step
@@ -221,11 +223,8 @@ export default function EditJob() {
         return true;
       case 5:
         if (scheduleType === "shifts") {
-          const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-          if (validShifts.length === 0) {
-            toast({ title: "Schedule required", description: "Please add at least one shift.", variant: "destructive" });
-            return false;
-          }
+          // Shift-based jobs don't require shift instances at posting time
+          return true;
         } else {
           if (!fixedTermStart) {
             toast({ title: "Start date required", description: "Please select a start date.", variant: "destructive" });
@@ -280,7 +279,7 @@ export default function EditJob() {
       location_city: formData.location_city || null,
       location_suburb: formData.location_suburb || null,
       location_country: formData.location_country || null,
-      job_type: formData.job_type,
+      job_type: scheduleType === "shifts" ? "shift" : "normal",
       duration: formData.duration || null,
       hourly_rate_min: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
       hourly_rate_max: null,
@@ -298,6 +297,8 @@ export default function EditJob() {
       requires_car: requiresCar,
       provides_training: selectedBenefits.includes("Provides training"),
       provides_accommodation: selectedBenefits.includes("Provides accommodation"),
+      hiring_style: "open_ai_top10",
+      hiring_config: { top_n: 10, question_count: 8, score_version: "v1", refresh_debounce_seconds: 60 },
     };
 
     // Prepare shifts data

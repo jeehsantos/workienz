@@ -1,194 +1,63 @@
 
-# Email Confirmation Implementation Plan
 
-## Overview
-Implement a complete email verification flow that requires users to confirm their email address before accessing the platform. This will be a backend-first approach using a custom Edge Function to send branded emails via Resend.
+## Plan: Fix 4 Pooling Process Issues
 
-## Current State Analysis
-- **No email verification exists** - Users are immediately logged in after signup
-- **Resend is already configured** - Password reset emails use it with branded templates
-- **Logo already hosted** - Available at `https://workienz.lovable.app/workie-logo.png`
-- **Referral verification** - The `verify-referral` function expects email confirmation to trigger
+### Issue 1: "Approved_to_pool" status label is unprofessional
 
----
+**Problem**: Raw database status `approved_to_pool` is displayed as-is in badges across the UI.
 
-## Implementation Components
+**Fix**: Add a display label map in `ApplicantList.tsx` StatusBadge and any other location showing this status. Map `approved_to_pool` to "In Talent Pool" (already done in `JobApplicants.tsx` but missing in `ApplicantList.tsx`).
 
-### 1. Backend: Edge Function for Confirmation Email
-**File:** `supabase/functions/send-confirmation-email/index.ts`
-
-Create a new Edge Function that:
-- Accepts user email and generates a secure confirmation link using Supabase Admin API
-- Sends a beautifully branded HTML email via Resend
-- Uses the same design language as the password reset email (green gradient CTA, Workie logo, clean card layout)
-
-**Email Design Elements:**
-- Workie logo header
-- Welcome message with user's first name
-- Clear call-to-action button with green gradient
-- Security notice about link expiration
-- Footer with copyright
-
-### 2. Configuration: Edge Function JWT Setting
-**File:** `supabase/config.toml`
-
-Add configuration entry:
-```toml
-[functions.send-confirmation-email]
-verify_jwt = false
-```
-
-### 3. Frontend: Update Signup Flow
-**File:** `src/hooks/useAuth.ts`
-
-Modify the `signUp` function to:
-- After successful signup, call the confirmation email Edge Function
-- Return data indicating whether confirmation is needed
-
-### 4. Frontend: Confirmation Pending UI
-**File:** `src/pages/Auth.tsx`
-
-Add a new state and UI component:
-- `emailConfirmationPending` state
-- Display a "Check Your Email" screen instead of redirecting
-- Show the registered email address
-- Provide a "Resend Email" button
-- Include instructions to check spam folder
-
-### 5. Frontend: Email Verification Handler Route
-**File:** `src/pages/VerifyEmail.tsx` (new file)
-
-Create a new page that:
-- Handles the redirect from the confirmation email
-- Processes the token automatically (Supabase handles this)
-- Triggers the referral verification if applicable
-- Shows success message and redirects to dashboard
-
-### 6. Routing: Add Verification Route
-**File:** `src/App.tsx`
-
-Add the new route:
-```tsx
-<Route path="/verify-email" element={<VerifyEmail />} />
-```
+**Files to edit**:
+- `src/components/applicants/ApplicantList.tsx` -- Update `StatusBadge` to use friendly labels: `approved_to_pool` -> "In Talent Pool", `pending` -> "Pending", etc.
+- `src/pages/contractor/ContractorJobDetail.tsx` -- If status badges appear here, apply the same label map.
 
 ---
 
-## User Flow
+### Issue 2: No chat message sent when applicant is approved to pool
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                         SIGNUP FLOW                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1. User fills signup form                                      │
-│              │                                                  │
-│              ▼                                                  │
-│  2. Frontend calls signUp()                                     │
-│              │                                                  │
-│              ▼                                                  │
-│  3. Edge Function sends branded confirmation email              │
-│              │                                                  │
-│              ▼                                                  │
-│  4. Show "Check Your Email" screen (no dashboard access)        │
-│              │                                                  │
-│              ▼                                                  │
-│  5. User clicks email link                                      │
-│              │                                                  │
-│              ▼                                                  │
-│  6. /verify-email page processes confirmation                   │
-│              │                                                  │
-│              ▼                                                  │
-│  7. Trigger referral verification (if applicable)               │
-│              │                                                  │
-│              ▼                                                  │
-│  8. Redirect to Dashboard with success message                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Problem**: The `update-application-status` edge function upserts the pool membership but never sends a message to the existing conversation or creates a notification.
+
+**Fix**: After successful pool upsert in the edge function, insert a system-style message into the conversation (if one exists) and create a notification for the employee.
+
+**File to edit**:
+- `supabase/functions/update-application-status/index.ts` -- After the `approved_to_pool` block (line ~148), look up the conversation for this application, insert a message like: "You've been added to [Company]'s talent pool for [category]. You can now browse and request available shifts from your Talent Pools page." Also insert a notification row.
 
 ---
 
-## Technical Details
+### Issue 3: No dedicated "My Shifts" page for employees
 
-### Confirmation Email Template
-The email will match the existing password reset design:
-- **Header:** Workie logo centered
-- **Card:** White background with rounded corners and shadow
-- **Title:** "Activate Your Account"
-- **Body:** Personalized welcome message
-- **CTA:** Green gradient button "Activate Account"
-- **Expiry notice:** 24-hour link validity
-- **Footer:** Copyright notice
+**Problem**: Employees can only see shifts buried inside the "My Pools" page by expanding each pool. There's no unified view of all their shift assignments (confirmed, requested, completed).
 
-### Security Considerations
-- Uses Supabase Admin API `generateLink` with type "signup"
-- Link expires after 24 hours
-- Email confirmation required before accessing protected routes
-- Frontend checks `user.email_confirmed_at` to determine access
+**Fix**: Create a new `src/pages/employee/MyShifts.tsx` page showing all the employee's shift assignments across all jobs/pools, grouped by status (Upcoming Confirmed, Pending Requests, Past/Completed). Add a route `/employee/shifts` and a dashboard card.
 
-### Sign-In Behavior Update
-For users who try to sign in without confirming:
-- Supabase returns `Email not confirmed` error
-- Display helpful message with option to resend confirmation email
+**Files to create/edit**:
+- `src/pages/employee/MyShifts.tsx` (new) -- Query `shift_assignments` for the current user, join with `job_shifts` and `jobs` for context. Group by: Upcoming Confirmed, Pending Requests, Past shifts.
+- `src/App.tsx` -- Add lazy import and route for `/employee/shifts`.
+- `src/pages/Dashboard.tsx` -- Add a "My Shifts" card for employees linking to `/employee/shifts`.
 
 ---
 
-## Files to Create/Modify
+### Issue 4: Employee self-assignment to shifts (configurable by contractor)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `supabase/functions/send-confirmation-email/index.ts` | Create | Backend email sending with branded template |
-| `supabase/config.toml` | Modify | Add function JWT config |
-| `src/pages/VerifyEmail.tsx` | Create | Handle email confirmation callback |
-| `src/pages/Auth.tsx` | Modify | Add confirmation pending state and UI |
-| `src/hooks/useAuth.ts` | Modify | Integrate confirmation email sending |
-| `src/App.tsx` | Modify | Add /verify-email route |
+**Problem**: Currently only contractors can assign workers to shifts. Employees should be able to self-assign based on the job's `shift_allocation_mode` (already partially implemented via `EmployeeShiftBrowser`).
 
----
+**Analysis**: The `EmployeeShiftBrowser` component and the `manage-shifts` edge function already support `request_shift` and `claim_shift` actions with atomic RPCs. The `MyPools` page already renders `EmployeeShiftBrowser` per job. The new `MyShifts` page will also link to available shifts. The infrastructure is largely in place.
 
-## Branded Email Preview
+**Fix**: Ensure the new `MyShifts` page includes a section/link to browse available shifts. The `EmployeeShiftBrowser` already handles both modes. Add a prominent "Browse Available Shifts" link from `MyShifts` to `MyPools` (where shift browsing lives). Optionally, surface available shifts directly on `MyShifts` as well.
 
-The confirmation email will look like this:
-
-```
-┌──────────────────────────────────────────┐
-│                                          │
-│            [Workie Logo]                 │
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │                                    │  │
-│  │    Activate Your Account           │  │
-│  │                                    │  │
-│  │    Hi [First Name],                │  │
-│  │                                    │  │
-│  │    Welcome to Workie! Click the    │  │
-│  │    button below to verify your     │  │
-│  │    email and start your journey.   │  │
-│  │                                    │  │
-│  │    ┌────────────────────────┐      │  │
-│  │    │  Activate Account      │      │  │
-│  │    └────────────────────────┘      │  │
-│  │                                    │  │
-│  │    This link expires in 24 hours   │  │
-│  │                                    │  │
-│  │    ─────────────────────────────   │  │
-│  │    If you didn't create an         │  │
-│  │    account, ignore this email.     │  │
-│  │                                    │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│       © 2026 Workie. All rights reserved │
-│                                          │
-└──────────────────────────────────────────┘
-```
+**Files to edit**:
+- `src/pages/employee/MyShifts.tsx` (new, from Issue 3) -- Include an "Available Shifts" section that reuses `EmployeeShiftBrowser` or links to pools page.
 
 ---
 
-## Expected Outcome
-After implementation:
-1. Users must verify email before accessing the platform
-2. Branded, professional confirmation emails matching Workie's design
-3. Clear UX with "Check Your Email" screen and resend option
-4. Automatic referral verification upon email confirmation
-5. Secure, backend-driven email delivery via Resend
+### Summary of changes
+
+| File | Action |
+|------|--------|
+| `src/components/applicants/ApplicantList.tsx` | Fix status label display |
+| `supabase/functions/update-application-status/index.ts` | Add chat message + notification on pool approval |
+| `src/pages/employee/MyShifts.tsx` | New page: employee shift dashboard |
+| `src/App.tsx` | Add route `/employee/shifts` |
+| `src/pages/Dashboard.tsx` | Add "My Shifts" card for employees |
+

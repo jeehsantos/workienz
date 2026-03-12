@@ -91,7 +91,6 @@ export function JobDetailsStep({ formData, maxPositions, isFreeTier = false, onC
           max={maxPositions}
           value={formData.positions_available}
           onChange={(e) => {
-            // Enforce max positions limit
             const value = Math.min(parseInt(e.target.value) || 1, maxPositions);
             onChange({ positions_available: String(value) });
           }}

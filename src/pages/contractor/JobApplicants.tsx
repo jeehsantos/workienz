@@ -13,7 +13,10 @@ import {
   CheckCircle,
   XCircle,
   MapPin,
+  Star,
 } from "lucide-react";
+import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
+import { FavoriteWorkerDialog } from "@/components/jobs/FavoriteWorkerDialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -22,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AIApplicantsView from "@/components/applicants/AIApplicantsView";
 
 type Applicant = {
   id: string;
@@ -48,8 +52,11 @@ type Job = {
   title: string;
   positions_available: number;
   positions_filled: number;
+  hiring_style: string;
+  hiring_config: Record<string, unknown>;
+  location_city: string | null;
+  job_type: string;
 };
-
 export default function JobApplicants() {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -60,12 +67,23 @@ export default function JobApplicants() {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  // Favorite workers state
+  const { favorites, fetchFavorites, addFavorite, removeFavorite } = useFavoriteWorkers();
+  const [favoriteDialogOpen, setFavoriteDialogOpen] = useState(false);
+  const [selectedApplicantForFav, setSelectedApplicantForFav] = useState<Applicant | null>(null);
+  const [isRemovingFavorite, setIsRemovingFavorite] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
       navigate("/auth");
     }
   }, [user, authLoading, isContractor, navigate]);
+
+  // Fetch favorites when user is ready
+  useEffect(() => {
+    if (user && isContractor()) fetchFavorites();
+  }, [user, isContractor, fetchFavorites]);
 
   useEffect(() => {
     async function fetchData() {
@@ -74,7 +92,7 @@ export default function JobApplicants() {
       // Fetch job
       const { data: jobData, error: jobError } = await supabase
         .from("jobs")
-        .select("id, title, positions_available, positions_filled")
+        .select("id, title, positions_available, positions_filled, hiring_style, hiring_config, location_city, job_type")
         .eq("id", jobId)
         .single();
 
@@ -84,7 +102,7 @@ export default function JobApplicants() {
         return;
       }
 
-      setJob(jobData);
+      setJob({ ...jobData, hiring_config: (jobData.hiring_config || {}) as Record<string, unknown> });
 
       // Fetch applications
       const { data: applications, error: appError } = await supabase
@@ -105,46 +123,56 @@ export default function JobApplicants() {
         return;
       }
 
-      // Fetch employee profiles and user profiles
-      const enrichedApplicants = await Promise.all(
-        (applications || []).map(async (app) => {
-          const { data: employee } = await supabase
-            .from("employee_profiles")
-            .select("id, user_id, headline, city, experience_years, skills")
-            .eq("id", app.employee_id)
-            .single();
+      const apps = applications || [];
+      if (apps.length === 0) {
+        setApplicants([]);
+        setIsLoading(false);
+        return;
+      }
 
-          let profile = null;
-          if (employee) {
-            const { data: profileData } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("user_id", employee.user_id)
-              .single();
-            profile = profileData;
-          }
+      // Batch fetch employee profiles
+      const employeeIds = apps.map((a) => a.employee_id).filter(Boolean);
+      const { data: employees } = await supabase
+        .from("employee_profiles")
+        .select("id, user_id, headline, city, experience_years, skills")
+        .in("id", employeeIds);
 
-          // Check for existing conversation
-          let conversationId = null;
-          if (employee) {
-            const { data: conv } = await supabase
-              .from("conversations")
-              .select("id")
-              .eq("job_application_id", app.id)
-              .maybeSingle();
-            conversationId = conv?.id || null;
-          }
+      const empMap = new Map((employees || []).map((e) => [e.id, e]));
 
+      // Batch fetch user profiles
+      const userIds = (employees || []).map((e) => e.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", userIds);
+
+      const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+
+      // Batch fetch conversations
+      const appIds = apps.map((a) => a.id);
+      const { data: convos } = await supabase
+        .from("conversations")
+        .select("id, job_application_id")
+        .in("job_application_id", appIds);
+
+      const convoMap = new Map((convos || []).map((c) => [c.job_application_id, c.id]));
+
+      // Enrich
+      const enrichedApplicants = apps
+        .map((app) => {
+          const employee = empMap.get(app.employee_id);
+          if (!employee) return null;
+          const profile = profileMap.get(employee.user_id) || null;
           return {
             ...app,
-            employee: employee!,
-            profile,
-            conversation_id: conversationId,
+            employee,
+            profile: profile ? { full_name: profile.full_name, email: profile.email } : null,
+            conversation_id: convoMap.get(app.id) || null,
           };
         })
-      );
+        .filter(Boolean) as Applicant[];
 
-      setApplicants(enrichedApplicants.filter((a) => a.employee));
+      setApplicants(enrichedApplicants);
       setIsLoading(false);
     }
 
@@ -156,18 +184,17 @@ export default function JobApplicants() {
   const handleStatusChange = async (applicationId: string, newStatus: string) => {
     setUpdatingId(applicationId);
 
-    const { error } = await supabase
-      .from("job_applications")
-      .update({ status: newStatus })
-      .eq("id", applicationId);
+    const { data, error } = await supabase.functions.invoke("update-application-status", {
+      body: { job_application_id: applicationId, new_status: newStatus },
+    });
 
     setUpdatingId(null);
 
-    if (error) {
-      console.error("Error updating status:", error);
+    if (error || data?.error) {
+      console.error("Error updating status:", error || data?.error);
       toast({
         title: "Error",
-        description: "Failed to update application status.",
+        description: data?.error || "Failed to update application status.",
         variant: "destructive",
       });
       return;
@@ -223,6 +250,7 @@ export default function JobApplicants() {
       pending: { class: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", label: "Pending" },
       shortlisted: { class: "bg-blue-500/10 text-blue-600 border-blue-500/20", label: "Shortlisted" },
       hired: { class: "bg-green-500/10 text-green-600 border-green-500/20", label: "Hired" },
+      approved_to_pool: { class: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", label: "In Talent Pool" },
       rejected: { class: "bg-red-500/10 text-red-600 border-red-500/20", label: "Rejected" },
     };
     const v = variants[status] || variants.pending;
@@ -252,135 +280,6 @@ export default function JobApplicants() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container-tight py-8">
-        <Button variant="ghost" asChild className="mb-6">
-          <Link to="/contractor/jobs">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to My Jobs
-          </Link>
-        </Button>
-
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 font-display">Applicants</h1>
-          <p className="text-muted-foreground">
-            {job.title} • {applicants.length} application{applicants.length !== 1 ? "s" : ""}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Positions: {job.positions_available - job.positions_filled} of {job.positions_available} available
-          </p>
-        </div>
-
-        {applicants.length === 0 ? (
-          <div className="text-center py-16 bg-card rounded-xl border border-border/50">
-            <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No Applications Yet</h2>
-            <p className="text-muted-foreground">
-              Check back later for applications from Workies.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {applicants.map((applicant) => (
-              <div
-                key={applicant.id}
-                className="bg-card rounded-xl p-6 border border-border/50"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <User className="w-6 h-6 text-primary" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h3 className="font-semibold">
-                        {applicant.profile?.full_name || "The Workie"}
-                      </h3>
-                      {getStatusBadge(applicant.status)}
-                    </div>
-
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {applicant.employee.headline || "Looking for opportunities"}
-                    </p>
-
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
-                      {applicant.employee.city && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {applicant.employee.city}
-                        </span>
-                      )}
-                      {applicant.employee.experience_years !== null && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {applicant.employee.experience_years} years
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        Applied {new Date(applicant.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {applicant.employee.skills && applicant.employee.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {applicant.employee.skills.slice(0, 5).map((skill) => (
-                          <Badge key={skill} variant="secondary" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-
-                    {applicant.cover_letter && (
-                      <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                        <p className="text-sm font-medium mb-1">Cover Letter</p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {applicant.cover_letter}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 sm:min-w-[160px]">
-                    <Select
-                      value={applicant.status}
-                      onValueChange={(value) => handleStatusChange(applicant.id, value)}
-                      disabled={updatingId === applicant.id}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="shortlisted">Shortlist</SelectItem>
-                        <SelectItem value="hired">Hire</SelectItem>
-                        <SelectItem value="rejected">Reject</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleStartConversation(applicant)}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      {applicant.conversation_id ? "Open Chat" : "Start Chat"}
-                    </Button>
-
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/workers/${applicant.employee.id}`}>
-                        View Profile
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Always render AI Applicants view (all jobs use AI-powered analysis)
+  return <AIApplicantsView jobId={jobId!} job={job} />;
 }

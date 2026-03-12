@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -17,17 +17,19 @@ import {
   Star,
   Building,
   HardHat,
-  BarChart3,
-  Settings,
-  Save,
   DollarSign,
   Gift,
   Zap,
+  Plus,
+  ShieldOff,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProductPriceManager } from "@/components/admin/ProductPriceManager";
 import { AdminReferralManagement } from "@/components/admin/AdminReferralManagement";
 import {
@@ -45,6 +47,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+const ITEMS_PER_PAGE = 15;
 
 type UserWithProfile = {
   user_id: string;
@@ -54,6 +79,7 @@ type UserWithProfile = {
   has_subscription: boolean;
   subscription_status: string | null;
   created_at: string;
+  is_banned: boolean;
 };
 
 type ContractorProfile = {
@@ -85,6 +111,37 @@ type Job = {
   created_at: string;
 };
 
+function PaginationControls({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between pt-4">
+      <p className="text-sm text-muted-foreground">
+        Page {currentPage} of {totalPages}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
+        >
+          <ChevronLeft className="w-4 h-4 mr-1" />
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
+        >
+          Next
+          <ChevronRight className="w-4 h-4 ml-1" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -94,31 +151,30 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("users");
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
+  // Pagination states
+  const [usersPage, setUsersPage] = useState(1);
+  const [employeesPage, setEmployeesPage] = useState(1);
+  const [contractorsPage, setContractorsPage] = useState(1);
+  const [jobsPage, setJobsPage] = useState(1);
+
   // Data states
   const [users, setUsers] = useState<UserWithProfile[]>([]);
   const [contractors, setContractors] = useState<ContractorProfile[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [packages, setPackages] = useState<{ id: string; name: string }[]>([]);
   const [contractorTiers, setContractorTiers] = useState<ContractorTier[]>([]);
-  
-  
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  
-  // Platform settings state
-  const [maxPositionsPerJob, setMaxPositionsPerJob] = useState("10");
-  const [freeTierCooldownDays, setFreeTierCooldownDays] = useState("3");
-  const [paidTierMaxActiveApps, setPaidTierMaxActiveApps] = useState("3");
-  const [paidTierCooldownDays, setPaidTierCooldownDays] = useState("3");
-  // Contractor tier settings
-  const [singlePostJobLimit, setSinglePostJobLimit] = useState("1");
-  const [singlePostDurationDays, setSinglePostDurationDays] = useState("14");
-  const [sprintDurationDays, setSprintDurationDays] = useState("14");
-  const [sprintJobLimit, setSprintJobLimit] = useState("3");
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  // Upgrade button visibility setting
-  const [hideUpgradeButtons, setHideUpgradeButtons] = useState(false);
-  const [isSavingUpgradeVisibility, setIsSavingUpgradeVisibility] = useState(false);
+
+  // Create user form
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [newUserFirstName, setNewUserFirstName] = useState("");
+  const [newUserLastName, setNewUserLastName] = useState("");
+  const [newUserRole, setNewUserRole] = useState("employee");
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin())) {
@@ -132,6 +188,14 @@ export default function AdminDashboard() {
     }
   }, [user, isAdmin, activeTab]);
 
+  // Reset page to 1 when search changes
+  useEffect(() => {
+    setUsersPage(1);
+    setEmployeesPage(1);
+    setContractorsPage(1);
+    setJobsPage(1);
+  }, [searchTerm]);
+
   async function fetchData() {
     setIsLoading(true);
 
@@ -141,18 +205,14 @@ export default function AdminDashboard() {
       await fetchContractors();
     } else if (activeTab === "jobs") {
       await fetchJobs();
-    } else if (activeTab === "settings") {
-      await fetchSettings();
     }
 
-    // Always fetch packages for contractor subscriptions
     const { data: pkgData } = await supabase
       .from("contractor_packages")
       .select("id, name")
       .eq("is_active", true);
     setPackages(pkgData || []);
 
-    // Fetch contractor tiers from plan_products
     const { data: tierData } = await supabase
       .from("plan_products")
       .select("plan_id, plan_name")
@@ -161,111 +221,6 @@ export default function AdminDashboard() {
     setContractorTiers(tierData || []);
 
     setIsLoading(false);
-  }
-
-  async function fetchSettings() {
-    const { data } = await supabase
-      .from("platform_settings")
-      .select("setting_key, setting_value")
-      .in("setting_key", [
-        "max_positions_per_job",
-        "free_tier_cooldown_days",
-        "paid_tier_max_active_apps",
-        "paid_tier_cooldown_days",
-        "single_post_job_limit",
-        "single_post_duration_days",
-        "14_day_sprint_duration_days",
-        "14_day_sprint_job_limit",
-        "hide_upgrade_buttons",
-      ]);
-    
-    if (data) {
-      data.forEach(setting => {
-        switch (setting.setting_key) {
-          case "max_positions_per_job":
-            setMaxPositionsPerJob(setting.setting_value);
-            break;
-          case "free_tier_cooldown_days":
-            setFreeTierCooldownDays(setting.setting_value);
-            break;
-          case "paid_tier_max_active_apps":
-            setPaidTierMaxActiveApps(setting.setting_value);
-            break;
-          case "paid_tier_cooldown_days":
-            setPaidTierCooldownDays(setting.setting_value);
-            break;
-          case "single_post_job_limit":
-            setSinglePostJobLimit(setting.setting_value);
-            break;
-          case "single_post_duration_days":
-            setSinglePostDurationDays(setting.setting_value);
-            break;
-          case "14_day_sprint_duration_days":
-            setSprintDurationDays(setting.setting_value);
-            break;
-          case "14_day_sprint_job_limit":
-            setSprintJobLimit(setting.setting_value);
-            break;
-          case "hide_upgrade_buttons":
-            setHideUpgradeButtons(setting.setting_value === "true");
-            break;
-        }
-      });
-    }
-  }
-
-  async function toggleHideUpgradeButtons(checked: boolean) {
-    setIsSavingUpgradeVisibility(true);
-    
-    const { error } = await supabase
-      .from("platform_settings")
-      .update({ setting_value: checked ? "true" : "false" })
-      .eq("setting_key", "hide_upgrade_buttons");
-    
-    if (error) {
-      toast({ title: "Error", description: "Failed to update setting", variant: "destructive" });
-    } else {
-      setHideUpgradeButtons(checked);
-      toast({ title: "Success", description: `Upgrade buttons ${checked ? "hidden" : "visible"}` });
-    }
-    
-    setIsSavingUpgradeVisibility(false);
-  }
-
-  async function saveSettings() {
-    setIsSavingSettings(true);
-    
-    const updates = [
-      { key: "max_positions_per_job", value: maxPositionsPerJob },
-      { key: "free_tier_cooldown_days", value: freeTierCooldownDays },
-      { key: "paid_tier_max_active_apps", value: paidTierMaxActiveApps },
-      { key: "paid_tier_cooldown_days", value: paidTierCooldownDays },
-      { key: "single_post_job_limit", value: singlePostJobLimit },
-      { key: "single_post_duration_days", value: singlePostDurationDays },
-      { key: "14_day_sprint_duration_days", value: sprintDurationDays },
-      { key: "14_day_sprint_job_limit", value: sprintJobLimit },
-    ];
-
-    let hasError = false;
-    for (const update of updates) {
-      const { error } = await supabase
-        .from("platform_settings")
-        .update({ setting_value: update.value })
-        .eq("setting_key", update.key);
-      
-      if (error) {
-        console.error(`Failed to update ${update.key}:`, error);
-        hasError = true;
-      }
-    }
-    
-    if (hasError) {
-      toast({ title: "Error", description: "Failed to save some settings", variant: "destructive" });
-    } else {
-      toast({ title: "Success", description: "Settings saved successfully" });
-    }
-    
-    setIsSavingSettings(false);
   }
 
   async function fetchUsers() {
@@ -281,13 +236,11 @@ export default function AdminDashboard() {
 
     const enriched = await Promise.all(
       profiles.map(async (profile) => {
-        // Fetch roles
         const { data: roles } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", profile.user_id);
 
-        // Fetch subscription
         const { data: sub } = await supabase
           .from("subscriptions")
           .select("status")
@@ -300,6 +253,7 @@ export default function AdminDashboard() {
           roles: roles?.map((r) => r.role) || [],
           has_subscription: !!sub,
           subscription_status: sub?.status || null,
+          is_banned: false, // We'll check this lazily or via admin API if needed
         };
       })
     );
@@ -326,7 +280,6 @@ export default function AdminDashboard() {
           .eq("user_id", c.user_id)
           .maybeSingle();
 
-        // Get contractor subscription (legacy)
         const { data: subData } = await supabase
           .from("contractor_subscriptions")
           .select("package_id")
@@ -344,7 +297,6 @@ export default function AdminDashboard() {
           packageName = pkg?.name || null;
         }
 
-        // Get active entitlement plan type (new system)
         const { data: entitlementData } = await supabase
           .from("contractor_entitlements")
           .select("id, plan_type")
@@ -371,15 +323,7 @@ export default function AdminDashboard() {
   async function fetchJobs() {
     const { data: jobData } = await supabase
       .from("jobs")
-      .select(`
-        id,
-        title,
-        status,
-        positions_available,
-        positions_filled,
-        created_at,
-        contractor_id
-      `)
+      .select("id, title, status, positions_available, positions_filled, created_at, contractor_id")
       .order("created_at", { ascending: false });
 
     if (!jobData) {
@@ -405,191 +349,194 @@ export default function AdminDashboard() {
     setJobs(enriched);
   }
 
+  async function handleCreateUser() {
+    if (!newUserEmail || !newUserPassword || !newUserRole) {
+      toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+
+    if (newUserPassword.length < 8) {
+      toast({ title: "Error", description: "Password must be at least 8 characters", variant: "destructive" });
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: {
+          action: "create_user",
+          email: newUserEmail.trim(),
+          password: newUserPassword,
+          first_name: newUserFirstName.trim(),
+          last_name: newUserLastName.trim(),
+          role: newUserRole,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Success", description: "User created successfully" });
+      setShowCreateUser(false);
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setNewUserFirstName("");
+      setNewUserLastName("");
+      setNewUserRole("employee");
+      await fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to create user", variant: "destructive" });
+    }
+    setIsCreatingUser(false);
+  }
+
+  async function handleDeactivateUser(userId: string) {
+    setUpdatingId(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: { action: "deactivate_user", user_id: userId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Success", description: "User deactivated" });
+      setUsers(users.map((u) => u.user_id === userId ? { ...u, is_banned: true } : u));
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to deactivate user", variant: "destructive" });
+    }
+    setUpdatingId(null);
+  }
+
+  async function handleReactivateUser(userId: string) {
+    setUpdatingId(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-user", {
+        body: { action: "reactivate_user", user_id: userId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Success", description: "User reactivated" });
+      setUsers(users.map((u) => u.user_id === userId ? { ...u, is_banned: false } : u));
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to reactivate user", variant: "destructive" });
+    }
+    setUpdatingId(null);
+  }
 
   async function toggleUserPremium(userId: string, currentHasSub: boolean) {
     setUpdatingId(userId);
-
     if (currentHasSub) {
-      // Cancel subscription
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ status: "cancelled" })
-        .eq("user_id", userId)
-        .eq("status", "active");
-
+      const { error } = await supabase.from("subscriptions").update({ status: "cancelled" }).eq("user_id", userId).eq("status", "active");
       if (error) {
         toast({ title: "Error", description: "Failed to update subscription", variant: "destructive" });
       } else {
         toast({ title: "Success", description: "Subscription cancelled" });
-        setUsers(users.map(u => u.user_id === userId ? { ...u, has_subscription: false, subscription_status: "cancelled" } : u));
+        setUsers(users.map((u) => u.user_id === userId ? { ...u, has_subscription: false, subscription_status: "cancelled" } : u));
       }
     } else {
-      // Create active subscription
-      const { error } = await supabase
-        .from("subscriptions")
-        .insert({
-          user_id: userId,
-          plan_name: "premium",
-          status: "active",
-        });
-
+      const { error } = await supabase.from("subscriptions").insert({ user_id: userId, plan_name: "premium", status: "active" });
       if (error) {
         toast({ title: "Error", description: "Failed to create subscription", variant: "destructive" });
       } else {
         toast({ title: "Success", description: "Premium subscription activated" });
-        setUsers(users.map(u => u.user_id === userId ? { ...u, has_subscription: true, subscription_status: "active" } : u));
+        setUsers(users.map((u) => u.user_id === userId ? { ...u, has_subscription: true, subscription_status: "active" } : u));
       }
     }
-
     setUpdatingId(null);
   }
 
   async function toggleEntrepreneur(contractorId: string, currentValue: boolean) {
     setUpdatingId(contractorId);
-
-    const { error } = await supabase
-      .from("contractor_profiles")
-      .update({ is_entrepreneur: !currentValue })
-      .eq("id", contractorId);
-
+    const { error } = await supabase.from("contractor_profiles").update({ is_entrepreneur: !currentValue }).eq("id", contractorId);
     if (error) {
       toast({ title: "Error", description: "Failed to update entrepreneur status", variant: "destructive" });
     } else {
       toast({ title: "Success", description: `Entrepreneur status ${!currentValue ? "enabled" : "disabled"}` });
-      setContractors(contractors.map(c => c.id === contractorId ? { ...c, is_entrepreneur: !currentValue } : c));
+      setContractors(contractors.map((c) => c.id === contractorId ? { ...c, is_entrepreneur: !currentValue } : c));
     }
-
     setUpdatingId(null);
   }
 
   async function togglePriority(contractorId: string, currentValue: boolean) {
     setUpdatingId(contractorId);
-
-    const { error } = await supabase
-      .from("contractor_profiles")
-      .update({ has_priority: !currentValue })
-      .eq("id", contractorId);
-
+    const { error } = await supabase.from("contractor_profiles").update({ has_priority: !currentValue }).eq("id", contractorId);
     if (error) {
       toast({ title: "Error", description: "Failed to update priority status", variant: "destructive" });
     } else {
       toast({ title: "Success", description: `Priority badge ${!currentValue ? "enabled" : "disabled"}` });
-      setContractors(contractors.map(c => c.id === contractorId ? { ...c, has_priority: !currentValue } : c));
+      setContractors(contractors.map((c) => c.id === contractorId ? { ...c, has_priority: !currentValue } : c));
     }
-
     setUpdatingId(null);
   }
 
   async function updateContractorPackage(contractorId: string, packageId: string) {
     setUpdatingId(contractorId);
-
-    // First check if there's an existing active subscription
-    const { data: existing } = await supabase
-      .from("contractor_subscriptions")
-      .select("id")
-      .eq("contractor_profile_id", contractorId)
-      .eq("status", "active")
-      .maybeSingle();
-
+    const { data: existing } = await supabase.from("contractor_subscriptions").select("id").eq("contractor_profile_id", contractorId).eq("status", "active").maybeSingle();
     if (existing) {
-      // Update existing
-      const { error } = await supabase
-        .from("contractor_subscriptions")
-        .update({ package_id: packageId })
-        .eq("id", existing.id);
-
+      const { error } = await supabase.from("contractor_subscriptions").update({ package_id: packageId }).eq("id", existing.id);
       if (error) {
         toast({ title: "Error", description: "Failed to update package", variant: "destructive" });
       } else {
-        const pkg = packages.find(p => p.id === packageId);
+        const pkg = packages.find((p) => p.id === packageId);
         toast({ title: "Success", description: "Package updated" });
-        setContractors(contractors.map(c => c.id === contractorId ? { ...c, package_name: pkg?.name || null } : c));
+        setContractors(contractors.map((c) => c.id === contractorId ? { ...c, package_name: pkg?.name || null } : c));
       }
     } else {
-      // Create new
-      const { error } = await supabase
-        .from("contractor_subscriptions")
-        .insert({
-          contractor_profile_id: contractorId,
-          package_id: packageId,
-          status: "active",
-        });
-
+      const { error } = await supabase.from("contractor_subscriptions").insert({ contractor_profile_id: contractorId, package_id: packageId, status: "active" });
       if (error) {
         toast({ title: "Error", description: "Failed to assign package", variant: "destructive" });
       } else {
-        const pkg = packages.find(p => p.id === packageId);
+        const pkg = packages.find((p) => p.id === packageId);
         toast({ title: "Success", description: "Package assigned" });
-        setContractors(contractors.map(c => c.id === contractorId ? { ...c, package_name: pkg?.name || null } : c));
+        setContractors(contractors.map((c) => c.id === contractorId ? { ...c, package_name: pkg?.name || null } : c));
       }
     }
-
     setUpdatingId(null);
   }
 
   async function updateJobStatus(jobId: string, newStatus: "draft" | "published" | "closed" | "filled") {
     setUpdatingId(jobId);
-
-    const { error } = await supabase
-      .from("jobs")
-      .update({ status: newStatus })
-      .eq("id", jobId);
-
+    const { error } = await supabase.from("jobs").update({ status: newStatus }).eq("id", jobId);
     if (error) {
       toast({ title: "Error", description: "Failed to update job status", variant: "destructive" });
     } else {
       toast({ title: "Success", description: "Job status updated" });
-      setJobs(jobs.map(j => j.id === jobId ? { ...j, status: newStatus } : j));
+      setJobs(jobs.map((j) => j.id === jobId ? { ...j, status: newStatus } : j));
     }
-
     setUpdatingId(null);
   }
 
   async function updateContractorTier(contractor: ContractorProfile, newPlanId: string) {
     setUpdatingId(contractor.id);
-
-    const tier = contractorTiers.find(t => t.plan_id === newPlanId);
+    const tier = contractorTiers.find((t) => t.plan_id === newPlanId);
     if (!tier) {
       toast({ title: "Error", description: "Invalid tier selected", variant: "destructive" });
       setUpdatingId(null);
       return;
     }
 
-    // Determine job_allowance based on plan type
     let jobAllowance: number | null = null;
     let isRecurring = false;
     switch (newPlanId) {
       case "free_contractor":
-        jobAllowance = 1;
-        isRecurring = false;
-        break;
       case "single_post":
         jobAllowance = 1;
-        isRecurring = false;
         break;
       case "14_day_sprint":
         jobAllowance = 3;
-        isRecurring = false;
         break;
       case "monthly_contractor":
       case "quarterly_contractor":
-        jobAllowance = null; // Unlimited
+        jobAllowance = null;
         isRecurring = true;
         break;
     }
 
-    // Check if contractor already has an active entitlement
     if (contractor.current_entitlement_id) {
-      // Deactivate the current entitlement
-      const { error: deactivateError } = await supabase
-        .from("contractor_entitlements")
-        .update({ 
-          status: "consumed", 
-          deactivated_at: new Date().toISOString(),
-          deactivated_reason: "admin_tier_change"
-        })
-        .eq("id", contractor.current_entitlement_id);
-
+      const { error: deactivateError } = await supabase.from("contractor_entitlements").update({ status: "consumed", deactivated_at: new Date().toISOString(), deactivated_reason: "admin_tier_change" }).eq("id", contractor.current_entitlement_id);
       if (deactivateError) {
         toast({ title: "Error", description: "Failed to deactivate existing entitlement", variant: "destructive" });
         setUpdatingId(null);
@@ -597,57 +544,53 @@ export default function AdminDashboard() {
       }
     }
 
-    // Create new entitlement with the selected tier
-    const { error: createError } = await supabase
-      .from("contractor_entitlements")
-      .insert({
-        user_id: contractor.user_id,
-        plan_type: newPlanId,
-        status: "active",
-        job_allowance: jobAllowance,
-        jobs_used: 0,
-        is_recurring: isRecurring,
-        is_stackable: false,
-        activated_at: new Date().toISOString(),
-        purchased_at: new Date().toISOString(),
-      });
+    const { error: createError } = await supabase.from("contractor_entitlements").insert({
+      user_id: contractor.user_id,
+      plan_type: newPlanId,
+      status: "active",
+      job_allowance: jobAllowance,
+      jobs_used: 0,
+      is_recurring: isRecurring,
+      is_stackable: false,
+      activated_at: new Date().toISOString(),
+      purchased_at: new Date().toISOString(),
+    });
 
     if (createError) {
       toast({ title: "Error", description: "Failed to assign tier: " + createError.message, variant: "destructive" });
     } else {
       toast({ title: "Success", description: `Tier updated to ${tier.plan_name}` });
-      // Refresh contractors to get the new entitlement ID
       await fetchContractors();
     }
-
     setUpdatingId(null);
   }
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filtered + paginated data
+  const filteredUsers = useMemo(() => users.filter(
+    (u) => u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [users, searchTerm]);
 
-  // Filter for employees specifically
-  const filteredEmployees = users.filter(
-    (u) =>
-      u.roles.includes("employee") &&
-      (u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredEmployees = useMemo(() => users.filter(
+    (u) => u.roles.includes("employee") && (u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  ), [users, searchTerm]);
 
-  const filteredContractors = contractors.filter(
-    (c) =>
-      c.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredContractors = useMemo(() => contractors.filter(
+    (c) => c.company_name.toLowerCase().includes(searchTerm.toLowerCase()) || c.email.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [contractors, searchTerm]);
 
-  const filteredJobs = jobs.filter(
-    (j) =>
-      j.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      j.company_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredJobs = useMemo(() => jobs.filter(
+    (j) => j.title.toLowerCase().includes(searchTerm.toLowerCase()) || j.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [jobs, searchTerm]);
+
+  const usersTotalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const employeesTotalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
+  const contractorsTotalPages = Math.ceil(filteredContractors.length / ITEMS_PER_PAGE);
+  const jobsTotalPages = Math.ceil(filteredJobs.length / ITEMS_PER_PAGE);
+
+  const paginatedUsers = filteredUsers.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE);
+  const paginatedEmployees = filteredEmployees.slice((employeesPage - 1) * ITEMS_PER_PAGE, employeesPage * ITEMS_PER_PAGE);
+  const paginatedContractors = filteredContractors.slice((contractorsPage - 1) * ITEMS_PER_PAGE, contractorsPage * ITEMS_PER_PAGE);
+  const paginatedJobs = filteredJobs.slice((jobsPage - 1) * ITEMS_PER_PAGE, jobsPage * ITEMS_PER_PAGE);
 
   if (authLoading) {
     return (
@@ -659,79 +602,133 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container-tight py-8">
-        <Button variant="ghost" asChild className="mb-6">
+      <div className="container-tight py-6 sm:py-8 px-4 sm:px-0">
+        <Button variant="ghost" asChild className="mb-4 sm:mb-6">
           <Link to="/dashboard">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Link>
         </Button>
 
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-6 sm:mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
-            <p className="text-muted-foreground">
-              Manage users, contractors, and job postings
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 font-display">Admin Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage users, contractors, and job postings</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
+          <div className="flex w-full sm:w-auto gap-2">
+            <Button variant="outline" asChild className="w-full sm:w-auto">
               <Link to="/admin/articles">
                 <FileText className="w-4 h-4 mr-2" />
                 Article Management
               </Link>
             </Button>
+            <Button variant="outline" asChild className="w-full sm:w-auto">
+              <Link to="/admin/settings">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Link>
+            </Button>
           </div>
         </div>
 
-
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-7 w-full max-w-4xl">
-            <TabsTrigger value="users" className="flex items-center gap-2">
+          <TabsList className="w-full max-w-4xl flex flex-nowrap gap-2 overflow-x-auto sm:grid sm:grid-cols-6 sm:gap-2">
+            <TabsTrigger value="users" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Users className="w-4 h-4" />
               Users
             </TabsTrigger>
-            <TabsTrigger value="employees" className="flex items-center gap-2">
+            <TabsTrigger value="employees" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <HardHat className="w-4 h-4" />
               Employees
             </TabsTrigger>
-            <TabsTrigger value="contractors" className="flex items-center gap-2">
+            <TabsTrigger value="contractors" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Building className="w-4 h-4" />
               Contractors
             </TabsTrigger>
-            <TabsTrigger value="jobs" className="flex items-center gap-2">
+            <TabsTrigger value="jobs" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Briefcase className="w-4 h-4" />
               Jobs
             </TabsTrigger>
-            <TabsTrigger value="referrals" className="flex items-center gap-2">
+            <TabsTrigger value="referrals" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <Gift className="w-4 h-4" />
               Referrals
             </TabsTrigger>
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
+            <TabsTrigger value="pricing" className="flex items-center gap-2 shrink-0 text-xs sm:text-sm">
               <DollarSign className="w-4 h-4" />
               Pricing
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Settings
-            </TabsTrigger>
           </TabsList>
 
-          {/* Search - hide on settings, pricing, and referrals tabs */}
-          {activeTab !== "settings" && activeTab !== "pricing" && activeTab !== "referrals" && (
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          {/* Search - hide on pricing and referrals tabs */}
+          {activeTab !== "pricing" && activeTab !== "referrals" && (
+            <div className="flex items-center gap-3">
+              <div className="relative max-w-md w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+              </div>
+              {activeTab === "users" && (
+                <Dialog open={showCreateUser} onOpenChange={setShowCreateUser}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add User
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New User</DialogTitle>
+                      <DialogDescription>Add a new user to the platform.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="firstName">First Name</Label>
+                          <Input id="firstName" value={newUserFirstName} onChange={(e) => setNewUserFirstName(e.target.value)} placeholder="John" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="lastName">Last Name</Label>
+                          <Input id="lastName" value={newUserLastName} onChange={(e) => setNewUserLastName(e.target.value)} placeholder="Doe" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email *</Label>
+                        <Input id="email" type="email" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} placeholder="john@example.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password *</Label>
+                        <Input id="password" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} placeholder="Min 8 characters" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="role">Role *</Label>
+                        <Select value={newUserRole} onValueChange={setNewUserRole}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="employee">Employee</SelectItem>
+                            <SelectItem value="contractor">Contractor</SelectItem>
+                            <SelectItem value="writer">Writer</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button onClick={handleCreateUser} disabled={isCreatingUser}>
+                        {isCreatingUser && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Create User
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           )}
 
-          {/* Referrals Tab - render outside loading state */}
+          {/* Referrals Tab */}
           <TabsContent value="referrals" className="space-y-4">
             <AdminReferralManagement />
           </TabsContent>
@@ -744,7 +741,62 @@ export default function AdminDashboard() {
             <>
               {/* Users Tab */}
               <TabsContent value="users" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                {/* Mobile */}
+                <div className="space-y-3 sm:hidden">
+                  {paginatedUsers.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">No users found</div>
+                  ) : (
+                    paginatedUsers.map((u) => (
+                      <div key={u.user_id} className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="font-semibold">{u.full_name || "No name"}</p>
+                          <p className="text-sm text-muted-foreground">{u.email}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles.map((role) => (
+                            <Badge key={role} variant="secondary" className="text-xs capitalize">{role}</Badge>
+                          ))}
+                          {u.is_banned && <Badge variant="destructive" className="text-xs">Deactivated</Badge>}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Premium</span>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={u.has_subscription} onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)} disabled={updatingId === u.user_id} />
+                            {u.has_subscription && <Crown className="w-4 h-4 text-yellow-500" />}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-muted-foreground">Joined {new Date(u.created_at).toLocaleDateString()}</div>
+                          {u.is_banned ? (
+                            <Button variant="outline" size="sm" onClick={() => handleReactivateUser(u.user_id)} disabled={updatingId === u.user_id}>
+                              <ShieldCheck className="w-3 h-3 mr-1" /> Reactivate
+                            </Button>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" disabled={updatingId === u.user_id}>
+                                  <ShieldOff className="w-3 h-3 mr-1" /> Deactivate
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Deactivate User</AlertDialogTitle>
+                                  <AlertDialogDescription>This will prevent {u.email} from logging in. You can reactivate them later.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeactivateUser(u.user_id)}>Deactivate</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {/* Desktop */}
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -752,10 +804,11 @@ export default function AdminDashboard() {
                         <TableHead>Roles</TableHead>
                         <TableHead>Premium</TableHead>
                         <TableHead>Joined</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredUsers.map((u) => (
+                      {paginatedUsers.map((u) => (
                         <TableRow key={u.user_id}>
                           <TableCell>
                             <div>
@@ -766,37 +819,76 @@ export default function AdminDashboard() {
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {u.roles.map((role) => (
-                                <Badge key={role} variant="secondary" className="text-xs capitalize">
-                                  {role}
-                                </Badge>
+                                <Badge key={role} variant="secondary" className="text-xs capitalize">{role}</Badge>
                               ))}
+                              {u.is_banned && <Badge variant="destructive" className="text-xs">Deactivated</Badge>}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Switch
-                                checked={u.has_subscription}
-                                onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)}
-                                disabled={updatingId === u.user_id}
-                              />
-                              {u.has_subscription && (
-                                <Crown className="w-4 h-4 text-yellow-500" />
-                              )}
+                              <Switch checked={u.has_subscription} onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)} disabled={updatingId === u.user_id} />
+                              {u.has_subscription && <Crown className="w-4 h-4 text-yellow-500" />}
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(u.created_at).toLocaleDateString()}
+                          <TableCell className="text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {u.is_banned ? (
+                              <Button variant="outline" size="sm" onClick={() => handleReactivateUser(u.user_id)} disabled={updatingId === u.user_id}>
+                                <ShieldCheck className="w-3 h-3 mr-1" /> Reactivate
+                              </Button>
+                            ) : (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="sm" disabled={updatingId === u.user_id}>
+                                    <ShieldOff className="w-3 h-3 mr-1" /> Deactivate
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Deactivate User</AlertDialogTitle>
+                                    <AlertDialogDescription>This will prevent {u.email} from logging in. You can reactivate them later.</AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeactivateUser(u.user_id)}>Deactivate</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
+                <PaginationControls currentPage={usersPage} totalPages={usersTotalPages} onPageChange={setUsersPage} />
               </TabsContent>
 
               {/* Employees Tab */}
               <TabsContent value="employees" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {paginatedEmployees.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">No employees found</div>
+                  ) : (
+                    paginatedEmployees.map((u) => (
+                      <div key={u.user_id} className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="font-semibold">{u.full_name || "No name"}</p>
+                          <p className="text-sm text-muted-foreground">{u.email}</p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Premium</span>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={u.has_subscription} onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)} disabled={updatingId === u.user_id} />
+                            {u.has_subscription && <Crown className="w-4 h-4 text-yellow-500" />}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Joined {new Date(u.created_at).toLocaleDateString()}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -806,14 +898,12 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEmployees.length === 0 ? (
+                      {paginatedEmployees.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                            No employees found
-                          </TableCell>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground py-8">No employees found</TableCell>
                         </TableRow>
                       ) : (
-                        filteredEmployees.map((u) => (
+                        paginatedEmployees.map((u) => (
                           <TableRow key={u.user_id}>
                             <TableCell>
                               <div>
@@ -823,30 +913,72 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
-                                <Switch
-                                  checked={u.has_subscription}
-                                  onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)}
-                                  disabled={updatingId === u.user_id}
-                                />
-                                {u.has_subscription && (
-                                  <Crown className="w-4 h-4 text-yellow-500" />
-                                )}
+                                <Switch checked={u.has_subscription} onCheckedChange={() => toggleUserPremium(u.user_id, u.has_subscription)} disabled={updatingId === u.user_id} />
+                                {u.has_subscription && <Crown className="w-4 h-4 text-yellow-500" />}
                               </div>
                             </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {new Date(u.created_at).toLocaleDateString()}
-                            </TableCell>
+                            <TableCell className="text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                           </TableRow>
                         ))
                       )}
                     </TableBody>
                   </Table>
                 </div>
+                <PaginationControls currentPage={employeesPage} totalPages={employeesTotalPages} onPageChange={setEmployeesPage} />
               </TabsContent>
 
               {/* Contractors Tab */}
               <TabsContent value="contractors" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {paginatedContractors.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">No contractors found</div>
+                  ) : (
+                    paginatedContractors.map((c) => (
+                      <div key={c.id} className="bg-card border border-border/50 rounded-xl p-4 space-y-4">
+                        <div>
+                          <p className="font-semibold">{c.company_name}</p>
+                          <p className="text-sm text-muted-foreground">{c.email}</p>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Priority</span>
+                            <div className="flex items-center gap-2">
+                              <Switch checked={c.has_priority} onCheckedChange={() => togglePriority(c.id, c.has_priority)} disabled={updatingId === c.id} />
+                              {c.has_priority && <Zap className="w-4 h-4 text-amber-500" />}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Entrepreneur</span>
+                            <div className="flex items-center gap-2">
+                              <Switch checked={c.is_entrepreneur} onCheckedChange={() => toggleEntrepreneur(c.id, c.is_entrepreneur)} disabled={updatingId === c.id} />
+                              {c.is_entrepreneur && <Star className="w-4 h-4 text-amber-500" />}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-muted-foreground">Plan Tier</span>
+                          <Select value={c.current_plan_type || ""} onValueChange={(value) => updateContractorTier(c, value)} disabled={updatingId === c.id}>
+                            <SelectTrigger className="w-full"><SelectValue placeholder="No plan" /></SelectTrigger>
+                            <SelectContent>
+                              {contractorTiers.map((tier) => (<SelectItem key={tier.plan_id} value={tier.plan_id}>{tier.plan_name}</SelectItem>))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-muted-foreground">Legacy Package</span>
+                          <Select value={packages.find((p) => p.name === c.package_name)?.id || ""} onValueChange={(value) => updateContractorPackage(c.id, value)} disabled={updatingId === c.id}>
+                            <SelectTrigger className="w-full"><SelectValue placeholder="No package" /></SelectTrigger>
+                            <SelectContent>
+                              {packages.map((pkg) => (<SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Joined {new Date(c.created_at).toLocaleDateString()}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -859,7 +991,7 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredContractors.map((c) => (
+                      {paginatedContractors.map((c) => (
                         <TableRow key={c.id}>
                           <TableCell>
                             <div>
@@ -869,77 +1001,75 @@ export default function AdminDashboard() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Switch
-                                checked={c.has_priority}
-                                onCheckedChange={() => togglePriority(c.id, c.has_priority)}
-                                disabled={updatingId === c.id}
-                              />
-                              {c.has_priority && (
-                                <Zap className="w-4 h-4 text-amber-500" />
-                              )}
+                              <Switch checked={c.has_priority} onCheckedChange={() => togglePriority(c.id, c.has_priority)} disabled={updatingId === c.id} />
+                              {c.has_priority && <Zap className="w-4 h-4 text-amber-500" />}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Switch
-                                checked={c.is_entrepreneur}
-                                onCheckedChange={() => toggleEntrepreneur(c.id, c.is_entrepreneur)}
-                                disabled={updatingId === c.id}
-                              />
-                              {c.is_entrepreneur && (
-                                <Star className="w-4 h-4 text-amber-500" />
-                              )}
+                              <Switch checked={c.is_entrepreneur} onCheckedChange={() => toggleEntrepreneur(c.id, c.is_entrepreneur)} disabled={updatingId === c.id} />
+                              {c.is_entrepreneur && <Star className="w-4 h-4 text-amber-500" />}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={c.current_plan_type || ""}
-                              onValueChange={(value) => updateContractorTier(c, value)}
-                              disabled={updatingId === c.id}
-                            >
-                              <SelectTrigger className="w-36">
-                                <SelectValue placeholder="No plan" />
-                              </SelectTrigger>
+                            <Select value={c.current_plan_type || ""} onValueChange={(value) => updateContractorTier(c, value)} disabled={updatingId === c.id}>
+                              <SelectTrigger className="w-36"><SelectValue placeholder="No plan" /></SelectTrigger>
                               <SelectContent>
-                                {contractorTiers.map((tier) => (
-                                  <SelectItem key={tier.plan_id} value={tier.plan_id}>
-                                    {tier.plan_name}
-                                  </SelectItem>
-                                ))}
+                                {contractorTiers.map((tier) => (<SelectItem key={tier.plan_id} value={tier.plan_id}>{tier.plan_name}</SelectItem>))}
                               </SelectContent>
                             </Select>
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={packages.find(p => p.name === c.package_name)?.id || ""}
-                              onValueChange={(value) => updateContractorPackage(c.id, value)}
-                              disabled={updatingId === c.id}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="No package" />
-                              </SelectTrigger>
+                            <Select value={packages.find((p) => p.name === c.package_name)?.id || ""} onValueChange={(value) => updateContractorPackage(c.id, value)} disabled={updatingId === c.id}>
+                              <SelectTrigger className="w-32"><SelectValue placeholder="No package" /></SelectTrigger>
                               <SelectContent>
-                                {packages.map((pkg) => (
-                                  <SelectItem key={pkg.id} value={pkg.id}>
-                                    {pkg.name}
-                                  </SelectItem>
-                                ))}
+                                {packages.map((pkg) => (<SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>))}
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(c.created_at).toLocaleDateString()}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
+                <PaginationControls currentPage={contractorsPage} totalPages={contractorsTotalPages} onPageChange={setContractorsPage} />
               </TabsContent>
 
               {/* Jobs Tab */}
               <TabsContent value="jobs" className="space-y-4">
-                <div className="bg-card rounded-xl border border-border/50 overflow-hidden">
+                <div className="space-y-3 sm:hidden">
+                  {paginatedJobs.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8 border border-dashed rounded-lg">No jobs found</div>
+                  ) : (
+                    paginatedJobs.map((job) => (
+                      <div key={job.id} className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="font-semibold">{job.title}</p>
+                          <p className="text-sm text-muted-foreground">{job.company_name}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-xs font-medium text-muted-foreground">Status</span>
+                          <Select value={job.status} onValueChange={(value: "draft" | "published" | "closed" | "filled") => updateJobStatus(job.id, value)} disabled={updatingId === job.id}>
+                            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="published">Published</SelectItem>
+                              <SelectItem value="closed">Closed</SelectItem>
+                              <SelectItem value="filled">Filled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Positions</span>
+                          <span>{job.positions_filled}/{job.positions_available}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">Posted {new Date(job.created_at).toLocaleDateString()}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hidden sm:block bg-card rounded-xl border border-border/50 overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -951,21 +1081,13 @@ export default function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredJobs.map((job) => (
+                      {paginatedJobs.map((job) => (
                         <TableRow key={job.id}>
                           <TableCell className="font-medium">{job.title}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {job.company_name}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground">{job.company_name}</TableCell>
                           <TableCell>
-                            <Select
-                              value={job.status}
-                              onValueChange={(value: "draft" | "published" | "closed" | "filled") => updateJobStatus(job.id, value)}
-                              disabled={updatingId === job.id}
-                            >
-                              <SelectTrigger className="w-28">
-                                <SelectValue />
-                              </SelectTrigger>
+                            <Select value={job.status} onValueChange={(value: "draft" | "published" | "closed" | "filled") => updateJobStatus(job.id, value)} disabled={updatingId === job.id}>
+                              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="published">Published</SelectItem>
@@ -974,216 +1096,19 @@ export default function AdminDashboard() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell>
-                            {job.positions_filled}/{job.positions_available}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(job.created_at).toLocaleDateString()}
-                          </TableCell>
+                          <TableCell>{job.positions_filled}/{job.positions_available}</TableCell>
+                          <TableCell className="text-muted-foreground">{new Date(job.created_at).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
+                <PaginationControls currentPage={jobsPage} totalPages={jobsTotalPages} onPageChange={setJobsPage} />
               </TabsContent>
-
 
               {/* Pricing Tab */}
               <TabsContent value="pricing" className="space-y-6">
                 <ProductPriceManager />
-              </TabsContent>
-
-              {/* Settings Tab */}
-              <TabsContent value="settings" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Platform Settings</CardTitle>
-                    <CardDescription>Configure platform-wide settings for job posting and applications</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-8">
-                    {/* Job Posting Settings */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Job Posting Limits</h3>
-                      <div className="space-y-2 max-w-xs">
-                        <Label htmlFor="maxPositions">Maximum Positions Per Job</Label>
-                        <Input
-                          id="maxPositions"
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={maxPositionsPerJob}
-                          onChange={(e) => setMaxPositionsPerJob(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Contractors cannot post jobs with more positions than this limit.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Application Throttling Settings */}
-                    <div className="space-y-4 pt-4 border-t">
-                      <h3 className="text-lg font-semibold">Application Throttling (Workers)</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Control how frequently workers can apply to jobs based on their subscription tier.
-                      </p>
-                      
-                      <div className="grid sm:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="freeTierCooldown">Free Tier Cooldown (Days)</Label>
-                          <Input
-                            id="freeTierCooldown"
-                            type="number"
-                            min="0"
-                            max="30"
-                            value={freeTierCooldownDays}
-                            onChange={(e) => setFreeTierCooldownDays(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Days free users must wait between applications.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="paidTierMaxApps">Paid Tier Max Active Apps</Label>
-                          <Input
-                            id="paidTierMaxApps"
-                            type="number"
-                            min="1"
-                            max="20"
-                            value={paidTierMaxActiveApps}
-                            onChange={(e) => setPaidTierMaxActiveApps(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Max pending/shortlisted applications for subscribers.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="paidTierCooldown">Paid Tier Cooldown (Days)</Label>
-                          <Input
-                            id="paidTierCooldown"
-                            type="number"
-                            min="0"
-                            max="30"
-                            value={paidTierCooldownDays}
-                            onChange={(e) => setPaidTierCooldownDays(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Days subscribers must wait between applications.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Upgrade Button Visibility */}
-                    <div className="space-y-4 pt-4 border-t">
-                      <h3 className="text-lg font-semibold">Upgrade Button Visibility</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Control whether upgrade/premium buttons are shown to users.
-                      </p>
-                      
-                      <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border border-border/50">
-                        <Switch
-                          id="hideUpgradeButtons"
-                          checked={hideUpgradeButtons}
-                          onCheckedChange={toggleHideUpgradeButtons}
-                          disabled={isSavingUpgradeVisibility}
-                        />
-                        <div className="space-y-1">
-                          <Label htmlFor="hideUpgradeButtons" className="font-medium cursor-pointer">
-                            Hide Upgrade Buttons
-                          </Label>
-                          <p className="text-xs text-muted-foreground">
-                            When enabled:
-                          </p>
-                          <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
-                            <li><strong>Employees:</strong> "Upgrade to Premium" buttons are completely hidden</li>
-                            <li><strong>Contractors:</strong> Upgrade buttons become "Become a Partner" and redirect to Contact page</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Contractor Tier Settings */}
-                    <div className="space-y-4 pt-4 border-t">
-                      <h3 className="text-lg font-semibold">Contractor Tier Limits</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Configure job posting limits and durations for one-time contractor plans.
-                      </p>
-                      
-                      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="singlePostJobLimit">Single Post Job Limit</Label>
-                          <Input
-                            id="singlePostJobLimit"
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={singlePostJobLimit}
-                            onChange={(e) => setSinglePostJobLimit(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Max jobs for Single Post tier.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="singlePostDuration">Single Post Duration (Days)</Label>
-                          <Input
-                            id="singlePostDuration"
-                            type="number"
-                            min="1"
-                            max="90"
-                            value={singlePostDurationDays}
-                            onChange={(e) => setSinglePostDurationDays(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Days after first job published.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="sprintJobLimit">14-Day Sprint Job Limit</Label>
-                          <Input
-                            id="sprintJobLimit"
-                            type="number"
-                            min="1"
-                            max="20"
-                            value={sprintJobLimit}
-                            onChange={(e) => setSprintJobLimit(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Max jobs for 14-Day Sprint tier.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="sprintDuration">Sprint Duration (Days)</Label>
-                          <Input
-                            id="sprintDuration"
-                            type="number"
-                            min="1"
-                            max="90"
-                            value={sprintDurationDays}
-                            onChange={(e) => setSprintDurationDays(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Days after first job published.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button onClick={saveSettings} disabled={isSavingSettings} className="mt-6">
-                      {isSavingSettings ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Save All Settings
-                    </Button>
-                  </CardContent>
-                </Card>
               </TabsContent>
             </>
           )}

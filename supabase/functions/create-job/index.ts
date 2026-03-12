@@ -11,34 +11,37 @@
    console.log(`[CREATE-JOB] ${step}${detailsStr}`);
  };
  
- interface JobData {
-   title: string;
-   description: string;
-   requirements?: string;
-   location_city?: string;
-   location_suburb?: string;
-   location_country?: string;
-   hourly_rate_min?: number;
-   hourly_rate_max?: number;
-   job_type?: string;
-   duration?: string;
-   positions_available?: number;
-   skills_required?: string[];
-   industry?: string;
-   schedule_type?: string;
-   experience_required?: boolean;
-   requires_heavy_lifting?: boolean;
-   requires_standing?: boolean;
-   requires_car?: boolean;
-   provides_training?: boolean;
-   provides_accommodation?: boolean;
-   is_sse?: boolean;
-   starts_at?: string;
-   ends_at?: string;
-   weekly_hours?: number;
-   wizard_step?: number;
-   form_data?: Record<string, unknown>;
- }
+interface JobData {
+    title: string;
+    description: string;
+    requirements?: string;
+    location_city?: string;
+    location_suburb?: string;
+    location_country?: string;
+    hourly_rate_min?: number;
+    hourly_rate_max?: number;
+    job_type?: string;
+    duration?: string;
+    positions_available?: number;
+    skills_required?: string[];
+    industry?: string;
+    schedule_type?: string;
+    experience_required?: boolean;
+    requires_heavy_lifting?: boolean;
+    requires_standing?: boolean;
+    requires_car?: boolean;
+    provides_training?: boolean;
+    provides_accommodation?: boolean;
+    is_sse?: boolean;
+    starts_at?: string;
+    ends_at?: string;
+    weekly_hours?: number;
+    wizard_step?: number;
+    form_data?: Record<string, unknown>;
+    hiring_style?: string;
+    hiring_config?: Record<string, unknown>;
+    shift_allocation_mode?: string;
+  }
  
  interface Shift {
    shift_date: string;
@@ -99,11 +102,11 @@
  
      logStep("User authenticated", { userId });
  
-     const body = await req.json();
-     const jobData: JobData = body.jobData;
-     const status: "draft" | "published" = body.status ?? "draft";
-     const shifts: Shift[] = body.shifts ?? [];
-     const jobId: string | undefined = body.jobId; // For updates
+      const body = await req.json();
+      const jobData: JobData = body.jobData;
+      const status: "draft" | "published" | "private" = body.status ?? "draft";
+      const shifts: Shift[] = body.shifts ?? [];
+      const jobId: string | undefined = body.jobId; // For updates
  
      if (!jobData || !jobData.title || !jobData.description) {
        return new Response(
@@ -131,8 +134,8 @@
  
      logStep("Contractor profile found", { contractorId: contractorProfile.id });
  
-     // If publishing, validate entitlements
-     if (status === "published") {
+      // If publishing or posting as private, validate entitlements
+      if (status === "published" || status === "private") {
        // Check if this is an update to an already published job
        let isAlreadyPublished = false;
        if (jobId) {
@@ -249,8 +252,8 @@
            .from("jobs")
            .update({
              ...jobData,
-             status: "published",
-             updated_at: new Date().toISOString(),
+              status: status === "private" ? "private" : "published",
+              updated_at: new Date().toISOString(),
            })
            .eq("id", jobId)
            .eq("contractor_id", contractorProfile.id);
@@ -263,8 +266,8 @@
            .from("jobs")
            .insert({
              ...jobData,
-             contractor_id: contractorProfile.id,
-             status: "published",
+              contractor_id: contractorProfile.id,
+              status: status === "private" ? "private" : "published",
            })
            .select("id")
            .single();
@@ -336,20 +339,37 @@
          logStep("Shifts inserted", { count: shiftsToInsert.length });
        }
  
-       return new Response(
-         JSON.stringify({
-           success: true,
-           job_id: createdJobId,
-           status: "published",
-           entitlement_id: selectedEntitlement?.id ?? null,
-           remaining_posts: selectedEntitlement
-             ? selectedEntitlement.job_allowance === null
-               ? "unlimited"
-               : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
-             : "N/A",
-         }),
-         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
-       );
+      // If open_ai_top10, trigger questionnaire generation asynchronously
+      if (jobData.hiring_style === 'open_ai_top10' && createdJobId) {
+        try {
+          await fetch(`${supabaseUrl}/functions/v1/generate-job-questionnaire`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${serviceRoleKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ job_id: createdJobId }),
+          });
+          logStep("Triggered questionnaire generation for open_ai_top10 job");
+        } catch (e) {
+          logStep("Failed to trigger questionnaire generation (non-fatal)", { error: String(e) });
+        }
+      }
+
+      return new Response(
+          JSON.stringify({
+            success: true,
+            job_id: createdJobId,
+            status: "published",
+            entitlement_id: selectedEntitlement?.id ?? null,
+            remaining_posts: selectedEntitlement
+              ? selectedEntitlement.job_allowance === null
+                ? "unlimited"
+                : Math.max(0, (selectedEntitlement.job_allowance ?? 0) - (selectedEntitlement.jobs_used ?? 0) - 1)
+              : "N/A",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+        );
      } else {
        // Draft - no entitlement check needed
        let createdJobId = jobId;

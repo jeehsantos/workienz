@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { Loader2 } from "lucide-react";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 // Lazy load all route components for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -24,7 +25,10 @@ const ContractorJobDetail = lazy(() => import("./pages/contractor/ContractorJobD
 const SearchWorkers = lazy(() => import("./pages/contractor/SearchWorkers"));
 const ContractorProfile = lazy(() => import("./pages/contractor/ContractorProfile"));
 const JobApplicants = lazy(() => import("./pages/contractor/JobApplicants"));
+const TalentPool = lazy(() => import("./pages/contractor/TalentPool"));
 const JobSearch = lazy(() => import("./pages/employee/JobSearch"));
+const MyPools = lazy(() => import("./pages/employee/MyPools"));
+const MyShifts = lazy(() => import("./pages/employee/MyShifts"));
 const EmployeeProfile = lazy(() => import("./pages/employee/EmployeeProfile"));
 const ViewProfile = lazy(() => import("./pages/employee/ViewProfile"));
 const Articles = lazy(() => import("./pages/employee/Articles"));
@@ -41,6 +45,7 @@ const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminPartners = lazy(() => import("./pages/admin/AdminPartners"));
 const AdminArticleManagement = lazy(() => import("./pages/admin/AdminArticleManagement"));
 const AdminContentStructure = lazy(() => import("./pages/admin/AdminContentStructure"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const GuideHub = lazy(() => import("./pages/content/GuideHub"));
 const Contact = lazy(() => import("./pages/Contact"));
 const About = lazy(() => import("./pages/About"));
@@ -51,6 +56,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -90,8 +96,13 @@ const App = () => (
                 <Route path="/contractor/jobs/:jobId" element={<ContractorJobDetail />} />
                 <Route path="/contractor/jobs/:jobId/edit" element={<EditJob />} />
                 <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
+                <Route path="/contractor/talent-pool" element={<TalentPool />} />
                 <Route path="/contractor/profile" element={<ContractorProfile />} />
                 <Route path="/contractor/search-workers" element={<SearchWorkers />} />
+                <Route path="/employee/profile" element={<EmployeeProfile />} />
+                <Route path="/employee/view-profile" element={<ViewProfile />} />
+                <Route path="/employee/pools" element={<MyPools />} />
+                <Route path="/employee/shifts" element={<MyShifts />} />
                 <Route path="/employee/profile" element={<EmployeeProfile />} />
                 <Route path="/employee/view-profile" element={<ViewProfile />} />
                 <Route path="/workers/:id" element={<WorkerProfile />} />
@@ -107,6 +118,7 @@ const App = () => (
                 <Route path="/admin/articles" element={<AdminArticleManagement />} />
                 <Route path="/admin/categories" element={<AdminArticleManagement />} />
                 <Route path="/admin/content-structure" element={<AdminContentStructure />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/checkout" element={<Checkout />} />
@@ -116,12 +128,14 @@ const App = () => (
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<CookiePolicy />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/settings" element={<Settings />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </AppLayout>
         </AuthProvider>
+        <CookieConsentBanner />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

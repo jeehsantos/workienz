@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, Save, Send, AlertTriangle, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 import { UpgradeButton } from "@/components/ui/upgrade-button";
-
+import { useFavoriteWorkers } from "@/hooks/useFavoriteWorkers";
+import { FavoritedWorkersSuggestion } from "@/components/jobs/FavoritedWorkersSuggestion";
+import { TemplateConfirmation } from "@/components/jobs/TemplateConfirmation";
 import { StepIndicator } from "@/components/jobs/StepIndicator";
 import { JobDetailsStep } from "@/components/jobs/steps/JobDetailsStep";
 import { LocationPayStep } from "@/components/jobs/steps/LocationPayStep";
@@ -37,13 +39,17 @@ const STEPS = [
 
 export default function PostJob() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const templateJobId = searchParams.get("template");
   const { user, isLoading: authLoading, isContractor } = useAuthContext();
   const { toast } = useToast();
+  const { favorites, isLoading: favoritesLoading, fetchFavorites } = useFavoriteWorkers();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [contractorProfile, setContractorProfile] = useState<{ id: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateJobId);
   const [maxPositions, setMaxPositions] = useState(10);
   const [isFreeTier, setIsFreeTier] = useState(false);
   
@@ -51,6 +57,7 @@ export default function PostJob() {
   const [canPostJob, setCanPostJob] = useState(true);
   const [remainingPosts, setRemainingPosts] = useState<number | "unlimited">("unlimited");
   const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [entitlementErrorCode, setEntitlementErrorCode] = useState<string | null>(null);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -65,6 +72,7 @@ export default function PostJob() {
   const [selectedBenefits, setSelectedBenefits] = useState<string[]>([]);
   const [experienceRequired, setExperienceRequired] = useState(false);
   const [isSSE, setIsSSE] = useState(false);
+  
   const [scheduleType, setScheduleType] = useState<"shifts" | "fixed_term">("shifts");
   const [shifts, setShifts] = useState<Shift[]>([
     { id: crypto.randomUUID(), date: undefined, start_time: "", end_time: "", break_minutes: "0", break_paid: false }
@@ -73,13 +81,78 @@ export default function PostJob() {
   const [fixedTermEnd, setFixedTermEnd] = useState<Date | undefined>();
   const [weeklyHours, setWeeklyHours] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-
+  const [showTemplateConfirmation, setShowTemplateConfirmation] = useState(!!templateJobId);
   // Auth check
   useEffect(() => {
     if (!authLoading && (!user || !isContractor())) {
       navigate("/auth");
     }
   }, [user, authLoading, isContractor, navigate]);
+
+  // Fetch favorites
+  useEffect(() => {
+    if (user && isContractor()) fetchFavorites();
+  }, [user, isContractor, fetchFavorites]);
+
+  // Load template job data if template param exists
+  useEffect(() => {
+    async function loadTemplate() {
+      if (!templateJobId || !user) return;
+
+      const { data: templateJob, error } = await supabase
+        .from("jobs")
+        .select("title, description, requirements, location_city, location_suburb, location_country, job_type, duration, hourly_rate_min, industry, positions_available, skills_required, schedule_type, experience_required, is_sse, requires_heavy_lifting, requires_standing, requires_car, provides_training, provides_accommodation, starts_at, ends_at, weekly_hours")
+        .eq("id", templateJobId)
+        .single();
+
+      if (error || !templateJob) {
+        console.error("Failed to load template job:", error);
+        toast({ title: "Template not found", description: "Could not load the job template.", variant: "destructive" });
+        setIsLoadingTemplate(false);
+        return;
+      }
+
+      // Pre-fill form data from template (don't copy schedule - it's date-specific)
+      setFormData({
+        title: templateJob.title || "",
+        description: templateJob.description || "",
+        requirements: templateJob.requirements || "",
+        location_region: "",
+        location_city: templateJob.location_city || "",
+        location_suburb: templateJob.location_suburb || "",
+        location_country: templateJob.location_country || "New Zealand",
+        job_type: templateJob.job_type || "temporary",
+        duration: templateJob.duration || "",
+        hourly_rate: templateJob.hourly_rate_min?.toString() || "",
+        positions_available: (templateJob.positions_available || 1).toString(),
+        industry: templateJob.industry || "",
+      });
+
+      // Set other fields
+      if (templateJob.skills_required) setSkills(templateJob.skills_required);
+      if (templateJob.experience_required) setExperienceRequired(true);
+      if (templateJob.is_sse) setIsSSE(true);
+      if (templateJob.schedule_type === "fixed_term") setScheduleType("fixed_term");
+      if (templateJob.requires_car) setRequiresCar(true);
+
+      const physReqs: string[] = [];
+      if (templateJob.requires_heavy_lifting) physReqs.push("Requires lifting > 10kg");
+      if (templateJob.requires_standing) physReqs.push("Requires standing for long periods");
+      setPhysicalRequirements(physReqs);
+
+      const benefits: string[] = [];
+      if (templateJob.provides_training) benefits.push("Provides training");
+      if (templateJob.provides_accommodation) benefits.push("Provides accommodation");
+      setSelectedBenefits(benefits);
+
+      toast({ title: "Template loaded", description: "Review the details and post, or edit to customize." });
+      setShowTemplateConfirmation(true);
+      setIsLoadingTemplate(false);
+    }
+
+    if (user && templateJobId) loadTemplate();
+
+  }, [user, templateJobId, toast]);
 
   // Fetch contractor profile, platform settings, and entitlements
   useEffect(() => {
@@ -121,14 +194,14 @@ export default function PostJob() {
         setRemainingPosts(entitlementData.remaining_posts);
         if (!entitlementData.can_post) {
           setEntitlementError(entitlementData.message);
+          setEntitlementErrorCode(entitlementData.error_code);
         }
         
-        // Check if user is on free tier - limit positions to 1 (support both 'free_tier' and 'free_contractor')
+        // Check if user is on free tier
         const isFreeTierPlan = entitlementData.plan_type === "free_tier" || entitlementData.plan_type === "free_contractor";
         if (isFreeTierPlan) {
           setIsFreeTier(true);
           setMaxPositions(1);
-          // Ensure positions_available is set to 1 for free tier
           setFormData(prev => ({ ...prev, positions_available: "1" }));
         }
       }
@@ -183,11 +256,8 @@ export default function PostJob() {
         return true;
       case 5:
         if (scheduleType === "shifts") {
-          const validShifts = shifts.filter(s => s.date && s.start_time && s.end_time);
-          if (validShifts.length === 0) {
-            toast({ title: "Schedule required", description: "Please add at least one shift.", variant: "destructive" });
-            return false;
-          }
+          // Shift-based jobs don't require shift instances at posting time
+          return true;
         } else {
           if (!fixedTermStart) {
             toast({ title: "Start date required", description: "Please select a start date.", variant: "destructive" });
@@ -220,15 +290,15 @@ export default function PostJob() {
     }
   };
 
-  const handleSubmit = async (status: "draft" | "published") => {
-    if (!contractorProfile) return;
+  const createJob = async (status: "draft" | "published" | "private"): Promise<{ job_id?: string; error?: boolean }> => {
+    if (!contractorProfile) return { error: true };
 
     // Validate for publishing
-    if (status === "published") {
+    if (status === "published" || status === "private") {
       if (!formData.hourly_rate) {
         toast({ title: "Hourly rate required", description: "Please enter an hourly rate.", variant: "destructive" });
         setCurrentStep(2);
-        return;
+        return { error: true };
       }
     }
 
@@ -242,7 +312,7 @@ export default function PostJob() {
       location_city: formData.location_city || null,
       location_suburb: formData.location_suburb || null,
       location_country: formData.location_country || null,
-      job_type: formData.job_type,
+      job_type: scheduleType === "shifts" ? "shift" : "normal",
       duration: formData.duration || null,
       hourly_rate_min: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null,
       hourly_rate_max: null,
@@ -260,6 +330,8 @@ export default function PostJob() {
       requires_car: requiresCar,
       provides_training: selectedBenefits.includes("Provides training"),
       provides_accommodation: selectedBenefits.includes("Provides accommodation"),
+      hiring_style: "open_ai_top10",
+      hiring_config: { top_n: 10, question_count: 8, score_version: "v1", refresh_debounce_seconds: 60 },
     };
 
     // Prepare shifts data
@@ -287,7 +359,7 @@ export default function PostJob() {
     if (error) {
       console.error("Error creating job:", error);
       toast({ title: "Error", description: "Failed to create job posting. Please try again.", variant: "destructive" });
-      return;
+      return { error: true };
     }
 
     // Handle backend errors (like entitlement issues)
@@ -298,24 +370,78 @@ export default function PostJob() {
           description: data.message,
           variant: "destructive",
         });
-        // Optionally redirect to pricing
         setTimeout(() => navigate("/pricing"), 2000);
       } else {
         toast({ title: "Error", description: data.message || "Failed to create job.", variant: "destructive" });
       }
+      return { error: true };
+    }
+
+    return { job_id: data.job_id };
+  };
+
+  const handleSubmit = async (status: "draft" | "published" | "private") => {
+    const result = await createJob(status);
+    if (result.error || !result.job_id) return;
+
+    const isPrivatePost = status === "private";
+    toast({
+      title: isPrivatePost ? "Private Job Created!" : (status === "published" ? "Job Published!" : "Draft Saved"),
+      description: isPrivatePost
+        ? "Your private job has been created. You can now offer this position to your favorited workers."
+        : (status === "published" 
+          ? "Your job posting is now live."
+          : "Your job has been saved as a draft."),
+    });
+    
+    if (isPrivatePost && result.job_id) {
+      navigate(`/contractor/jobs/${result.job_id}`);
+    } else {
+      navigate("/contractor/jobs");
+    }
+  };
+
+  const handleOfferToWorker = async (employeeUserId: string) => {
+    if (!contractorProfile) return;
+
+    setIsSubmitting(true);
+    const result = await createJob("private");
+    if (result.error || !result.job_id) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Call offer-position to create application + conversation
+    const { data: offerData, error: offerError } = await supabase.functions.invoke("offer-position", {
+      body: { job_id: result.job_id, employee_user_id: employeeUserId },
+    });
+
+    setIsSubmitting(false);
+
+    if (offerError || !offerData?.success) {
+      console.error("Error offering position:", offerError || offerData?.error);
+      toast({
+        title: "Job created but offer failed",
+        description: offerData?.error || "Could not send the offer. You can try again from the job page.",
+        variant: "destructive",
+      });
+      navigate(`/contractor/jobs/${result.job_id}`);
       return;
     }
 
     toast({
-      title: status === "published" ? "Job Published!" : "Draft Saved",
-      description: status === "published" 
-        ? `Your job posting is now live. ${typeof data.remaining_posts === "number" ? `${data.remaining_posts} posts remaining.` : ""}`
-        : "Your job has been saved as a draft.",
+      title: "Position Offered!",
+      description: `Offer sent to ${offerData.data.employee_name} for "${offerData.data.job_title}".`,
     });
-    navigate("/contractor/jobs");
+
+    if (offerData.data.conversation_id) {
+      navigate(`/messages/${offerData.data.conversation_id}`);
+    } else {
+      navigate(`/contractor/jobs/${result.job_id}`);
+    }
   };
 
-  if (authLoading || isLoadingProfile) {
+  if (authLoading || isLoadingProfile || isLoadingTemplate) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -417,31 +543,89 @@ export default function PostJob() {
     }
   };
 
+  // Template confirmation view
+  if (showTemplateConfirmation && templateJobId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link to="/dashboard"><ArrowLeft className="w-4 h-4 mr-2" />Cancel and Back</Link>
+          </Button>
+
+          <TemplateConfirmation
+            formData={formData}
+            favorites={favorites}
+            favoritesLoading={favoritesLoading}
+            isSubmitting={isSubmitting}
+            canPostJob={canPostJob}
+            onPublish={() => handleSubmit("published")}
+            onEditWizard={() => setShowTemplateConfirmation(false)}
+            onOfferToWorker={handleOfferToWorker}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
         <Button variant="ghost" asChild className="mb-6">
-          <Link to="/dashboard"><ArrowLeft className="w-4 h-4 mr-2" />Back to Dashboard</Link>
+          <Link to={templateJobId ? "#" : "/dashboard"} onClick={templateJobId ? (e) => { e.preventDefault(); setShowTemplateConfirmation(true); } : undefined}>
+            <ArrowLeft className="w-4 h-4 mr-2" />{templateJobId ? "Back to Confirmation" : "Back to Dashboard"}
+          </Link>
         </Button>
 
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold font-display">Post a Job</h1>
+          <h1 className="text-3xl font-bold font-display">
+            {templateJobId ? "Edit Template Details" : "Post a Job"}
+          </h1>
           {remainingPosts !== "unlimited" && (
             <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
               {remainingPosts} post{remainingPosts !== 1 ? "s" : ""} remaining
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mb-8">Create a new job posting to find temporary workers.</p>
+        <p className="text-muted-foreground mb-4">
+          {templateJobId 
+            ? "Edit the pre-filled details, then go back to confirm and post."
+            : "Create a new job posting to find temporary workers."}
+        </p>
+
 
         {/* Entitlement Warning */}
         {!canPostJob && entitlementError && (
-          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className={`mb-6 p-4 rounded-lg border flex items-start gap-3 ${
+            entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+              ? "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800"
+              : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+          }`}>
+            <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+              entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+                ? "text-purple-600 dark:text-purple-400"
+                : "text-amber-600 dark:text-amber-400"
+            }`} />
             <div>
-              <p className="font-medium text-amber-800 dark:text-amber-200">Posting Limit Reached</p>
-              <p className="text-sm text-amber-700 dark:text-amber-300">{entitlementError}</p>
-              <UpgradeButton size="sm" className="mt-3" />
+              <p className={`font-medium ${
+                entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+                  ? "text-purple-800 dark:text-purple-200"
+                  : "text-amber-800 dark:text-amber-200"
+              }`}>
+                {entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER" ? "Pending Position Offer" : "Posting Limit Reached"}
+              </p>
+              <p className={`text-sm ${
+                entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER"
+                  ? "text-purple-700 dark:text-purple-300"
+                  : "text-amber-700 dark:text-amber-300"
+              }`}>{entitlementError}</p>
+              {entitlementErrorCode !== "ERR_UNRESOLVED_PRIVATE_OFFER" && (
+                <UpgradeButton size="sm" className="mt-3" />
+              )}
+              {entitlementErrorCode === "ERR_UNRESOLVED_PRIVATE_OFFER" && (
+                <Button size="sm" variant="outline" className="mt-3" asChild>
+                  <Link to="/contractor/jobs">View My Jobs</Link>
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -473,7 +657,7 @@ export default function PostJob() {
             )}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             {currentStep === STEPS.length ? (
               <>
                 <Button
@@ -485,6 +669,21 @@ export default function PostJob() {
                   <Save className="w-4 h-4 mr-2" />
                   Save as Draft
                 </Button>
+                {templateJobId && favorites.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => handleSubmit("private")}
+                    disabled={isSubmitting || !canPostJob}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <EyeOff className="w-4 h-4 mr-2" />
+                    )}
+                    Post as Private
+                  </Button>
+                )}
                 <Button
                   type="button"
                   onClick={() => handleSubmit("published")}

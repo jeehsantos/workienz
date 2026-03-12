@@ -111,7 +111,7 @@ export const NotificationDropdown = memo(function NotificationDropdown({
       </div>
 
       {/* Notifications List */}
-      <ScrollArea className="max-h-80">
+      <ScrollArea className="max-h-[60vh] overflow-y-auto">
         {notifications.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">
             <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />

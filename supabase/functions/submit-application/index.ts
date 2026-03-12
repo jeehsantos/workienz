@@ -2,29 +2,26 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface SubmitRequest {
   job_id: string;
   cover_letter?: string;
+  application_answers?: Record<string, unknown>;
 }
 
-// Constants for application limits
-const MAX_CONCURRENT_APPLICATIONS = 3;
 const BASE_FREE_TIER_APPLICATIONS = 1;
+const MAX_CONCURRENT_APPLICATIONS = 3;
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify authorization
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('[submit-application] No authorization header');
       return new Response(
         JSON.stringify({ error: 'Authorization header required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -32,16 +29,12 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Validate the user's token
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     if (claimsError || !claimsData?.claims?.sub) {
-      console.error('[submit-application] Token validation failed:', claimsError);
       return new Response(
         JSON.stringify({ error: 'Invalid or expired token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -49,10 +42,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub as string;
-    console.log('[submit-application] Authenticated user:', userId);
-
-    // Parse request body
-    const { job_id, cover_letter }: SubmitRequest = await req.json();
+    const { job_id, cover_letter, application_answers }: SubmitRequest = await req.json();
 
     if (!job_id) {
       return new Response(
@@ -61,147 +51,135 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('[submit-application] Processing application for job:', job_id);
+    console.log('[submit-application] Processing for user:', userId, 'job:', job_id);
 
-    // 1. Get employee profile
-    const { data: employeeProfile, error: empError } = await supabase
-      .from('employee_profiles')
-      .select('id, last_application_at, experience_years, industry')
-      .eq('user_id', userId)
-      .single();
+    // ─── BATCH 1: All read queries in parallel ───────────────────────
+    const [
+      employeeResult,
+      jobResult,
+      subscriptionResult,
+      settingsResult,
+      referralResult,
+    ] = await Promise.all([
+      // Employee profile
+      supabase
+        .from('employee_profiles')
+        .select('id, last_application_at, experience_years, industry')
+        .eq('user_id', userId)
+        .single(),
+      // Job details + status check
+      supabase
+        .from('jobs')
+        .select('id, title, industry, experience_required, contractor_id, hiring_style, status, positions_available, positions_filled')
+        .eq('id', job_id)
+        .single(),
+      // Subscription
+      supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle(),
+      // Platform settings
+      supabase
+        .from('platform_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['free_tier_cooldown_days', 'paid_tier_max_active_apps', 'paid_tier_cooldown_days']),
+      // Referral credits
+      supabase
+        .from('employee_referral_credits')
+        .select('bonus_credits_balance, bonus_credits_used, is_shadow_banned')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
 
-    if (empError || !employeeProfile) {
-      console.error('[submit-application] Employee profile not found:', empError);
+    // ─── Validate employee profile ───────────────────────────────────
+    if (employeeResult.error || !employeeResult.data) {
       return new Response(
         JSON.stringify({ error: 'Please complete your profile before applying to jobs.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const emp = employeeResult.data;
 
-    // 2. Check if already applied
-    const { data: existingApp } = await supabase
-      .from('job_applications')
-      .select('id')
-      .eq('job_id', job_id)
-      .eq('employee_id', employeeProfile.id)
-      .maybeSingle();
+    // ─── Validate job exists and is open ─────────────────────────────
+    if (jobResult.error || !jobResult.data) {
+      return new Response(
+        JSON.stringify({ error: 'Job not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const job = jobResult.data;
 
-    if (existingApp) {
+    if (job.status !== 'published') {
+      return new Response(
+        JSON.stringify({ error: 'This job is no longer accepting applications.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ─── BATCH 2: Queries that depend on employee id ─────────────────
+    const [existingAppResult, activeAppsResult] = await Promise.all([
+      // Already applied?
+      supabase
+        .from('job_applications')
+        .select('id')
+        .eq('job_id', job_id)
+        .eq('employee_id', emp.id)
+        .maybeSingle(),
+      // Active application count
+      supabase
+        .from('job_applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('employee_id', emp.id)
+        .in('status', ['pending', 'shortlisted']),
+    ]);
+
+    if (existingAppResult.data) {
       return new Response(
         JSON.stringify({ error: 'You have already applied to this job.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 3. Get job details
-    const { data: job, error: jobError } = await supabase
-      .from('jobs')
-      .select('id, title, industry, experience_required, contractor_id')
-      .eq('id', job_id)
-      .single();
-
-    if (jobError || !job) {
-      console.error('[submit-application] Job not found:', jobError);
-      return new Response(
-        JSON.stringify({ error: 'Job not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 4. Check experience requirements
+    // ─── Experience requirements ─────────────────────────────────────
     if (job.experience_required) {
-      if (!employeeProfile.experience_years || employeeProfile.experience_years === 0) {
+      if (!emp.experience_years || emp.experience_years === 0) {
         return new Response(
           JSON.stringify({ error: 'This job requires experience. Your profile shows no work experience.' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      if (job.industry && employeeProfile.industry && job.industry !== employeeProfile.industry) {
+      if (job.industry && emp.industry && job.industry !== emp.industry) {
         return new Response(
-          JSON.stringify({ error: `This job requires experience in ${job.industry}. Your profile shows experience in ${employeeProfile.industry}.` }),
+          JSON.stringify({ error: `This job requires experience in ${job.industry}. Your profile shows experience in ${emp.industry}.` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // 5. Check subscription status
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .maybeSingle();
+    // Position slot check removed — now handled atomically in create_job_application_atomic
 
-    const isSubscribed = !!subscription;
-
-    // 6. Fetch platform settings
-    const { data: settings } = await supabase
-      .from('platform_settings')
-      .select('setting_key, setting_value')
-      .in('setting_key', ['free_tier_cooldown_days', 'paid_tier_max_active_apps', 'paid_tier_cooldown_days']);
-
+    // ─── Parse settings ──────────────────────────────────────────────
     const settingsMap: Record<string, number> = {};
-    settings?.forEach(s => {
+    settingsResult.data?.forEach(s => {
       settingsMap[s.setting_key] = parseInt(s.setting_value) || 0;
     });
-
     const freeTierCooldownDays = settingsMap['free_tier_cooldown_days'] || 3;
     const paidTierMaxActiveApps = settingsMap['paid_tier_max_active_apps'] || 3;
     const paidTierCooldownDays = settingsMap['paid_tier_cooldown_days'] || 3;
 
-    // 7. Get active applications count
-    const { count: activeAppsCount } = await supabase
-      .from('job_applications')
-      .select('id', { count: 'exact', head: true })
-      .eq('employee_id', employeeProfile.id)
-      .in('status', ['pending', 'shortlisted']);
+    const isSubscribed = !!subscriptionResult.data;
+    const activeApplications = activeAppsResult.count || 0;
 
-    const activeApplications = activeAppsCount || 0;
-
-    // 8. Get referral credits for free tier users
+    // ─── Referral credits (free tier only) ───────────────────────────
     let referralCreditsRemaining = 0;
-    let referralCreditsRecord: any = null;
-    
-    if (!isSubscribed) {
-      const { data: referralCredits } = await supabase
-        .from('employee_referral_credits')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (referralCredits && !referralCredits.is_shadow_banned) {
-        referralCreditsRemaining = referralCredits.bonus_credits_balance - referralCredits.bonus_credits_used;
-        referralCreditsRecord = referralCredits;
-      }
+    const refData = referralResult.data;
+    if (!isSubscribed && refData && !refData.is_shadow_banned) {
+      referralCreditsRemaining = refData.bonus_credits_balance - refData.bonus_credits_used;
     }
 
-    // 9. Calculate total available applications for free tier
-    const totalFreeApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
-
-    // 10. Calculate cooldown - only applies to paid users OR free users who have exhausted their credits
-    // Free tier users with available referral credits can apply without cooldown
-    const cooldownDays = isSubscribed ? paidTierCooldownDays : freeTierCooldownDays;
-    
-    // For free tier: cooldown only applies if they're trying to use the base application again
-    // (i.e., they have no referral credits remaining and have already used their base slot)
-    const shouldApplyCooldown = isSubscribed || (activeApplications >= BASE_FREE_TIER_APPLICATIONS && referralCreditsRemaining <= 0);
-
-    if (shouldApplyCooldown && employeeProfile.last_application_at) {
-      const lastAppDate = new Date(employeeProfile.last_application_at);
-      const now = new Date();
-      const daysSinceLastApp = Math.floor((now.getTime() - lastAppDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (daysSinceLastApp < cooldownDays) {
-        const remaining = cooldownDays - daysSinceLastApp;
-        return new Response(
-          JSON.stringify({ error: `You must wait ${remaining} more day${remaining > 1 ? 's' : ''} before applying to another job.` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // 11. Check application slots with queue system
+    // ─── Application slot limits (subscribers only) ────────────────
     if (isSubscribed) {
       if (activeApplications >= paidTierMaxActiveApps) {
         return new Response(
@@ -209,101 +187,117 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else {
-      // Free tier logic with referral credits and queue system
-      
-      // First, check the concurrency limit (max 3 active at any time)
-      if (activeApplications >= MAX_CONCURRENT_APPLICATIONS) {
-        return new Response(
-          JSON.stringify({ 
-            error: `You have ${activeApplications} active applications. The maximum concurrent applications is ${MAX_CONCURRENT_APPLICATIONS}. Please wait for a response on your current applications before applying to more jobs.`,
-            remaining_credits: referralCreditsRemaining,
-            active_applications: activeApplications,
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    }
+    // Free-tier users have no cooldown or slot limits for normal job applications
 
-      // Check if user has any available application credits
-      // Free tier users get 1 base application + any referral bonus credits
-      // Total allowed = BASE_FREE_TIER_APPLICATIONS (1) + referral credits remaining
-      const totalAllowedApplications = BASE_FREE_TIER_APPLICATIONS + referralCreditsRemaining;
-      
-      console.log('[submit-application] Free tier credit check:', {
-        activeApplications,
-        referralCreditsRemaining,
-        totalAllowedApplications,
-        canApply: activeApplications < totalAllowedApplications
-      });
+    // ─── Questionnaire validation (open_ai_top10) ────────────────────
+    const isOpenAI = job.hiring_style === 'open_ai_top10';
+    let aiScoringStatus = 'pending';
+    let validatedAnswers: Record<string, unknown> | null = null;
 
-      // Check if user can still apply (have available credits)
-      if (activeApplications >= totalAllowedApplications) {
-        return new Response(
-          JSON.stringify({ 
-            error: "You've reached the limit for free applications. Boost your job search with Workie Premium! Get unlimited applications, and access to our premium features! Alternatively, invite friends to earn more application credits.",
-            upgrade_prompt: true,
-            remaining_credits: referralCreditsRemaining,
-            active_applications: activeApplications,
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    if (isOpenAI) {
+      const { data: questData } = await supabase
+        .from('job_ai_questionnaires')
+        .select('questionnaire')
+        .eq('job_id', job_id)
+        .maybeSingle();
+
+      if (questData?.questionnaire) {
+        const questions = (questData.questionnaire as any).questions;
+        if (Array.isArray(questions) && questions.length > 0) {
+          const answers = application_answers || {};
+          const unanswered = questions.filter((q: any) => {
+            const ans = (answers as Record<string, string>)[q.id];
+            return !ans || !String(ans).trim();
+          });
+          if (unanswered.length > 0) {
+            return new Response(
+              JSON.stringify({ error: `Please answer all ${questions.length} screening questions. ${unanswered.length} question(s) unanswered.` }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
       }
+      validatedAnswers = application_answers || null;
+      aiScoringStatus = 'pending';
     }
 
-    // 12. All validations passed - create the application
-    console.log('[submit-application] All validations passed, creating application');
+    // ─── ATOMIC: lock job row, check slots, check duplicate, insert ──
+    const { data: atomicResult, error: atomicError } = await supabase.rpc(
+      'create_job_application_atomic',
+      {
+        p_job_id: job_id,
+        p_employee_id: emp.id,
+        p_cover_letter: cover_letter || null,
+        p_application_answers: validatedAnswers,
+        p_ai_scoring_status: aiScoringStatus,
+      }
+    );
 
-    const { data: appData, error: appError } = await supabase
-      .from('job_applications')
-      .insert({
-        job_id,
-        employee_id: employeeProfile.id,
-        cover_letter: cover_letter || null,
-      })
-      .select('id')
-      .single();
-
-    if (appError || !appData) {
-      console.error('[submit-application] Failed to create application:', appError);
+    if (atomicError) {
+      console.error('[submit-application] Atomic RPC failed:', atomicError);
       return new Response(
         JSON.stringify({ error: 'Failed to submit application. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 13. Update last_application_at
-    await supabase
-      .from('employee_profiles')
-      .update({ last_application_at: new Date().toISOString() })
-      .eq('id', employeeProfile.id);
+    const rpcResult = atomicResult as { code: string; ok: boolean; application_id?: string };
 
-    // 14. If using referral credits (free tier, not the base application), consume one
-    if (!isSubscribed && referralCreditsRecord && activeApplications >= BASE_FREE_TIER_APPLICATIONS) {
-      await supabase
-        .from('employee_referral_credits')
-        .update({ 
-          bonus_credits_used: referralCreditsRecord.bonus_credits_used + 1,
-        })
-        .eq('user_id', userId);
-
-      console.log('[submit-application] Consumed 1 referral credit for user:', userId);
+    if (!rpcResult.ok) {
+      const errorMap: Record<string, { error: string; status: number; extra?: Record<string, unknown> }> = {
+        JOB_NOT_FOUND: { error: 'Job not found', status: 404 },
+        JOB_NOT_OPEN: { error: 'This job is no longer accepting applications.', status: 400 },
+        NO_SLOTS: { error: 'All positions have been filled.', status: 400, extra: { position_filled: true } },
+        ALREADY_APPLIED: { error: 'You have already applied to this job.', status: 400, extra: { code: 'ALREADY_APPLIED' } },
+        APPLICATIONS_CLOSED: { error: 'This job has reached its application limit and is no longer accepting new applications.', status: 400, extra: { code: 'APPLICATIONS_CLOSED' } },
+      };
+      const mapped = errorMap[rpcResult.code] || { error: 'Application failed.', status: 400 };
+      return new Response(
+        JSON.stringify({ error: mapped.error, ...mapped.extra }),
+        { status: mapped.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // 15. Get contractor info for conversation
-    const { data: contractorProfile } = await supabase
+    const appData = { id: rpcResult.application_id! };
+
+    // ─── Post-insert side effects (parallel) ─────────────────────────
+    const sideEffects: Promise<any>[] = [
+      // Update last_application_at
+      supabase
+        .from('employee_profiles')
+        .update({ last_application_at: new Date().toISOString() })
+        .eq('id', emp.id),
+    ];
+
+    // Consume referral credit if applicable
+    if (!isSubscribed && refData && !refData.is_shadow_banned && activeApplications >= BASE_FREE_TIER_APPLICATIONS) {
+      sideEffects.push(
+        supabase
+          .from('employee_referral_credits')
+          .update({ bonus_credits_used: refData.bonus_credits_used + 1 })
+          .eq('user_id', userId)
+      );
+      console.log('[submit-application] Consuming 1 referral credit');
+    }
+
+    // Get contractor for conversation
+    const contractorResult = await supabase
       .from('contractor_profiles')
       .select('user_id')
       .eq('id', job.contractor_id)
       .single();
 
-    // 16. Create conversation
+    await Promise.all(sideEffects);
+
+    // ─── Create conversation ─────────────────────────────────────────
     let conversationId: string | null = null;
-    if (contractorProfile) {
+    if (contractorResult.data) {
       const { data: convData } = await supabase
         .from('conversations')
         .insert({
           job_application_id: appData.id,
-          contractor_user_id: contractorProfile.user_id,
+          contractor_user_id: contractorResult.data.user_id,
           employee_user_id: userId,
         })
         .select('id')
@@ -311,7 +305,6 @@ Deno.serve(async (req) => {
 
       conversationId = convData?.id || null;
 
-      // Send cover letter as first message if provided
       if (conversationId && cover_letter?.trim()) {
         const { data: userProfile } = await supabase
           .from('profiles')
@@ -319,22 +312,35 @@ Deno.serve(async (req) => {
           .eq('user_id', userId)
           .single();
 
-        const introMessage = `📋 **Application for: ${job.title}**\n\nHi, I'm ${userProfile?.full_name || 'a job seeker'} and I'd like to apply for this position.\n\n**Cover Letter:**\n${cover_letter}`;
-
         await supabase.from('messages').insert({
           conversation_id: conversationId,
           sender_user_id: userId,
-          content: introMessage,
+          content: `📋 **Application for: ${job.title}**\n\nHi, I'm ${userProfile?.full_name || 'a job seeker'} and I'd like to apply for this position.\n\n**Cover Letter:**\n${cover_letter}`,
         });
       }
     }
 
-    console.log('[submit-application] Application created successfully:', appData.id);
+    // ─── Fire-and-forget AI scoring ──────────────────────────────────
+    if (isOpenAI) {
+      try {
+        fetch(`${supabaseUrl}/functions/v1/score-application-ai`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ application_id: appData.id }),
+        });
+      } catch (e) {
+        console.error('[submit-application] AI scoring trigger failed (non-fatal):', e);
+      }
+    }
 
-    // Calculate remaining credits for response
-    const newReferralCreditsRemaining = referralCreditsRecord 
+    const newCreditsRemaining = refData && !refData.is_shadow_banned
       ? Math.max(0, referralCreditsRemaining - (activeApplications >= BASE_FREE_TIER_APPLICATIONS ? 1 : 0))
       : 0;
+
+    console.log('[submit-application] Success:', appData.id);
 
     return new Response(
       JSON.stringify({
@@ -343,7 +349,7 @@ Deno.serve(async (req) => {
         data: {
           application_id: appData.id,
           conversation_id: conversationId,
-          remaining_referral_credits: newReferralCreditsRemaining,
+          remaining_referral_credits: newCreditsRemaining,
           active_applications: activeApplications + 1,
         },
       }),

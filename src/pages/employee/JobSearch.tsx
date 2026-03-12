@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
-import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock, Filter, AlertCircle, Zap } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Briefcase, MapPin, Clock, DollarSign, Users, Lock, Filter, AlertCircle, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { JOB_TYPE_CONFIG, JobType } from "@/data/jobTypes";
 import { INDUSTRIES, Industry } from "@/data/industries";
@@ -42,77 +42,77 @@ type Job = {
 };
 
 // Memoized JobCard component to prevent unnecessary re-renders
-const JobCard = memo(({ job, user }: { job: Job; user: any }) => {
+const JobCard = memo(({ job, user }: {job: Job;user: any;}) => {
   // Determine if we should show hourly rate for volunteering jobs
-  const showHourlyRate = job.job_type !== "volunteering" || 
-                         (job.hourly_rate_min !== null && job.hourly_rate_min > 0);
-  
+  const showHourlyRate = job.job_type !== "volunteering" ||
+  job.hourly_rate_min !== null && job.hourly_rate_min > 0;
+
   return (
     <div
       className={`bg-card rounded-xl p-4 sm:p-6 border shadow-soft hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${
-        job.has_priority ? "border-amber-400/60 ring-1 ring-amber-200/30" : "border-border/50"
-      }`}
-    >
+      job.has_priority ? "border-amber-400/60 ring-1 ring-amber-200/30" : "border-border/50"}`
+      }>
+
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Industry, Job Type, and Priority Badges */}
           <div className="flex flex-wrap gap-2 mb-3">
-            {job.has_priority && (
-              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1">
+            {job.has_priority &&
+            <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1">
                 <Zap className="w-3 h-3" />
                 Priority
               </Badge>
-            )}
+            }
             <JobTypeBadge jobType={job.job_type as JobType} />
             <IndustryBadge industry={job.industry as Industry} />
           </div>
 
           <h3 className="text-lg font-semibold mb-1 break-words">{job.title}</h3>
-          {user ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-              <ContractorAvatar 
-                avatarUrl={job.contractor?.avatar_url}
-                companyName={job.contractor?.company_name}
-                size="sm"
-              />
+          {user ?
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+              <ContractorAvatar
+              avatarUrl={job.contractor?.avatar_url}
+              companyName={job.contractor?.company_name}
+              size="sm" />
+
               <span>{job.contractor?.company_name || "Company"}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
+            </div> :
+
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3">
               <Lock className="w-3.5 h-3.5 flex-shrink-0" />
               <span>Sign in to see company details</span>
             </div>
-          )}
+          }
 
           <div className="flex flex-wrap gap-3 sm:gap-4 text-sm text-muted-foreground mb-3">
-            {job.location_city && (
-              <span className="flex items-center gap-1">
+            {job.location_city &&
+            <span className="flex items-center gap-1">
                 <MapPin className="w-4 h-4 flex-shrink-0" />
                 <span className="break-words">
                   {job.location_suburb && `${job.location_suburb}, `}
                   {job.location_city}
                 </span>
               </span>
-            )}
-            {job.duration && (
-              <span className="flex items-center gap-1">
+            }
+            {job.duration &&
+            <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4 flex-shrink-0" />
                 {job.duration}
               </span>
-            )}
+            }
             {/* Conditional hourly rate display */}
-            {showHourlyRate && (job.hourly_rate_min || job.hourly_rate_max) && (
-              <span className="flex items-center gap-1">
+            {showHourlyRate && (job.hourly_rate_min || job.hourly_rate_max) &&
+            <span className="flex items-center gap-1">
                 <DollarSign className="w-4 h-4 flex-shrink-0" />$
                 {job.hourly_rate_min || "?"} - ${job.hourly_rate_max || "?"}/hr
               </span>
-            )}
+            }
             {/* Volunteer Position badge when no rate is shown */}
-            {job.job_type === "volunteering" && !showHourlyRate && (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+            {job.job_type === "volunteering" && !showHourlyRate &&
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
                 Volunteer Position
               </Badge>
-            )}
+            }
             <span className="flex items-center gap-1">
               <Users className="w-4 h-4 flex-shrink-0" />
               {job.positions_available - job.positions_filled} position{job.positions_available - job.positions_filled > 1 ? "s" : ""} left
@@ -123,37 +123,37 @@ const JobCard = memo(({ job, user }: { job: Job; user: any }) => {
             {job.description}
           </p>
 
-          {job.skills_required && job.skills_required.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {job.skills_required.slice(0, 5).map((skill) => (
-                <Badge key={skill} variant="secondary" className="text-xs">
-                  {skill}
-                </Badge>
-              ))}
-              {job.skills_required.length > 5 && (
-                <Badge variant="outline" className="text-xs">
-                  +{job.skills_required.length - 5}
-                </Badge>
-              )}
-            </div>
-          )}
+          {job.skills_required && job.skills_required.length > 0
+
+
+
+
+
+
+
+
+
+
+
+
+          }
         </div>
 
         <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-2">
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {new Date(job.created_at).toLocaleDateString()}
           </span>
-          <Button 
-            asChild 
+          <Button
+            asChild
             className="h-11 min-h-[44px] sm:h-10 sm:min-h-0"
-            aria-label={`View details for ${job.title}`}
-          >
+            aria-label={`View details for ${job.title}`}>
+
             <Link to={`/jobs/${job.id}`}>View Details</Link>
           </Button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 });
 
 JobCard.displayName = 'JobCard';
@@ -165,6 +165,8 @@ export default function JobSearch() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const JOBS_PER_PAGE = 18;
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -194,6 +196,7 @@ export default function JobSearch() {
     setCityFilter("");
     setJobTypeFilter("all");
     setIndustryFilter("all");
+    setCurrentPage(1);
   }, []);
 
   // Stabilize retry callback
@@ -219,7 +222,7 @@ export default function JobSearch() {
             status: "published",
             location_city: cityFilter || undefined,
             job_type: jobTypeFilter !== "all" ? jobTypeFilter : undefined,
-            industry: industryFilter !== "all" ? industryFilter : undefined,
+            industry: industryFilter !== "all" ? industryFilter : undefined
           },
           100 // Fetch more results for client-side filtering
         );
@@ -235,45 +238,45 @@ export default function JobSearch() {
         // Only fetch contractor info if user is authenticated
         let jobsWithContractor: Job[] = [];
         let appliedJobIds: Set<string> = new Set();
-        
+
         if (user) {
           // Fetch user's employee profile to get applied job IDs
-          const { data: employeeProfile } = await supabase
-            .from("employee_profiles")
-            .select("id")
-            .eq("user_id", user.id)
-            .single();
+          const { data: employeeProfile } = await supabase.
+          from("employee_profiles").
+          select("id").
+          eq("user_id", user.id).
+          single();
 
           if (employeeProfile) {
             // Fetch all job applications by this employee
-            const { data: applications } = await supabase
-              .from("job_applications")
-              .select("job_id")
-              .eq("employee_id", employeeProfile.id);
+            const { data: applications } = await supabase.
+            from("job_applications").
+            select("job_id").
+            eq("employee_id", employeeProfile.id);
 
             if (applications) {
-              appliedJobIds = new Set(applications.map(app => app.job_id));
+              appliedJobIds = new Set(applications.map((app) => app.job_id));
             }
           }
 
           // Fetch contractor info for authenticated users
           const contractorIds = [...new Set(data?.map((j: any) => j.contractor_id) || [])] as string[];
-          const { data: contractors } = await supabase
-            .from("contractor_profiles")
-            .select("id, company_name, avatar_url")
-            .in("id", contractorIds);
+          const { data: contractors } = await supabase.
+          from("contractor_profiles").
+          select("id, company_name, avatar_url").
+          in("id", contractorIds);
 
           jobsWithContractor = data?.map((job: any) => ({
             ...job,
             has_priority: job.contractor_profiles?.has_priority || false,
-            contractor: contractors?.find((c) => c.id === job.contractor_id) || null,
+            contractor: contractors?.find((c) => c.id === job.contractor_id) || null
           })) || [];
         } else {
           // For unauthenticated users, hide company info
           jobsWithContractor = data?.map((job: any) => ({
             ...job,
             has_priority: job.contractor_profiles?.has_priority || false,
-            contractor: null,
+            contractor: null
           })) || [];
         }
 
@@ -288,12 +291,13 @@ export default function JobSearch() {
         }
 
         // Handle null/empty industry values - treat as "Other"
-        filtered = filtered.map(job => ({
+        filtered = filtered.map((job) => ({
           ...job,
           industry: job.industry || "Other"
         }));
 
         setJobs(filtered);
+        setCurrentPage(1);
         setError(null);
       } catch (err) {
         console.error("Unexpected error:", err);
@@ -310,14 +314,14 @@ export default function JobSearch() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container-tight py-8">
-        {user && (
-          <Button variant="ghost" asChild className="mb-6">
+        {user &&
+        <Button variant="ghost" asChild className="mb-6">
             <Link to="/dashboard">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Link>
           </Button>
-        )}
+        }
 
         <h1 className="text-3xl font-bold mb-2 font-display">Find Jobs</h1>
         <p className="text-muted-foreground mb-8">
@@ -328,20 +332,20 @@ export default function JobSearch() {
         <div className="md:hidden mb-6">
           <Sheet open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
             <SheetTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full h-11 justify-between"
-                aria-label="Open filters"
-              >
+                aria-label="Open filters">
+
                 <span className="flex items-center gap-2">
                   <Filter className="w-4 h-4" />
                   Filters
                 </span>
-                {activeFilterCount > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                {activeFilterCount > 0 &&
+                <Badge variant="secondary" className="ml-2">
                     {activeFilterCount}
                   </Badge>
-                )}
+                }
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[300px] sm:w-[400px] overflow-y-auto">
@@ -360,8 +364,8 @@ export default function JobSearch() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Job title, company, skills..."
                       className="pl-9 h-11"
-                      aria-label="Search for jobs by title, company, or skills"
-                    />
+                      aria-label="Search for jobs by title, company, or skills" />
+
                   </div>
                 </div>
 
@@ -373,8 +377,8 @@ export default function JobSearch() {
                     onChange={(e) => setCityFilter(e.target.value)}
                     placeholder="Filter by city..."
                     className="h-11"
-                    aria-label="Filter jobs by city"
-                  />
+                    aria-label="Filter jobs by city" />
+
                 </div>
 
                 <div className="space-y-2">
@@ -401,27 +405,27 @@ export default function JobSearch() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Industries</SelectItem>
-                      {INDUSTRIES.map((industry) => (
-                        <SelectItem key={industry} value={industry}>
+                      {INDUSTRIES.map((industry) =>
+                      <SelectItem key={industry} value={industry}>
                           {industry}
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <SheetFooter className="mt-6 flex-col sm:flex-col gap-2">
-                <Button 
-                  onClick={() => setIsMobileFilterOpen(false)} 
-                  className="w-full h-11"
-                >
+                <Button
+                  onClick={() => setIsMobileFilterOpen(false)}
+                  className="w-full h-11">
+
                   Apply Filters
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleClearAllFilters}
-                  className="w-full h-11"
-                >
+                  className="w-full h-11">
+
                   Clear All
                 </Button>
               </SheetFooter>
@@ -442,8 +446,8 @@ export default function JobSearch() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Job title, company, skills..."
                   className="pl-9"
-                  aria-label="Search for jobs by title, company, or skills"
-                />
+                  aria-label="Search for jobs by title, company, or skills" />
+
               </div>
             </div>
 
@@ -454,8 +458,8 @@ export default function JobSearch() {
                 value={cityFilter}
                 onChange={(e) => setCityFilter(e.target.value)}
                 placeholder="Filter by city..."
-                aria-label="Filter jobs by city"
-              />
+                aria-label="Filter jobs by city" />
+
             </div>
 
             <div className="space-y-2">
@@ -482,11 +486,11 @@ export default function JobSearch() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Industries</SelectItem>
-                  {INDUSTRIES.map((industry) => (
-                    <SelectItem key={industry} value={industry}>
+                  {INDUSTRIES.map((industry) =>
+                  <SelectItem key={industry} value={industry}>
                       {industry}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -494,22 +498,22 @@ export default function JobSearch() {
         </div>
 
         {/* Active Filters Bar */}
-        {activeFilterCount > 0 && (
-          <div className="bg-muted/50 rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+        {activeFilterCount > 0 &&
+        <div className="bg-muted/50 rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
               {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""} active
             </span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearAllFilters}
-              className="h-9 min-h-[44px] md:h-8 md:min-h-0"
-              aria-label="Clear all active filters"
-            >
+            <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearAllFilters}
+            className="h-9 min-h-[44px] md:h-8 md:min-h-0"
+            aria-label="Clear all active filters">
+
               Clear All Filters
             </Button>
           </div>
-        )}
+        }
 
         {/* Screen reader announcements */}
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -517,43 +521,120 @@ export default function JobSearch() {
         </div>
 
         {/* Error State */}
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        {error &&
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-medium text-destructive mb-2">{error}</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRetry}
-                className="h-9 min-h-[44px] md:h-8 md:min-h-0"
-              >
+              <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="h-9 min-h-[44px] md:h-8 md:min-h-0">
+
                 Try Again
               </Button>
             </div>
           </div>
-        )}
+        }
 
         {/* Results */}
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <SkeletonJobPosting key={i} variant="card" />
-            ))}
-          </div>
-        ) : jobs.length === 0 ? (
-          <EmptyState 
-            hasActiveFilters={activeFilterCount > 0}
-            onClearFilters={handleClearAllFilters}
-          />
-        ) : (
-          <div className="space-y-4">
-            {jobs.map((job) => (
-              <JobCard key={job.id} job={job} user={user} />
-            ))}
-          </div>
-        )}
+        {isLoading ?
+        <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) =>
+          <SkeletonJobPosting key={i} variant="card" />
+          )}
+          </div> :
+        jobs.length === 0 ?
+        <EmptyState
+          hasActiveFilters={activeFilterCount > 0}
+          onClearFilters={handleClearAllFilters} /> :
+
+        (() => {
+          const totalPages = Math.ceil(jobs.length / JOBS_PER_PAGE);
+          const paginatedJobs = jobs.slice((currentPage - 1) * JOBS_PER_PAGE, currentPage * JOBS_PER_PAGE);
+
+          return (
+            <>
+              <div className="space-y-4">
+                {paginatedJobs.map((job) =>
+                  <JobCard key={job.id} job={job} user={user} />
+                )}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-8 pb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    disabled={currentPage === 1}
+                    className="h-10 min-h-[44px] gap-1"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        // Show first, last, current, and neighbors
+                        if (page === 1 || page === totalPages) return true;
+                        if (Math.abs(page - currentPage) <= 1) return true;
+                        return false;
+                      })
+                      .reduce<(number | "ellipsis")[]>((acc, page, idx, arr) => {
+                        if (idx > 0 && page - (arr[idx - 1] as number) > 1) {
+                          acc.push("ellipsis");
+                        }
+                        acc.push(page);
+                        return acc;
+                      }, [])
+                      .map((item, idx) =>
+                        item === "ellipsis" ? (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground text-sm">…</span>
+                        ) : (
+                          <Button
+                            key={item}
+                            variant={currentPage === item ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => { setCurrentPage(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                            className="h-10 w-10 min-h-[44px] min-w-[44px] p-0"
+                            aria-label={`Page ${item}`}
+                            aria-current={currentPage === item ? "page" : undefined}
+                          >
+                            {item}
+                          </Button>
+                        )
+                      )
+                    }
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    disabled={currentPage === totalPages}
+                    className="h-10 min-h-[44px] gap-1"
+                    aria-label="Next page"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Page info */}
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Showing {(currentPage - 1) * JOBS_PER_PAGE + 1}–{Math.min(currentPage * JOBS_PER_PAGE, jobs.length)} of {jobs.length} jobs
+              </p>
+            </>
+          );
+        })()
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }

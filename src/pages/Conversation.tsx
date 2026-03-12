@@ -22,6 +22,7 @@ import {
   UserCircle,
   Share2,
   Flag,
+  Paperclip,
 } from "lucide-react";
 import { dispatchUnreadRefresh } from "@/hooks/useProfileRefresh";
 import {
@@ -44,6 +45,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { SubscriberFeatureDialog } from "@/components/chat/SubscriberFeatureDialog";
+import { PreEmploymentPackBanner } from "@/components/chat/PreEmploymentPackBanner";
+import { ChatFileMessage, parseChatFileMessage, CHAT_FILE_PREFIX } from "@/components/chat/ChatFileMessage";
 import { ContractorAvatar } from "@/components/contractor/ContractorAvatar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -71,6 +74,8 @@ type ConversationData = {
     job: {
       id: string;
       title: string;
+      status: string;
+      job_type: string;
     };
   } | null;
   other_party: {
@@ -89,9 +94,7 @@ const MessageBubble = memo(({ message, isOwn }: { message: Message; isOwn: boole
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3 py-2 sm:px-4 sm:py-3 ${
-          isOwn
-            ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-muted rounded-bl-md"
+          isOwn ? "bg-primary text-primary-foreground rounded-br-md" : "bg-muted rounded-bl-md"
         }`}
       >
         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
@@ -103,7 +106,7 @@ const MessageBubble = memo(({ message, isOwn }: { message: Message; isOwn: boole
   );
 });
 
-MessageBubble.displayName = 'MessageBubble';
+MessageBubble.displayName = "MessageBubble";
 
 export default function Conversation() {
   const { id } = useParams();
@@ -112,6 +115,8 @@ export default function Conversation() {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [conversation, setConversation] = useState<ConversationData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -120,11 +125,12 @@ export default function Conversation() {
   const [isSending, setIsSending] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isHiring, setIsHiring] = useState(false);
+  const [isRespondingToOffer, setIsRespondingToOffer] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showSubscriberDialog, setShowSubscriberDialog] = useState(false);
   const [isFreeTier, setIsFreeTier] = useState(false);
   const [checkingFreeTier, setCheckingFreeTier] = useState(false);
-  
+
   // Pagination state (Requirement 9.3)
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -135,7 +141,7 @@ export default function Conversation() {
   useEffect(() => {
     async function checkFreeTierStatus() {
       if (!user || !isContractor) return;
-      
+
       setCheckingFreeTier(true);
       try {
         const { data: entitlements } = await supabase
@@ -146,8 +152,8 @@ export default function Conversation() {
 
         if (entitlements && entitlements.length > 0) {
           // Check if user only has free tier (no paid plans)
-          const hasPaidPlan = entitlements.some(e => e.plan_type !== "free_contractor");
-          const hasFreeTier = entitlements.some(e => e.plan_type === "free_contractor");
+          const hasPaidPlan = entitlements.some((e) => e.plan_type !== "free_contractor");
+          const hasFreeTier = entitlements.some((e) => e.plan_type === "free_contractor");
           setIsFreeTier(hasFreeTier && !hasPaidPlan);
         }
       } catch (error) {
@@ -171,7 +177,8 @@ export default function Conversation() {
 
       const { data: convData, error: convError } = await supabase
         .from("conversations")
-        .select(`
+        .select(
+          `
           id,
           status,
           contractor_user_id,
@@ -182,7 +189,8 @@ export default function Conversation() {
           reminder_count,
           hired_at,
           scheduled_deletion_at
-        `)
+        `,
+        )
         .eq("id", id)
         .single();
 
@@ -195,6 +203,8 @@ export default function Conversation() {
       // Fetch job application and job info if exists
       let jobTitle = "Direct Contact";
       let jobId = null;
+      let jobStatus = "";
+      let jobType = "normal";
       let applicationStatus = "pending";
       if (convData.job_application_id) {
         const { data: appData } = await supabase
@@ -207,21 +217,21 @@ export default function Conversation() {
           applicationStatus = appData.status;
           const { data: jobData } = await supabase
             .from("jobs")
-            .select("id, title")
+            .select("id, title, status, job_type")
             .eq("id", appData.job_id)
             .single();
           if (jobData) {
             jobTitle = jobData.title;
             jobId = jobData.id;
+            jobStatus = jobData.status;
+            jobType = jobData.job_type || "normal";
           }
         }
       }
 
       // Determine other party
       const otherUserId =
-        convData.contractor_user_id === user?.id
-          ? convData.employee_user_id
-          : convData.contractor_user_id;
+        convData.contractor_user_id === user?.id ? convData.employee_user_id : convData.contractor_user_id;
 
       // Fetch other party profile
       const { data: profileData } = await supabase
@@ -234,7 +244,7 @@ export default function Conversation() {
       let phone = profileData?.phone || null;
       let contractorAvatarUrl: string | null = null;
       let contractorCompanyName: string | null = null;
-      
+
       if (!phone) {
         if (convData.contractor_user_id === user?.id) {
           const { data: empProfile } = await supabase
@@ -271,8 +281,12 @@ export default function Conversation() {
         reminder_count: convData.reminder_count || 0,
         hired_at: convData.hired_at,
         scheduled_deletion_at: convData.scheduled_deletion_at,
-        job_application: convData.job_application_id 
-          ? { id: convData.job_application_id, status: applicationStatus, job: { id: jobId || "", title: jobTitle } } 
+        job_application: convData.job_application_id
+          ? {
+              id: convData.job_application_id,
+              status: applicationStatus,
+              job: { id: jobId || "", title: jobTitle, status: jobStatus, job_type: jobType },
+            }
           : null,
         other_party: profileData ? { ...profileData, phone } : null,
         other_party_user_id: otherUserId,
@@ -294,7 +308,7 @@ export default function Conversation() {
 
       const messages = (messagesData || []).reverse(); // Reverse to show oldest first
       setMessages(messages);
-      
+
       // Check if there are more messages
       if (messages.length === MESSAGES_PER_PAGE) {
         setHasMoreMessages(true);
@@ -302,20 +316,21 @@ export default function Conversation() {
       } else {
         setHasMoreMessages(false);
       }
-      
+
       setIsLoading(false);
 
       // Mark conversation as read
       if (user && messagesData && messagesData.length > 0) {
-        await supabase
-          .from("conversation_read_status")
-          .upsert({
+        await supabase.from("conversation_read_status").upsert(
+          {
             conversation_id: id,
             user_id: user.id,
             last_read_at: new Date().toISOString(),
-          }, {
-            onConflict: 'conversation_id,user_id'
-          });
+          },
+          {
+            onConflict: "conversation_id,user_id",
+          },
+        );
         dispatchUnreadRefresh();
       }
     }
@@ -333,8 +348,13 @@ export default function Conversation() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${id}` },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-        }
+          const newMsg = payload.new as Message;
+          // Deduplicate: skip if message already exists (e.g. from optimistic insert)
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        },
       )
       .subscribe();
 
@@ -358,7 +378,7 @@ export default function Conversation() {
 
     try {
       // Get the oldest message's created_at timestamp
-      const oldestMessage = messages.find(m => m.id === oldestMessageId);
+      const oldestMessage = messages.find((m) => m.id === oldestMessageId);
       if (!oldestMessage) {
         setIsLoadingMore(false);
         return;
@@ -380,9 +400,9 @@ export default function Conversation() {
 
       if (olderMessages && olderMessages.length > 0) {
         const reversedMessages = olderMessages.reverse();
-        setMessages(prev => [...reversedMessages, ...prev]);
+        setMessages((prev) => [...reversedMessages, ...prev]);
         setOldestMessageId(reversedMessages[0]?.id || null);
-        
+
         // Check if there are more messages
         if (olderMessages.length < MESSAGES_PER_PAGE) {
           setHasMoreMessages(false);
@@ -400,7 +420,7 @@ export default function Conversation() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedMessage = newMessage.trim();
-    
+
     if (!trimmedMessage || !user || !id || conversation?.status !== "active") return;
 
     if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
@@ -413,27 +433,133 @@ export default function Conversation() {
     }
 
     setIsSending(true);
+    setNewMessage("");
 
-    const { error } = await supabase.from("messages").insert({
-      conversation_id: id,
-      sender_user_id: user.id,
+    // Optimistic insert so message appears instantly
+    const optimisticId = crypto.randomUUID();
+    const optimisticMsg: Message = {
+      id: optimisticId,
       content: trimmedMessage,
-    });
+      sender_user_id: user.id,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    const { data: insertedData, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: id,
+        sender_user_id: user.id,
+        content: trimmedMessage,
+      })
+      .select("id")
+      .single();
 
     setIsSending(false);
 
     if (error) {
       console.error("Error sending message:", error);
+      // Remove the optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",
         variant: "destructive",
       });
+      setNewMessage(trimmedMessage); // Restore the message
       return;
     }
 
-    setNewMessage("");
+    // Replace optimistic ID with real ID so realtime dedup works
+    if (insertedData?.id) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === optimisticId ? { ...m, id: insertedData.id } : m))
+      );
+    }
+
     inputRef.current?.focus();
+  };
+
+  const ALLOWED_FILE_TYPES = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    console.log("[chat-upload] File selected:", file?.name, file?.type, file?.size);
+    console.log("[chat-upload] User:", !!user, "ID:", id, "Conv status:", conversation?.status);
+    
+    if (!file || !user || !id || conversation?.status !== "active") {
+      console.log("[chat-upload] Early return - missing prereqs");
+      return;
+    }
+
+    // Reset input so re-selecting the same file triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      console.log("[chat-upload] Rejected file type:", file.type);
+      toast({
+        title: "Invalid File Type",
+        description: "Only PDF and DOC/DOCX files are allowed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File Too Large",
+        description: "Maximum file size is 10MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const ext = file.name.split(".").pop() || "pdf";
+      const storagePath = `chat-attachments/${id}/${crypto.randomUUID()}.${ext}`;
+      console.log("[chat-upload] Uploading to:", storagePath);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("pre-employment-docs")
+        .upload(storagePath, file, { contentType: file.type });
+
+      console.log("[chat-upload] Upload result:", { data: uploadData, error: uploadError });
+
+      if (uploadError) {
+        console.error("[chat-upload] Upload error:", uploadError);
+        toast({ title: "Upload Failed", description: uploadError.message || "Could not upload the file.", variant: "destructive" });
+        return;
+      }
+
+      // Send a special message with file metadata
+      const messageContent = `${CHAT_FILE_PREFIX}${JSON.stringify({
+        file_url: storagePath,
+        file_name: file.name,
+      })}`;
+
+      const { error: msgError } = await supabase.from("messages").insert({
+        conversation_id: id,
+        sender_user_id: user.id,
+        content: messageContent,
+      });
+
+      if (msgError) {
+        console.error("[chat-upload] Message error:", msgError);
+        toast({ title: "Error", description: "File uploaded but failed to send message.", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("[chat-upload] Caught error:", err);
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleCloseConversation = async () => {
@@ -441,10 +567,7 @@ export default function Conversation() {
 
     setIsClosing(true);
 
-    const { error } = await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("conversations").delete().eq("id", id);
 
     setIsClosing(false);
     setShowCloseDialog(false);
@@ -486,7 +609,7 @@ export default function Conversation() {
         return;
       }
 
-      const response = await supabase.functions.invoke('hire-applicant', {
+      const response = await supabase.functions.invoke("hire-applicant", {
         body: { application_id: conversation.job_application_id },
       });
 
@@ -513,14 +636,19 @@ export default function Conversation() {
         return;
       }
 
-      setConversation(prev => prev ? {
-        ...prev,
-        job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null
-      } : null);
+      setConversation((prev) =>
+        prev
+          ? {
+              ...prev,
+              job_application: prev.job_application ? { ...prev.job_application, status: "hired" } : null,
+            }
+          : null,
+      );
 
       toast({
         title: "🎉 Applicant Hired!",
-        description: "Congratulations message sent. The worker's availability has been updated. Other pending applications have been closed.",
+        description:
+          "Congratulations message sent. The worker's availability has been updated. Other pending applications have been closed.",
       });
     } catch (error) {
       console.error("Error hiring applicant:", error);
@@ -553,7 +681,7 @@ export default function Conversation() {
       .single();
 
     let phone = profile?.phone || null;
-    
+
     if (!phone) {
       const isContractorUser = conversation?.contractor_user_id === user.id;
       if (isContractorUser) {
@@ -578,7 +706,9 @@ export default function Conversation() {
       `Name: ${profile?.full_name || "Not provided"}`,
       `Email: ${profile?.email || "Not provided"}`,
       phone ? `Phone: ${phone}` : null,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const { error } = await supabase.from("messages").insert({
       conversation_id: id,
@@ -606,7 +736,7 @@ export default function Conversation() {
 
   const handleViewProfile = () => {
     if (!conversation?.other_party_user_id) return;
-    
+
     const isUserContractor = conversation.contractor_user_id === user?.id;
     if (isUserContractor) {
       // Contractor viewing employee profile - use /workers/:id route
@@ -617,11 +747,86 @@ export default function Conversation() {
     }
   };
 
+  const handleRespondToOffer = async (response: "accept" | "decline") => {
+    if (!conversation?.job_application?.id) return;
+
+    setIsRespondingToOffer(true);
+    try {
+      const result = await supabase.functions.invoke("respond-to-offer", {
+        body: {
+          application_id: conversation.job_application.id,
+          response,
+        },
+      });
+
+      if (result.error) {
+        toast({
+          title: "Error",
+          description: result.error.message || "Failed to respond to offer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const data = result.data;
+      if (!data?.success) {
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to respond to offer.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setConversation((prev) => {
+        if (!prev?.job_application) return prev;
+        return {
+          ...prev,
+          status: response === "decline" ? "closed" : prev.status,
+          job_application: {
+            ...prev.job_application,
+            status: data.data.new_status,
+          },
+        };
+      });
+
+      toast({
+        title: response === "accept" ? "✅ Offer Accepted!" : "Offer Declined",
+        description:
+          response === "accept"
+            ? "The employer has been notified. They can now confirm your hire."
+            : "The employer has been notified. This conversation will be archived.",
+      });
+
+      if (response === "decline") {
+        setTimeout(() => navigate("/dashboard"), 2000);
+      }
+    } catch (error) {
+      console.error("Error responding to offer:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRespondingToOffer(false);
+    }
+  };
+
   const isClosed = conversation?.status === "closed";
   const isUserContractor = conversation?.contractor_user_id === user?.id;
   const isHired = conversation?.job_application?.status === "hired";
+  const isInPool = conversation?.job_application?.status === "approved_to_pool";
+  const isShiftJob = conversation?.job_application?.job.job_type === "shift";
   // Check if this is a hired conversation (has job_application and is hired)
   const isHiredConversation = isHired && conversation?.job_application_id;
+  // Check if this is a private job offer pending employee response
+  const isPrivateOffer =
+    !isUserContractor &&
+    conversation?.job_application?.job.status === "private" &&
+    conversation?.job_application?.status === "pending";
+  // Can show hire button: only for normal jobs, not shift jobs
+  const canShowHireButton = conversation?.job_application && isUserContractor && !isHired && !isInPool && !isShiftJob;
 
   // Memoize hired countdown status - for 48h archive warning after hiring
   const hiredCountdown = useMemo(() => {
@@ -697,7 +902,8 @@ export default function Conversation() {
           <div className="max-w-4xl mx-auto flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             <p className="text-xs sm:text-sm text-emerald-700 dark:text-emerald-300">
-              🎉 <strong>Hired!</strong> This conversation will be archived in <strong>{hiredCountdown.hoursLeft}h</strong>
+              🎉 <strong>Hired!</strong> This conversation will be archived in{" "}
+              <strong>{hiredCountdown.hoursLeft}h</strong>
             </p>
           </div>
         </div>
@@ -715,6 +921,83 @@ export default function Conversation() {
         </div>
       )}
 
+      {/* Private Job Offer Banner - Accept/Decline for employees */}
+      {isPrivateOffer && (
+        <div className="bg-primary/5 border-b border-primary/20 px-4 py-3 flex-shrink-0">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Briefcase className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">💼 You've received a position offer!</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {conversation?.other_party?.full_name || "An employer"} has offered you:{" "}
+                  <strong>{conversation?.job_application?.job.title}</strong>
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleRespondToOffer("accept")}
+                    disabled={isRespondingToOffer}
+                    className="h-8"
+                  >
+                    {isRespondingToOffer ? (
+                      <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-3 h-3 mr-1.5" />
+                    )}
+                    Accept Offer
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isRespondingToOffer}
+                        className="h-8 text-destructive hover:text-destructive"
+                      >
+                        <X className="w-3 h-3 mr-1.5" />
+                        Decline
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Decline this offer?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to decline the position "{conversation?.job_application?.job.title}"?
+                          The employer will be notified and this conversation will be closed.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleRespondToOffer("decline")}
+                          disabled={isRespondingToOffer}
+                        >
+                          {isRespondingToOffer && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                          Decline Offer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Employment Pack Banner (contractor only - subtle prompt to share) */}
+      <PreEmploymentPackBanner
+        jobApplicationId={conversation?.job_application_id || null}
+        isEmployee={!isUserContractor}
+        conversationStatus={conversation?.status}
+        contractorUserId={conversation?.contractor_user_id}
+        applicationStatus={conversation?.job_application?.status}
+        conversationId={conversation?.id}
+      />
+
       {/* Header - Fixed */}
       <div className="border-b border-border/50 bg-card flex-shrink-0">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
@@ -726,7 +1009,7 @@ export default function Conversation() {
                   <ArrowLeft className="w-4 h-4" />
                 </Link>
               </Button>
-              
+
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 {isUserContractor ? (
                   <Avatar className="h-9 w-9 flex-shrink-0">
@@ -743,9 +1026,7 @@ export default function Conversation() {
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <h1 className="font-semibold truncate text-sm">
-                    {conversation.other_party?.full_name || "User"}
-                  </h1>
+                  <h1 className="font-semibold truncate text-sm">{conversation.other_party?.full_name || "User"}</h1>
                   <div className="flex items-center gap-1.5">
                     {conversation.job_application && (
                       <span className="text-xs text-muted-foreground truncate max-w-[150px]">
@@ -753,7 +1034,14 @@ export default function Conversation() {
                       </span>
                     )}
                     {isHired && (
-                      <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">Hired</Badge>
+                      <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
+                        Hired
+                      </Badge>
+                    )}
+                    {isInPool && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                        In Talent Pool
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -764,12 +1052,7 @@ export default function Conversation() {
             <div className="flex items-center gap-1 flex-shrink-0">
               {/* View Profile Button - Only visible for Contractors */}
               {isUserContractor && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewProfile}
-                  className="h-9 px-3 hidden sm:flex"
-                >
+                <Button variant="outline" size="sm" onClick={handleViewProfile} className="h-9 px-3 hidden sm:flex">
                   <UserCircle className="w-4 h-4 mr-2" />
                   View Profile
                 </Button>
@@ -778,7 +1061,7 @@ export default function Conversation() {
               {/* Desktop Actions */}
               {!isClosed && (
                 <div className="hidden sm:flex items-center gap-1">
-                  {conversation.job_application && isUserContractor && !isHired && (
+                  {canShowHireButton && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="default" size="sm" disabled={isHiring} className="h-9">
@@ -791,13 +1074,7 @@ export default function Conversation() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Confirm Hire</AlertDialogTitle>
                           <AlertDialogDescription className="space-y-2">
-                            <p>Are you sure you want to hire this applicant? This will:</p>
-                            <ul className="list-disc list-inside text-sm space-y-1 mt-2">
-                              <li>Send a congratulations message to the worker</li>
-                              <li>Set their availability to "unavailable"</li>
-                              <li>Automatically close their other pending applications</li>
-                              <li>Archive this conversation after 48 hours</li>
-                            </ul>
+                            <p>Are you sure you want to hire this candidate?</p>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -816,13 +1093,15 @@ export default function Conversation() {
                   </Button>
 
                   {isUserContractor && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="text-destructive hover:text-destructive h-9"
                       onClick={() => setShowCloseDialog(true)}
                       disabled={!!isHiredConversation}
-                      title={isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined}
+                      title={
+                        isHiredConversation ? "This conversation will be archived automatically in 48 hours" : undefined
+                      }
                     >
                       <X className="w-4 h-4 mr-2" />
                       Close
@@ -846,7 +1125,7 @@ export default function Conversation() {
                       View Profile
                     </DropdownMenuItem>
                   )}
-                  
+
                   {conversation.job_application?.job.id && (
                     <DropdownMenuItem asChild className="h-11">
                       <Link to={`/jobs/${conversation.job_application.job.id}`}>
@@ -859,8 +1138,8 @@ export default function Conversation() {
                   {!isClosed && (
                     <>
                       <DropdownMenuSeparator />
-                      
-                      {conversation.job_application && isUserContractor && !isHired && (
+
+                      {canShowHireButton && (
                         <DropdownMenuItem onClick={handleHireApplicant} disabled={isHiring} className="h-11">
                           <CheckCircle2 className="w-4 h-4 mr-3" />
                           Hire Applicant
@@ -876,7 +1155,7 @@ export default function Conversation() {
                         <DropdownMenuItem asChild className="h-11">
                           <a href={`tel:${conversation.other_party.phone}`}>
                             <Phone className="w-4 h-4 mr-3" />
-                            Call {conversation.other_party.full_name?.split(' ')[0] || 'User'}
+                            Call {conversation.other_party.full_name?.split(" ")[0] || "User"}
                           </a>
                         </DropdownMenuItem>
                       )}
@@ -884,9 +1163,9 @@ export default function Conversation() {
                       {isUserContractor && (
                         <>
                           <DropdownMenuSeparator />
-                          
+
                           {!isHiredConversation && (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => setShowCloseDialog(true)}
                               className="h-11 text-destructive focus:text-destructive"
                             >
@@ -973,6 +1252,19 @@ export default function Conversation() {
 
           {messages.map((message) => {
             const isOwn = message.sender_user_id === user?.id;
+            const fileData = parseChatFileMessage(message.content);
+            if (fileData) {
+              return (
+                <ChatFileMessage
+                  key={message.id}
+                  fileUrl={fileData.file_url}
+                  fileName={fileData.file_name}
+                  isOwn={isOwn}
+                  timestamp={message.created_at}
+                  bucket={fileData.bucket || "pre-employment-docs"}
+                />
+              );
+            }
             return <MessageBubble key={message.id} message={message} isOwn={isOwn} />;
           })}
           <div ref={messagesEndRef} />
@@ -984,6 +1276,24 @@ export default function Conversation() {
         <div className="border-t border-border/50 bg-card flex-shrink-0 safe-area-bottom">
           <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3">
             <form onSubmit={handleSendMessage} className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 flex-shrink-0"
+                disabled={isUploading || isSending}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach a file (PDF, DOC, DOCX)"
+              >
+                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+              </Button>
               <Input
                 ref={inputRef}
                 value={newMessage}
@@ -993,9 +1303,9 @@ export default function Conversation() {
                 className="flex-1 h-11"
                 autoComplete="off"
               />
-              <Button 
-                type="submit" 
-                disabled={isSending || !newMessage.trim()} 
+              <Button
+                type="submit"
+                disabled={isSending || !newMessage.trim()}
                 size="icon"
                 className="h-11 w-11 flex-shrink-0"
               >
@@ -1010,10 +1320,10 @@ export default function Conversation() {
       <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Close this conversation?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the chat. If linked to a job application, 
-              the position will become available again.
+              Deleting this chat will end the current application process and make the position available to other
+              applicants again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
