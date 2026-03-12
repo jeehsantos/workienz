@@ -26,7 +26,7 @@ class RealtimeConnectionManager {
   private readonly MAX_CONNECTIONS = 5; // Limit concurrent connections
   private readonly IDLE_TIMEOUT = 60000; // 1 minute idle timeout
   private readonly BATCH_WINDOW = 100; // 100ms batching window (Requirement 9.2)
-  private cleanupInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     // Start cleanup interval to remove idle connections

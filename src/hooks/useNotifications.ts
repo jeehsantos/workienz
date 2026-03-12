@@ -29,7 +29,7 @@ export function useNotifications(userId: string | undefined) {
   
   // Debouncing state (Requirement 9.4)
   const pendingUpdatesRef = useRef<Notification[]>([]);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
 
   const fetchNotifications = useCallback(async () => {
