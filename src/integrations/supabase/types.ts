@@ -1875,6 +1875,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_work_verification_requests: {
+        Row: {
+          admin_review_notes: string | null
+          ai_confidence: number | null
+          created_at: string
+          declared_status: string
+          document_path: string
+          extracted_data: Json | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_review_notes?: string | null
+          ai_confidence?: number | null
+          created_at?: string
+          declared_status: string
+          document_path: string
+          extracted_data?: Json | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_review_notes?: string | null
+          ai_confidence?: number | null
+          created_at?: string
+          declared_status?: string
+          document_path?: string
+          extracted_data?: Json | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
