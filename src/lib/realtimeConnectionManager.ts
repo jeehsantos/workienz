@@ -16,7 +16,7 @@ interface ChannelSubscription {
   lastActivity: number;
   batchedUpdates?: {
     updates: any[];
-    timeout: NodeJS.Timeout | null;
+    timeout: ReturnType<typeof setTimeout> | null;
     callback: (payload: any) => void;
   };
 }
