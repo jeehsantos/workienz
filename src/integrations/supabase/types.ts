@@ -917,8 +917,13 @@ export type Database = {
           suburb: string | null
           updated_at: string
           user_id: string
+          verification_review_reason: string | null
           visa_status: string | null
           work_experience: Json | null
+          work_verification_date: string | null
+          work_verification_expiry_date: string | null
+          work_verification_status: string
+          work_verification_type: string | null
         }
         Insert: {
           availability?: string | null
@@ -948,8 +953,13 @@ export type Database = {
           suburb?: string | null
           updated_at?: string
           user_id: string
+          verification_review_reason?: string | null
           visa_status?: string | null
           work_experience?: Json | null
+          work_verification_date?: string | null
+          work_verification_expiry_date?: string | null
+          work_verification_status?: string
+          work_verification_type?: string | null
         }
         Update: {
           availability?: string | null
@@ -979,8 +989,13 @@ export type Database = {
           suburb?: string | null
           updated_at?: string
           user_id?: string
+          verification_review_reason?: string | null
           visa_status?: string | null
           work_experience?: Json | null
+          work_verification_date?: string | null
+          work_verification_expiry_date?: string | null
+          work_verification_status?: string
+          work_verification_type?: string | null
         }
         Relationships: []
       }
@@ -1856,6 +1871,51 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_work_verification_requests: {
+        Row: {
+          admin_review_notes: string | null
+          ai_confidence: number | null
+          created_at: string
+          declared_status: string
+          document_path: string
+          extracted_data: Json | null
+          id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_review_notes?: string | null
+          ai_confidence?: number | null
+          created_at?: string
+          declared_status: string
+          document_path: string
+          extracted_data?: Json | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_review_notes?: string | null
+          ai_confidence?: number | null
+          created_at?: string
+          declared_status?: string
+          document_path?: string
+          extracted_data?: Json | null
+          id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
