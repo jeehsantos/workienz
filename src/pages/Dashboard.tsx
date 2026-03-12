@@ -316,22 +316,7 @@ export default function Dashboard() {
                 <Link to="/guide">Browse Topics</Link>
               </Button>
             </div>
-          )}
-
-          {/* Verify Work Rights Card - Employee */}
-          {showEmployeeCards && (
-            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-              <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
-                <ShieldCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 font-display">Verify Work Rights</h3>
-              <p className="text-muted-foreground text-sm mb-4">Verify your right to work in NZ to apply for jobs.</p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/employee/verify">Verify Now</Link>
-              </Button>
-            </div>
-          )}
-
+          )
           {/* Settings Card - for employees and contractors */}
           {(showEmployeeCards || showContractorCards) && <SettingsCard showReferralProgram={showReferralDashboard} />}
         </div>
