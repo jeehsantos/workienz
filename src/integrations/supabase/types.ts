@@ -917,8 +917,13 @@ export type Database = {
           suburb: string | null
           updated_at: string
           user_id: string
+          verification_review_reason: string | null
           visa_status: string | null
           work_experience: Json | null
+          work_verification_date: string | null
+          work_verification_expiry_date: string | null
+          work_verification_status: string
+          work_verification_type: string | null
         }
         Insert: {
           availability?: string | null
@@ -948,8 +953,13 @@ export type Database = {
           suburb?: string | null
           updated_at?: string
           user_id: string
+          verification_review_reason?: string | null
           visa_status?: string | null
           work_experience?: Json | null
+          work_verification_date?: string | null
+          work_verification_expiry_date?: string | null
+          work_verification_status?: string
+          work_verification_type?: string | null
         }
         Update: {
           availability?: string | null
@@ -979,8 +989,13 @@ export type Database = {
           suburb?: string | null
           updated_at?: string
           user_id?: string
+          verification_review_reason?: string | null
           visa_status?: string | null
           work_experience?: Json | null
+          work_verification_date?: string | null
+          work_verification_expiry_date?: string | null
+          work_verification_status?: string
+          work_verification_type?: string | null
         }
         Relationships: []
       }
