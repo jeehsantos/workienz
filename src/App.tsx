@@ -104,6 +104,7 @@ const App = () => (
                 <Route path="/employee/view-profile" element={<ViewProfile />} />
                 <Route path="/employee/pools" element={<MyPools />} />
                 <Route path="/employee/shifts" element={<MyShifts />} />
+                <Route path="/employee/verify" element={<VerifyWorkRights />} />
                 <Route path="/employee/profile" element={<EmployeeProfile />} />
                 <Route path="/employee/view-profile" element={<ViewProfile />} />
                 <Route path="/workers/:id" element={<WorkerProfile />} />
