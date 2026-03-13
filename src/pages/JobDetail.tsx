@@ -180,7 +180,7 @@ export default function JobDetail() {
       // Get employee profile (minimal)
       const { data: profile } = await supabase
         .from("employee_profiles")
-        .select("id, experience_years, industry")
+        .select("id, experience_years, industry, work_verification_status")
         .eq("user_id", user.id)
         .maybeSingle();
 
