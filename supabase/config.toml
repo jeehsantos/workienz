@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.manage-shifts]
 verify_jwt = false
+
+[functions.process-work-verification]
+verify_jwt = false
+
+[functions.cleanup-verification-files]
+verify_jwt = false
