@@ -188,6 +188,7 @@ export default function JobDetail() {
         setEmployeeProfileId(profile.id);
         setEmployeeExperienceYears(profile.experience_years);
         setEmployeeIndustry((profile as any).industry);
+        setWorkVerificationStatus(profile.work_verification_status || "unverified");
 
         // Check if already applied (for UI display)
         const { data: application } = await supabase
