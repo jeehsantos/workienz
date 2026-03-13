@@ -102,6 +102,20 @@ Deno.serve(async (req) => {
     }
     const emp = employeeResult.data;
 
+    // ─── Work Rights Verification Gate ───────────────────────────────
+    const { data: verificationData } = await supabase
+      .from('employee_profiles')
+      .select('work_verification_status')
+      .eq('user_id', userId)
+      .single();
+
+    if (!verificationData || verificationData.work_verification_status !== 'verified') {
+      return new Response(
+        JSON.stringify({ error: 'You must verify your work rights before applying to jobs.', code: 'WORK_RIGHTS_REQUIRED' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // ─── Validate job exists and is open ─────────────────────────────
     if (jobResult.error || !jobResult.data) {
       return new Response(
