@@ -98,7 +98,7 @@ export default function JobDetail() {
   const [coverLetter, setCoverLetter] = useState("");
   const [employeeProfileId, setEmployeeProfileId] = useState<string | null>(null);
   const [applicationError, setApplicationError] = useState<string | null>(null);
-
+  const [workVerificationStatus, setWorkVerificationStatus] = useState<string | null>(null);
   // Advisory hints (informational warnings, do NOT block submission)
   const [advisoryHint, setAdvisoryHint] = useState<AdvisoryHint | null>(null);
 
