@@ -521,6 +521,24 @@ export default function JobDetail() {
                       <Link to="/employee/profile">Complete Profile</Link>
                     </Button>
                   </div>
+                ) : workVerificationStatus !== "verified" ? (
+                  <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg">
+                    <ShieldCheck className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Work Rights Verification Required</p>
+                      <p className="text-sm mt-1">
+                        You must verify your work rights before applying to jobs.
+                        {workVerificationStatus === "pending" && " Your verification is being processed."}
+                        {workVerificationStatus === "review_required" && " Your documents are under review."}
+                        {workVerificationStatus === "rejected" && " Your previous verification was unsuccessful. Please try again."}
+                      </p>
+                      <Button asChild size="sm" className="mt-3">
+                        <Link to="/employee/verify">
+                          {workVerificationStatus === "unverified" ? "Verify Now" : "View Status"}
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
