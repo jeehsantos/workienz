@@ -205,6 +205,31 @@ function ApplicantDetail({
                   Top #{applicant.top_rank}
                 </Badge>
               )}
+              {verificationStatus && (
+                <Badge
+                  variant="outline"
+                  className={
+                    verificationStatus === "verified"
+                      ? "bg-green-500/10 text-green-600 border-green-500/20"
+                      : verificationStatus === "suspended"
+                      ? "bg-destructive/10 text-destructive border-destructive/20"
+                      : "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                  }
+                >
+                  {verificationStatus === "verified" ? (
+                    <ShieldCheck className="w-3 h-3 mr-1" />
+                  ) : (
+                    <ShieldAlert className="w-3 h-3 mr-1" />
+                  )}
+                  {verificationStatus === "verified"
+                    ? "Verified"
+                    : verificationStatus === "suspended"
+                    ? "Suspended"
+                    : verificationStatus === "pending"
+                    ? "Pending Verification"
+                    : "Not Verified"}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
