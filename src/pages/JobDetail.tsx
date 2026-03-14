@@ -521,6 +521,16 @@ export default function JobDetail() {
                       <Link to="/employee/profile">Complete Profile</Link>
                     </Button>
                   </div>
+                ) : workVerificationStatus === "suspended" ? (
+                  <div className="flex items-start gap-3 p-4 bg-destructive/10 text-destructive rounded-lg">
+                    <Lock className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Account Suspended</p>
+                      <p className="text-sm mt-1">
+                        Your account has been suspended due to a verification concern. You cannot apply for jobs while suspended. Please contact support if you believe this is an error.
+                      </p>
+                    </div>
+                  </div>
                 ) : workVerificationStatus !== "verified" ? (
                   <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 rounded-lg">
                     <ShieldCheck className="w-6 h-6 flex-shrink-0 mt-0.5" />

@@ -140,6 +140,7 @@ export default function VerifyWorkRights() {
 
   const canSubmit = declaredStatus && selectedFile && declarationChecked && !isSubmitting;
   const canResubmit = verificationState.status === "unverified" || verificationState.status === "rejected";
+  const isSuspended = verificationState.status === "suspended";
   const statusConfig = STATUS_CONFIG[verificationState.status];
   const StatusIcon = statusConfig.icon;
 

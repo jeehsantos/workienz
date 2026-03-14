@@ -485,7 +485,20 @@ export default function AdminVerificationReview() {
               {/* Actions */}
               {(selectedRequest.status === "review_required" ||
                 selectedRequest.status === "pending") && (
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDecision("suspended")}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Shield className="w-4 h-4 mr-2" />
+                    )}
+                    Suspend (Fraud)
+                  </Button>
                   <Button
                     variant="destructive"
                     onClick={() => handleDecision("rejected")}
@@ -508,6 +521,23 @@ export default function AdminVerificationReview() {
                       <CheckCircle className="w-4 h-4 mr-2" />
                     )}
                     Approve
+                  </Button>
+                </DialogFooter>
+              )}
+              {selectedRequest.status === "verified" && (
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDecision("suspended")}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Shield className="w-4 h-4 mr-2" />
+                    )}
+                    Suspend User
                   </Button>
                 </DialogFooter>
               )}
