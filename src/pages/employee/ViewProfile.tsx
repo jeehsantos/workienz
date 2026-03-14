@@ -17,6 +17,7 @@ export default function ViewProfile() {
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState<EmployeeProfileData | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<string | undefined>(undefined);
   
   // Get view mode from URL or default to 'social'
   const viewMode = (searchParams.get('view') as ProfileViewMode) || 'social';
