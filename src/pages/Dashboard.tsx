@@ -107,10 +107,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Verify Work Rights Card - Employee */}
-          {showEmployeeCards && (
-            <VerificationStatusCard userId={user?.id} />
-          )}
 
           {/* Profile Card - Contractor */}
           {showContractorCards && (
