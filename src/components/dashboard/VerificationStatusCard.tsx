@@ -96,7 +96,7 @@ export function VerificationStatusCard({ userId }: Props) {
         size="sm"
         asChild
       >
-        <Link to="/employee/verify">{c.btnText}</Link>
+        <Link to="/settings?section=verification">{c.btnText}</Link>
       </Button>
     </div>
   );
