@@ -10,13 +10,16 @@ import {
   CheckCircle2,
   Car,
   Dumbbell,
-  Clock
+  Clock,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { EmployeeProfileData } from "@/types/employeeProfile";
 
 interface SocialProfileViewProps {
   profile: EmployeeProfileData;
+  verificationStatus?: string;
 }
 
 export function SocialProfileView({ profile }: SocialProfileViewProps) {
