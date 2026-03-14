@@ -96,7 +96,7 @@ Be honest about confidence — if the document is blurry, partially visible, or 
 
   const userPrompt = `The user declared their work status as: "${declaredStatus}".
 Please analyze this document and extract all relevant information.
-Look for: full name, document type (passport, visa, national ID, driver licence), expiry date, visa type, any work condition text, and whether rights are indefinite/permanent.
+Look for: full name, date of birth, document type (passport, visa, national ID, driver licence), expiry date, visa type, any work condition text, and whether rights are indefinite/permanent.
 Important: many NZ visa letters include issue/start dates. Do not classify those as expiry unless explicitly labeled as expiry.`;
 
   try {
