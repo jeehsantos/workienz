@@ -104,15 +104,26 @@ Look for: full name, document type (passport, visa, national ID, driver licence)
             { role: "system", content: systemPrompt },
             {
               role: "user",
-              content: [
-                { type: "text", text: userPrompt },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${fileData.mimeType};base64,${fileData.base64}`,
-                  },
-                },
-              ],
+              content: fileData.mimeType === "application/pdf"
+                ? [
+                    { type: "text", text: userPrompt },
+                    {
+                      type: "file",
+                      file: {
+                        filename: "document.pdf",
+                        file_data: `data:application/pdf;base64,${fileData.base64}`,
+                      },
+                    },
+                  ]
+                : [
+                    { type: "text", text: userPrompt },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:${fileData.mimeType};base64,${fileData.base64}`,
+                      },
+                    },
+                  ],
             },
           ],
           tools: [
