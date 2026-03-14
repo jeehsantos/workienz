@@ -18,6 +18,9 @@ interface ExtractionResult {
   name: string | null;
   document_type: string | null;
   expiry_date: string | null;
+  expiry_date_source: "explicit_expiry" | "issued_or_start_date" | "unknown";
+  expiry_evidence_text: string | null;
+  no_expiry_indefinite: boolean;
   visa_type: string | null;
   work_conditions: string | null;
   is_readable: boolean;
@@ -83,11 +86,17 @@ async function extractDocumentFields(
   const systemPrompt = `You are a document verification assistant for a New Zealand employment platform.
 Analyze the uploaded identity/visa document and extract structured information.
 You MUST call the extract_document_fields function with your findings.
+Critical date rules:
+- Only set expiry_date when the document EXPLICITLY labels a date as expiry (e.g. "expiry", "expires", "valid until", "must arrive before").
+- Do NOT treat issue/start/approval/grant dates as expiry.
+- If the document indicates indefinite/permanent stay rights and no explicit expiry, set expiry_date to null and no_expiry_indefinite to true.
+- Set expiry_date_source to "explicit_expiry", "issued_or_start_date", or "unknown".
 Be honest about confidence — if the document is blurry, partially visible, or unreadable, set is_readable to false and confidence low.`;
 
   const userPrompt = `The user declared their work status as: "${declaredStatus}".
 Please analyze this document and extract all relevant information.
-Look for: full name, document type (passport, visa, national ID, driver licence), expiry date, visa type, and any work condition text.`;
+Look for: full name, document type (passport, visa, national ID, driver licence), expiry date, visa type, any work condition text, and whether rights are indefinite/permanent.
+Important: many NZ visa letters include issue/start dates. Do not classify those as expiry unless explicitly labeled as expiry.`;
 
   try {
     const response = await fetch(
@@ -146,7 +155,23 @@ Look for: full name, document type (passport, visa, national ID, driver licence)
                     expiry_date: {
                       type: "string",
                       description:
-                        "Expiry date in ISO 8601 format (YYYY-MM-DD), or null if not found",
+                        "Expiry date in ISO 8601 format (YYYY-MM-DD), only when explicitly labeled as expiry; otherwise null",
+                    },
+                    expiry_date_source: {
+                      type: "string",
+                      enum: ["explicit_expiry", "issued_or_start_date", "unknown"],
+                      description:
+                        "How the date was identified. Use explicit_expiry only when clearly labeled as expiry.",
+                    },
+                    expiry_evidence_text: {
+                      type: "string",
+                      description:
+                        "Short phrase around the expiry date label/value (e.g. 'Visa expires: 2027-01-03'), else null",
+                    },
+                    no_expiry_indefinite: {
+                      type: "boolean",
+                      description:
+                        "True if document text indicates indefinite/permanent rights with no explicit expiry",
                     },
                     visa_type: {
                       type: "string",
@@ -210,6 +235,9 @@ Look for: full name, document type (passport, visa, national ID, driver licence)
       name: parsed.name || null,
       document_type: parsed.document_type || null,
       expiry_date: parsed.expiry_date || null,
+      expiry_date_source: parsed.expiry_date_source || "unknown",
+      expiry_evidence_text: parsed.expiry_evidence_text || null,
+      no_expiry_indefinite: parsed.no_expiry_indefinite ?? false,
       visa_type: parsed.visa_type || null,
       work_conditions: parsed.work_conditions || null,
       is_readable: parsed.is_readable ?? false,
@@ -227,6 +255,9 @@ function fallbackExtraction(): ExtractionResult {
     name: null,
     document_type: null,
     expiry_date: null,
+    expiry_date_source: "unknown",
+    expiry_evidence_text: null,
+    no_expiry_indefinite: false,
     visa_type: null,
     work_conditions: null,
     is_readable: false,
@@ -245,6 +276,17 @@ function makeFallbackDecision(): DecisionResult {
     confidence: 0,
     expiry_date: null,
   };
+}
+
+function parseIsoDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function hasIndefiniteRightsLanguage(extraction: ExtractionResult): boolean {
+  const text = `${extraction.work_conditions ?? ""} ${extraction.raw_text_snippet ?? ""} ${extraction.visa_type ?? ""}`.toLowerCase();
+  return /(indefinite|permanent resident|permanent visa|no expiry|no expiration|stay in new zealand indefinitely)/.test(text);
 }
 
 // ─── Step 7: Automated Decision Logic ────────────────────────────────────────
@@ -269,13 +311,34 @@ function makeDecision(
     decision = "review_required";
   }
 
-  // 3. Expiry check
+  // 3. Expiry check (only reject when expiry is explicitly identified)
   if (extraction.expiry_date) {
-    const expiry = new Date(extraction.expiry_date);
-    const now = new Date();
-    if (expiry < now) {
-      reasons.push(`Document expired on ${extraction.expiry_date}`);
-      return { decision: "rejected", reasons, confidence: extraction.confidence, expiry_date: extraction.expiry_date };
+    const expiry = parseIsoDate(extraction.expiry_date);
+    if (!expiry) {
+      reasons.push("Document date format could not be validated; sent for manual review");
+      decision = "review_required";
+    } else {
+      const now = new Date();
+      const hasIndefinite = extraction.no_expiry_indefinite || hasIndefiniteRightsLanguage(extraction);
+      const source = extraction.expiry_date_source ?? "unknown";
+
+      if (expiry < now) {
+        if (source === "explicit_expiry" && !hasIndefinite) {
+          reasons.push(`Document expired on ${extraction.expiry_date}`);
+          return { decision: "rejected", reasons, confidence: extraction.confidence, expiry_date: extraction.expiry_date };
+        }
+
+        if (hasIndefinite) {
+          console.log(
+            `Ignoring date ${extraction.expiry_date} because document indicates indefinite/permanent rights and no clear expiry.`
+          );
+        } else {
+          reasons.push(
+            `Date ${extraction.expiry_date} was not clearly labeled as expiry (source: ${source}); sent for manual review`
+          );
+          decision = "review_required";
+        }
+      }
     }
   }
 
@@ -461,6 +524,9 @@ serve(async (req) => {
           name: extraction.name,
           document_type: extraction.document_type,
           expiry_date: extraction.expiry_date,
+          expiry_date_source: extraction.expiry_date_source,
+          expiry_evidence_text: extraction.expiry_evidence_text,
+          no_expiry_indefinite: extraction.no_expiry_indefinite,
           visa_type: extraction.visa_type,
           work_conditions: extraction.work_conditions,
           is_readable: extraction.is_readable,
