@@ -1,22 +1,28 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResetPasswordSection } from "@/components/dashboard/settings/ResetPasswordSection";
 import { ReferralProgramSection } from "@/components/dashboard/settings/ReferralProgramSection";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { Shield, Download, Trash2, ExternalLink } from "lucide-react";
+import { Shield, Download, Trash2, ExternalLink, ShieldCheck } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
-type SettingsSection = "password" | "referral" | "billing" | "privacy";
+const VerifyWorkRightsContent = lazy(() => import("@/components/settings/VerifyWorkRightsSection"));
+
+type SettingsSection = "password" | "referral" | "billing" | "privacy" | "verification";
 
 interface SidebarItem {
   id: SettingsSection;
   label: string;
+  employeeOnly?: boolean;
 }
 
 const sidebarItems: SidebarItem[] = [
   { id: "password", label: "Password" },
+  { id: "verification", label: "Work Verification", employeeOnly: true },
   { id: "referral", label: "Referral Program" },
   { id: "billing", label: "Billing & Subscription" },
   { id: "privacy", label: "Privacy & Data" },
