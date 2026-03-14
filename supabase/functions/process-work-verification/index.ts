@@ -231,7 +231,19 @@ function fallbackExtraction(): ExtractionResult {
     work_conditions: null,
     is_readable: false,
     confidence: 0,
-    raw_text_snippet: null,
+    raw_text_snippet: "AI extraction failed - sending to manual review",
+  };
+}
+
+/**
+ * If AI extraction completely fails, route to manual review instead of auto-rejecting.
+ */
+function makeFallbackDecision(): DecisionResult {
+  return {
+    decision: "review_required",
+    reasons: ["AI extraction failed; document sent for manual review"],
+    confidence: 0,
+    expiry_date: null,
   };
 }
 
