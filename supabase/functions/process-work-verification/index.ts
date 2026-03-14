@@ -86,11 +86,17 @@ async function extractDocumentFields(
   const systemPrompt = `You are a document verification assistant for a New Zealand employment platform.
 Analyze the uploaded identity/visa document and extract structured information.
 You MUST call the extract_document_fields function with your findings.
+Critical date rules:
+- Only set expiry_date when the document EXPLICITLY labels a date as expiry (e.g. "expiry", "expires", "valid until", "must arrive before").
+- Do NOT treat issue/start/approval/grant dates as expiry.
+- If the document indicates indefinite/permanent stay rights and no explicit expiry, set expiry_date to null and no_expiry_indefinite to true.
+- Set expiry_date_source to "explicit_expiry", "issued_or_start_date", or "unknown".
 Be honest about confidence — if the document is blurry, partially visible, or unreadable, set is_readable to false and confidence low.`;
 
   const userPrompt = `The user declared their work status as: "${declaredStatus}".
 Please analyze this document and extract all relevant information.
-Look for: full name, document type (passport, visa, national ID, driver licence), expiry date, visa type, and any work condition text.`;
+Look for: full name, document type (passport, visa, national ID, driver licence), expiry date, visa type, any work condition text, and whether rights are indefinite/permanent.
+Important: many NZ visa letters include issue/start dates. Do not classify those as expiry unless explicitly labeled as expiry.`;
 
   try {
     const response = await fetch(
