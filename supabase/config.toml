@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.cleanup-verification-files]
 verify_jwt = false
+
+[functions.check-verification-expiry]
+verify_jwt = false
