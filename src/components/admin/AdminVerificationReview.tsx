@@ -142,7 +142,7 @@ export default function AdminVerificationReview() {
   }, []);
 
   const handleDecision = useCallback(
-    async (decision: "verified" | "rejected") => {
+    async (decision: "verified" | "rejected" | "suspended") => {
       if (!selectedRequest) return;
       setIsProcessing(true);
 
