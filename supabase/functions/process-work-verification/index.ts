@@ -140,6 +140,11 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
                       description:
                         "Full name as it appears on the document, or null if unreadable",
                     },
+                    date_of_birth: {
+                      type: "string",
+                      description:
+                        "Date of birth in ISO 8601 format (YYYY-MM-DD) if visible on the document, else null",
+                    },
                     document_type: {
                       type: "string",
                       enum: [
