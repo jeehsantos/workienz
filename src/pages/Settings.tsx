@@ -29,9 +29,15 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>("password");
+  const [searchParams] = useSearchParams();
+  const initialSection = (searchParams.get("section") as SettingsSection) || "password";
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isEmployee } = useAuthContext();
+
+  const filteredSidebarItems = sidebarItems.filter(
+    (item) => !item.employeeOnly || isEmployee()
+  );
 
   const renderContent = () => {
     switch (activeSection) {
