@@ -203,6 +203,13 @@ export default function AdminVerificationReview() {
                 message:
                   "Your work rights have been verified by our team. You can now apply to jobs!",
               }
+            : decision === "suspended"
+            ? {
+                title: "Account Suspended",
+                message: adminNotes
+                  ? `Your account has been suspended: ${adminNotes}`
+                  : "Your account has been suspended due to verification concerns. Please contact support.",
+              }
             : {
                 title: "Verification Unsuccessful",
                 message: adminNotes
