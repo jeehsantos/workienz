@@ -186,6 +186,11 @@ export default function VerifyWorkRights() {
                   Reason: {verificationState.reviewReason}
                 </p>
               )}
+              {verificationState.status === "suspended" && verificationState.reviewReason && (
+                <p className="text-sm mt-2 font-medium">
+                  Reason: {verificationState.reviewReason}
+                </p>
+              )}
               {verificationState.status === "verified" && verificationState.verificationDate && (
                 <p className="text-sm opacity-75">
                   Verified on {format(new Date(verificationState.verificationDate), "dd MMM yyyy")}
