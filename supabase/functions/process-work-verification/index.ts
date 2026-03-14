@@ -260,6 +260,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
 function fallbackExtraction(): ExtractionResult {
   return {
     name: null,
+    date_of_birth: null,
     document_type: null,
     expiry_date: null,
     expiry_date_source: "unknown",
