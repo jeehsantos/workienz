@@ -46,6 +46,7 @@ const statusColors: Record<string, string> = {
   review_required: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
   verified: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
   rejected: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  suspended: "bg-red-200 text-red-900 dark:bg-red-950 dark:text-red-200",
 };
 
 const declaredStatusLabels: Record<string, string> = {
