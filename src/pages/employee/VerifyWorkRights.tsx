@@ -65,6 +65,12 @@ const STATUS_CONFIG: Record<VerificationStatus, { icon: typeof ShieldCheck; labe
     color: "bg-destructive/10 text-destructive border-destructive/20",
     description: "Your verification was rejected. Please review the reason below and try again with valid documents.",
   },
+  suspended: {
+    icon: ShieldAlert,
+    label: "Account Suspended",
+    color: "bg-destructive/10 text-destructive border-destructive/20",
+    description: "Your account has been suspended due to a verification concern. You cannot apply for jobs while suspended. If you believe this is an error, please contact support.",
+  },
 };
 
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
