@@ -37,7 +37,7 @@ export default function ViewProfile() {
 
     const { data: empProfile } = await supabase
       .from("employee_profiles")
-      .select("*")
+      .select("*, work_verification_status")
       .eq("user_id", user.id)
       .maybeSingle();
 
