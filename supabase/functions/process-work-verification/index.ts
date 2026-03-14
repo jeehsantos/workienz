@@ -278,6 +278,17 @@ function makeFallbackDecision(): DecisionResult {
   };
 }
 
+function parseIsoDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function hasIndefiniteRightsLanguage(extraction: ExtractionResult): boolean {
+  const text = `${extraction.work_conditions ?? ""} ${extraction.raw_text_snippet ?? ""} ${extraction.visa_type ?? ""}`.toLowerCase();
+  return /(indefinite|permanent resident|permanent visa|no expiry|no expiration|stay in new zealand indefinitely)/.test(text);
+}
+
 // ─── Step 7: Automated Decision Logic ────────────────────────────────────────
 
 function makeDecision(
@@ -300,13 +311,34 @@ function makeDecision(
     decision = "review_required";
   }
 
-  // 3. Expiry check
+  // 3. Expiry check (only reject when expiry is explicitly identified)
   if (extraction.expiry_date) {
-    const expiry = new Date(extraction.expiry_date);
-    const now = new Date();
-    if (expiry < now) {
-      reasons.push(`Document expired on ${extraction.expiry_date}`);
-      return { decision: "rejected", reasons, confidence: extraction.confidence, expiry_date: extraction.expiry_date };
+    const expiry = parseIsoDate(extraction.expiry_date);
+    if (!expiry) {
+      reasons.push("Document date format could not be validated; sent for manual review");
+      decision = "review_required";
+    } else {
+      const now = new Date();
+      const hasIndefinite = extraction.no_expiry_indefinite || hasIndefiniteRightsLanguage(extraction);
+      const source = extraction.expiry_date_source ?? "unknown";
+
+      if (expiry < now) {
+        if (source === "explicit_expiry" && !hasIndefinite) {
+          reasons.push(`Document expired on ${extraction.expiry_date}`);
+          return { decision: "rejected", reasons, confidence: extraction.confidence, expiry_date: extraction.expiry_date };
+        }
+
+        if (hasIndefinite) {
+          console.log(
+            `Ignoring date ${extraction.expiry_date} because document indicates indefinite/permanent rights and no clear expiry.`
+          );
+        } else {
+          reasons.push(
+            `Date ${extraction.expiry_date} was not clearly labeled as expiry (source: ${source}); sent for manual review`
+          );
+          decision = "review_required";
+        }
+      }
     }
   }
 
