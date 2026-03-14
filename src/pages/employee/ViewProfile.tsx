@@ -17,6 +17,7 @@ export default function ViewProfile() {
   const { user, isLoading: authLoading, isEmployee } = useAuthContext();
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState<EmployeeProfileData | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<string | undefined>(undefined);
   
   // Get view mode from URL or default to 'social'
   const viewMode = (searchParams.get('view') as ProfileViewMode) || 'social';
@@ -36,7 +37,7 @@ export default function ViewProfile() {
 
     const { data: empProfile } = await supabase
       .from("employee_profiles")
-      .select("*")
+      .select("*, work_verification_status")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -79,7 +80,7 @@ export default function ViewProfile() {
         cvReferences: (empProfile as any).cv_references || [],
       };
       setProfileData(transformedProfile);
-    } else {
+      setVerificationStatus(empProfile.work_verification_status || "unverified");
       setProfileData(null);
     }
 
@@ -178,7 +179,7 @@ export default function ViewProfile() {
 
         {/* Profile Views */}
         {viewMode === 'social' ? (
-          <SocialProfileView profile={profileData} />
+          <SocialProfileView profile={profileData} verificationStatus={verificationStatus} />
         ) : (
           <FormalCVView profile={profileData} />
         )}

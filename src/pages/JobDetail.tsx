@@ -543,7 +543,7 @@ export default function JobDetail() {
                         {workVerificationStatus === "rejected" && " Your previous verification was unsuccessful. Please try again."}
                       </p>
                       <Button asChild size="sm" className="mt-3">
-                        <Link to="/employee/verify">
+                        <Link to="/settings?section=verification">
                           {workVerificationStatus === "unverified" ? "Verify Now" : "View Status"}
                         </Link>
                       </Button>

@@ -10,16 +10,19 @@ import {
   CheckCircle2,
   Car,
   Dumbbell,
-  Clock
+  Clock,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { EmployeeProfileData } from "@/types/employeeProfile";
 
 interface SocialProfileViewProps {
   profile: EmployeeProfileData;
+  verificationStatus?: string;
 }
 
-export function SocialProfileView({ profile }: SocialProfileViewProps) {
+export function SocialProfileView({ profile, verificationStatus }: SocialProfileViewProps) {
   const locationParts = [profile.suburb, profile.city, profile.region, profile.country]
     .filter(Boolean);
   const locationString = locationParts.join(", ");
@@ -57,12 +60,25 @@ export function SocialProfileView({ profile }: SocialProfileViewProps) {
                 <h1 className="text-2xl sm:text-3xl font-bold font-display">{profile.fullName}</h1>
                 <p className="text-lg text-muted-foreground">{profile.professionalTitle}</p>
               </div>
-              <Badge 
-                variant={profile.isAvailable ? "default" : "secondary"} 
-                className="w-fit text-sm px-3 py-1"
-              >
-                {profile.isAvailable ? "✓ Available for work" : "Not available"}
-              </Badge>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge 
+                  variant={profile.isAvailable ? "default" : "secondary"} 
+                  className="w-fit text-sm px-3 py-1"
+                >
+                  {profile.isAvailable ? "✓ Available for work" : "Not available"}
+                </Badge>
+                {verificationStatus === "verified" ? (
+                  <Badge className="w-fit text-sm px-3 py-1 bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20">
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                    Verified
+                  </Badge>
+                ) : verificationStatus && verificationStatus !== "verified" ? (
+                  <Badge variant="outline" className="w-fit text-sm px-3 py-1 text-muted-foreground">
+                    <ShieldAlert className="w-3.5 h-3.5 mr-1" />
+                    Not Verified
+                  </Badge>
+                ) : null}
+              </div>
             </div>
 
             {/* Quick Info Row */}

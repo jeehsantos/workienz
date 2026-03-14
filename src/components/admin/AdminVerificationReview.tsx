@@ -222,7 +222,7 @@ export default function AdminVerificationReview() {
           type: "verification_result",
           title: notifMsg.title,
           message: notifMsg.message,
-          action_url: "/employee/verify",
+          action_url: "/settings?section=verification",
         });
 
         toast({

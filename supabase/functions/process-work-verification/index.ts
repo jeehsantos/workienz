@@ -16,6 +16,7 @@ interface VerificationInput {
 
 interface ExtractionResult {
   name: string | null;
+  date_of_birth: string | null;
   document_type: string | null;
   expiry_date: string | null;
   expiry_date_source: "explicit_expiry" | "issued_or_start_date" | "unknown";
@@ -95,7 +96,7 @@ Be honest about confidence — if the document is blurry, partially visible, or 
 
   const userPrompt = `The user declared their work status as: "${declaredStatus}".
 Please analyze this document and extract all relevant information.
-Look for: full name, document type (passport, visa, national ID, driver licence), expiry date, visa type, any work condition text, and whether rights are indefinite/permanent.
+Look for: full name, date of birth, document type (passport, visa, national ID, driver licence), expiry date, visa type, any work condition text, and whether rights are indefinite/permanent.
 Important: many NZ visa letters include issue/start dates. Do not classify those as expiry unless explicitly labeled as expiry.`;
 
   try {
@@ -138,6 +139,11 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
                       type: "string",
                       description:
                         "Full name as it appears on the document, or null if unreadable",
+                    },
+                    date_of_birth: {
+                      type: "string",
+                      description:
+                        "Date of birth in ISO 8601 format (YYYY-MM-DD) if visible on the document, else null",
                     },
                     document_type: {
                       type: "string",
@@ -233,6 +239,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
     const parsed = JSON.parse(toolCall.function.arguments);
     return {
       name: parsed.name || null,
+      date_of_birth: parsed.date_of_birth || null,
       document_type: parsed.document_type || null,
       expiry_date: parsed.expiry_date || null,
       expiry_date_source: parsed.expiry_date_source || "unknown",
@@ -253,6 +260,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
 function fallbackExtraction(): ExtractionResult {
   return {
     name: null,
+    date_of_birth: null,
     document_type: null,
     expiry_date: null,
     expiry_date_source: "unknown",
@@ -294,7 +302,8 @@ function hasIndefiniteRightsLanguage(extraction: ExtractionResult): boolean {
 function makeDecision(
   extraction: ExtractionResult,
   declaredStatus: string,
-  profileFullName: string | null
+  profileFullName: string | null,
+  profileDateOfBirth: string | null
 ): DecisionResult {
   const reasons: string[] = [];
   let decision: VerificationDecision = "verified";
@@ -399,7 +408,22 @@ function makeDecision(
     decision = decision === "verified" ? "review_required" : decision;
   }
 
-  // 6. Visa-specific: for work_visa/student_visa, check visa type presence
+  // 5b. Date of birth check
+  if (profileDateOfBirth && extraction.date_of_birth) {
+    const profileDob = profileDateOfBirth.replace(/[^0-9-]/g, "");
+    const docDob = extraction.date_of_birth.replace(/[^0-9-]/g, "");
+    if (profileDob && docDob && profileDob !== docDob) {
+      reasons.push(
+        `Date of birth mismatch: profile="${profileDateOfBirth}", document="${extraction.date_of_birth}". Please update your profile if incorrect.`
+      );
+      if (extraction.confidence > 0.7) {
+        decision = "rejected";
+      } else {
+        decision = decision === "verified" ? "review_required" : decision;
+      }
+    }
+  }
+
   if (
     (declaredStatus === "work_visa" || declaredStatus === "student_visa") &&
     !extraction.visa_type
@@ -468,14 +492,14 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1. Get user profile name for matching
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("user_id", user_id)
-      .maybeSingle();
+    // 1. Get user profile name and DOB for matching
+    const [{ data: profile }, { data: empProfile }] = await Promise.all([
+      supabase.from("profiles").select("full_name").eq("user_id", user_id).maybeSingle(),
+      supabase.from("employee_profiles").select("date_of_birth").eq("user_id", user_id).maybeSingle(),
+    ]);
 
     const fullName = profile?.full_name || null;
+    const dateOfBirth = empProfile?.date_of_birth || null;
 
     // 2. Download document
     const fileData = await downloadDocument(supabase, document_path);
@@ -511,7 +535,7 @@ serve(async (req) => {
     // 4. Make rule-based decision (use fallback if AI completely failed)
     const result = extraction.confidence === 0 && !extraction.is_readable
       ? makeFallbackDecision()
-      : makeDecision(extraction, declared_status, fullName);
+      : makeDecision(extraction, declared_status, fullName, dateOfBirth);
     console.log("Decision:", JSON.stringify(result));
 
     // 5. Update verification request
@@ -523,6 +547,7 @@ serve(async (req) => {
         extracted_data: {
           name: extraction.name,
           document_type: extraction.document_type,
+          date_of_birth: extraction.date_of_birth,
           expiry_date: extraction.expiry_date,
           expiry_date_source: extraction.expiry_date_source,
           expiry_evidence_text: extraction.expiry_evidence_text,
@@ -616,7 +641,7 @@ serve(async (req) => {
       type: "verification_result",
       title: msg.title,
       message: msg.message,
-      action_url: "/employee/verify",
+      action_url: "/settings?section=verification",
     });
 
     return new Response(

@@ -1,31 +1,43 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResetPasswordSection } from "@/components/dashboard/settings/ResetPasswordSection";
 import { ReferralProgramSection } from "@/components/dashboard/settings/ReferralProgramSection";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { Shield, Download, Trash2, ExternalLink } from "lucide-react";
+import { Shield, Download, Trash2, ExternalLink, ShieldCheck } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
 
-type SettingsSection = "password" | "referral" | "billing" | "privacy";
+const VerifyWorkRightsContent = lazy(() => import("@/components/settings/VerifyWorkRightsSection"));
+
+type SettingsSection = "password" | "referral" | "billing" | "privacy" | "verification";
 
 interface SidebarItem {
   id: SettingsSection;
   label: string;
+  employeeOnly?: boolean;
 }
 
 const sidebarItems: SidebarItem[] = [
   { id: "password", label: "Password" },
+  { id: "verification", label: "Work Verification", employeeOnly: true },
   { id: "referral", label: "Referral Program" },
   { id: "billing", label: "Billing & Subscription" },
   { id: "privacy", label: "Privacy & Data" },
 ];
 
 export default function Settings() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>("password");
+  const [searchParams] = useSearchParams();
+  const initialSection = (searchParams.get("section") as SettingsSection) || "password";
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isEmployee } = useAuthContext();
+
+  const filteredSidebarItems = sidebarItems.filter(
+    (item) => !item.employeeOnly || isEmployee()
+  );
 
   const renderContent = () => {
     switch (activeSection) {
@@ -51,6 +63,20 @@ export default function Settings() {
               </p>
             </div>
             <ReferralProgramSection inline />
+          </div>
+        );
+      case "verification":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold font-display">Work Rights Verification</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Verify your right to work in New Zealand.
+              </p>
+            </div>
+            <Suspense fallback={<Loader2 className="w-6 h-6 animate-spin text-primary" />}>
+              <VerifyWorkRightsContent />
+            </Suspense>
           </div>
         );
       case "billing":
@@ -154,7 +180,7 @@ export default function Settings() {
           {/* Sidebar — plain text links with active left border */}
           <nav className="shrink-0 md:w-48">
             <ul className="flex flex-row md:flex-col gap-1">
-              {sidebarItems.map((item) => {
+              {filteredSidebarItems.map((item) => {
                 const isActive = activeSection === item.id;
                 return (
                   <li key={item.id}>
