@@ -302,7 +302,8 @@ function hasIndefiniteRightsLanguage(extraction: ExtractionResult): boolean {
 function makeDecision(
   extraction: ExtractionResult,
   declaredStatus: string,
-  profileFullName: string | null
+  profileFullName: string | null,
+  profileDateOfBirth: string | null
 ): DecisionResult {
   const reasons: string[] = [];
   let decision: VerificationDecision = "verified";
