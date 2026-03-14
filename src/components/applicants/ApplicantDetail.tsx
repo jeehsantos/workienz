@@ -52,7 +52,21 @@ function ApplicantDetail({
   const [isSaving, setIsSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch verification status for this applicant
+  useEffect(() => {
+    if (!applicant.employee?.user_id) return;
+    supabase
+      .from("employee_profiles")
+      .select("work_verification_status")
+      .eq("user_id", applicant.employee.user_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setVerificationStatus(data?.work_verification_status || "unverified");
+      });
+  }, [applicant.employee?.user_id]);
 
   // Load existing note for this applicant
   useEffect(() => {
