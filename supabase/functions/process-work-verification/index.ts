@@ -99,31 +99,20 @@ Look for: full name, document type (passport, visa, national ID, driver licence)
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
             {
               role: "user",
-              content: fileData.mimeType === "application/pdf"
-                ? [
-                    { type: "text", text: userPrompt },
-                    {
-                      type: "file",
-                      file: {
-                        filename: "document.pdf",
-                        file_data: `data:application/pdf;base64,${fileData.base64}`,
-                      },
-                    },
-                  ]
-                : [
-                    { type: "text", text: userPrompt },
-                    {
-                      type: "image_url",
-                      image_url: {
-                        url: `data:${fileData.mimeType};base64,${fileData.base64}`,
-                      },
-                    },
-                  ],
+              content: [
+                { type: "text", text: userPrompt },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${fileData.mimeType};base64,${fileData.base64}`,
+                  },
+                },
+              ],
             },
           ],
           tools: [
