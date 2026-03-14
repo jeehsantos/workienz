@@ -472,7 +472,7 @@ serve(async (req) => {
       }
     }
 
-    if (result.decision === "review_required") {
+    if (result.decision === "review_required" || result.decision === "rejected") {
       profileUpdate.verification_review_reason = result.reasons.join("; ");
     }
 
