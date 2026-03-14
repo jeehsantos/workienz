@@ -80,7 +80,7 @@ export default function ViewProfile() {
         cvReferences: (empProfile as any).cv_references || [],
       };
       setProfileData(transformedProfile);
-    } else {
+      setVerificationStatus(empProfile.work_verification_status || "unverified");
       setProfileData(null);
     }
 
