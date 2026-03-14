@@ -139,7 +139,9 @@ export default function VerifyWorkRights() {
   }, [declaredStatus, selectedFile, declarationChecked, submitVerification]);
 
   const canSubmit = declaredStatus && selectedFile && declarationChecked && !isSubmitting;
-  const canResubmit = verificationState.status === "unverified" || verificationState.status === "rejected";
+  const isExpiringSoon = verificationState.status === "verified" && verificationState.expiryDate &&
+    new Date(verificationState.expiryDate).getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
+  const canResubmit = verificationState.status === "unverified" || verificationState.status === "rejected" || isExpiringSoon;
   const isSuspended = verificationState.status === "suspended";
   const statusConfig = STATUS_CONFIG[verificationState.status];
   const StatusIcon = statusConfig.icon;

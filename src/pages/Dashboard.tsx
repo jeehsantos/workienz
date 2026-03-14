@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 import { SettingsCard } from "@/components/dashboard/SettingsCard";
+import { VerificationStatusCard } from "@/components/dashboard/VerificationStatusCard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -108,16 +109,7 @@ export default function Dashboard() {
 
           {/* Verify Work Rights Card - Employee */}
           {showEmployeeCards && (
-            <div className="bg-card rounded-xl p-6 shadow-soft border border-border/50">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <ShieldCheck className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2 font-display">Verify Work Rights</h3>
-              <p className="text-muted-foreground text-sm mb-4">Verify your right to work in NZ to apply for jobs.</p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/employee/verify">Verify Now</Link>
-              </Button>
-            </div>
+            <VerificationStatusCard userId={user?.id} />
           )}
 
           {/* Profile Card - Contractor */}
