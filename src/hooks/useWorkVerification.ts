@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-export type VerificationStatus = "unverified" | "pending" | "verified" | "review_required" | "rejected";
+export type VerificationStatus = "unverified" | "pending" | "verified" | "review_required" | "rejected" | "suspended";
 export type DeclaredWorkStatus = "nz_citizen" | "resident" | "work_visa" | "student_visa";
 
 export interface VerificationState {

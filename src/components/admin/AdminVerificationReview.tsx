@@ -46,6 +46,7 @@ const statusColors: Record<string, string> = {
   review_required: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
   verified: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
   rejected: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+  suspended: "bg-red-200 text-red-900 dark:bg-red-950 dark:text-red-200",
 };
 
 const declaredStatusLabels: Record<string, string> = {
@@ -141,7 +142,7 @@ export default function AdminVerificationReview() {
   }, []);
 
   const handleDecision = useCallback(
-    async (decision: "verified" | "rejected") => {
+    async (decision: "verified" | "rejected" | "suspended") => {
       if (!selectedRequest) return;
       setIsProcessing(true);
 
@@ -177,6 +178,11 @@ export default function AdminVerificationReview() {
             adminNotes || "Rejected by admin review";
         }
 
+        if (decision === "suspended") {
+          profileUpdate.verification_review_reason =
+            adminNotes || "Account suspended due to fraud concerns";
+        }
+
         const { error: profErr } = await supabase
           .from("employee_profiles")
           .update(profileUpdate)
@@ -196,6 +202,13 @@ export default function AdminVerificationReview() {
                 title: "Work Rights Verified",
                 message:
                   "Your work rights have been verified by our team. You can now apply to jobs!",
+              }
+            : decision === "suspended"
+            ? {
+                title: "Account Suspended",
+                message: adminNotes
+                  ? `Your account has been suspended: ${adminNotes}`
+                  : "Your account has been suspended due to verification concerns. Please contact support.",
               }
             : {
                 title: "Verification Unsuccessful",
@@ -472,7 +485,20 @@ export default function AdminVerificationReview() {
               {/* Actions */}
               {(selectedRequest.status === "review_required" ||
                 selectedRequest.status === "pending") && (
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDecision("suspended")}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Shield className="w-4 h-4 mr-2" />
+                    )}
+                    Suspend (Fraud)
+                  </Button>
                   <Button
                     variant="destructive"
                     onClick={() => handleDecision("rejected")}
@@ -495,6 +521,23 @@ export default function AdminVerificationReview() {
                       <CheckCircle className="w-4 h-4 mr-2" />
                     )}
                     Approve
+                  </Button>
+                </DialogFooter>
+              )}
+              {selectedRequest.status === "verified" && (
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDecision("suspended")}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Shield className="w-4 h-4 mr-2" />
+                    )}
+                    Suspend User
                   </Button>
                 </DialogFooter>
               )}
