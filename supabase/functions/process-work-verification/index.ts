@@ -443,9 +443,13 @@ serve(async (req) => {
 
     // 3. Extract document fields via AI
     const extraction = await extractDocumentFields(fileData, declared_status);
+    console.log("Extraction result:", JSON.stringify(extraction));
 
-    // 4. Make rule-based decision
-    const result = makeDecision(extraction, declared_status, fullName);
+    // 4. Make rule-based decision (use fallback if AI completely failed)
+    const result = extraction.confidence === 0 && !extraction.is_readable
+      ? makeFallbackDecision()
+      : makeDecision(extraction, declared_status, fullName);
+    console.log("Decision:", JSON.stringify(result));
 
     // 5. Update verification request
     await supabase
