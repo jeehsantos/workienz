@@ -13,6 +13,8 @@ import {
   Star,
   Save,
   CheckCheck,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -50,7 +52,21 @@ function ApplicantDetail({
   const [isSaving, setIsSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch verification status for this applicant
+  useEffect(() => {
+    if (!applicant.employee?.user_id) return;
+    supabase
+      .from("employee_profiles")
+      .select("work_verification_status")
+      .eq("user_id", applicant.employee.user_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setVerificationStatus(data?.work_verification_status || "unverified");
+      });
+  }, [applicant.employee?.user_id]);
 
   // Load existing note for this applicant
   useEffect(() => {
@@ -187,6 +203,31 @@ function ApplicantDetail({
                 <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20" variant="outline">
                   <Star className="w-3 h-3 mr-1 fill-amber-500 text-amber-500" />
                   Top #{applicant.top_rank}
+                </Badge>
+              )}
+              {verificationStatus && (
+                <Badge
+                  variant="outline"
+                  className={
+                    verificationStatus === "verified"
+                      ? "bg-green-500/10 text-green-600 border-green-500/20"
+                      : verificationStatus === "suspended"
+                      ? "bg-destructive/10 text-destructive border-destructive/20"
+                      : "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                  }
+                >
+                  {verificationStatus === "verified" ? (
+                    <ShieldCheck className="w-3 h-3 mr-1" />
+                  ) : (
+                    <ShieldAlert className="w-3 h-3 mr-1" />
+                  )}
+                  {verificationStatus === "verified"
+                    ? "Verified"
+                    : verificationStatus === "suspended"
+                    ? "Suspended"
+                    : verificationStatus === "pending"
+                    ? "Pending Verification"
+                    : "Not Verified"}
                 </Badge>
               )}
             </div>
