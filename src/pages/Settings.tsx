@@ -65,6 +65,20 @@ export default function Settings() {
             <ReferralProgramSection inline />
           </div>
         );
+      case "verification":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold font-display">Work Rights Verification</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Verify your right to work in New Zealand.
+              </p>
+            </div>
+            <Suspense fallback={<Loader2 className="w-6 h-6 animate-spin text-primary" />}>
+              <VerifyWorkRightsContent />
+            </Suspense>
+          </div>
+        );
       case "billing":
         return (
           <div className="space-y-6">
