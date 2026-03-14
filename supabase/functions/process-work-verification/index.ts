@@ -492,14 +492,14 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1. Get user profile name for matching
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("user_id", user_id)
-      .maybeSingle();
+    // 1. Get user profile name and DOB for matching
+    const [{ data: profile }, { data: empProfile }] = await Promise.all([
+      supabase.from("profiles").select("full_name").eq("user_id", user_id).maybeSingle(),
+      supabase.from("employee_profiles").select("date_of_birth").eq("user_id", user_id).maybeSingle(),
+    ]);
 
     const fullName = profile?.full_name || null;
+    const dateOfBirth = empProfile?.date_of_birth || null;
 
     // 2. Download document
     const fileData = await downloadDocument(supabase, document_path);
