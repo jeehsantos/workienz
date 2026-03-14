@@ -641,7 +641,7 @@ serve(async (req) => {
       type: "verification_result",
       title: msg.title,
       message: msg.message,
-      action_url: "/employee/verify",
+      action_url: "/settings?section=verification",
     });
 
     return new Response(
