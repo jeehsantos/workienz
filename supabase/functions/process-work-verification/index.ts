@@ -18,6 +18,9 @@ interface ExtractionResult {
   name: string | null;
   document_type: string | null;
   expiry_date: string | null;
+  expiry_date_source: "explicit_expiry" | "issued_or_start_date" | "unknown";
+  expiry_evidence_text: string | null;
+  no_expiry_indefinite: boolean;
   visa_type: string | null;
   work_conditions: string | null;
   is_readable: boolean;
