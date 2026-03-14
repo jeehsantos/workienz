@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 import { SettingsCard } from "@/components/dashboard/SettingsCard";
-import { VerificationStatusCard } from "@/components/dashboard/VerificationStatusCard";
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
