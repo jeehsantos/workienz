@@ -155,7 +155,23 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
                     expiry_date: {
                       type: "string",
                       description:
-                        "Expiry date in ISO 8601 format (YYYY-MM-DD), or null if not found",
+                        "Expiry date in ISO 8601 format (YYYY-MM-DD), only when explicitly labeled as expiry; otherwise null",
+                    },
+                    expiry_date_source: {
+                      type: "string",
+                      enum: ["explicit_expiry", "issued_or_start_date", "unknown"],
+                      description:
+                        "How the date was identified. Use explicit_expiry only when clearly labeled as expiry.",
+                    },
+                    expiry_evidence_text: {
+                      type: "string",
+                      description:
+                        "Short phrase around the expiry date label/value (e.g. 'Visa expires: 2027-01-03'), else null",
+                    },
+                    no_expiry_indefinite: {
+                      type: "boolean",
+                      description:
+                        "True if document text indicates indefinite/permanent rights with no explicit expiry",
                     },
                     visa_type: {
                       type: "string",
