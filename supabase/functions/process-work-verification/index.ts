@@ -99,7 +99,7 @@ Look for: full name, document type (passport, visa, national ID, driver licence)
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
             {
@@ -231,7 +231,19 @@ function fallbackExtraction(): ExtractionResult {
     work_conditions: null,
     is_readable: false,
     confidence: 0,
-    raw_text_snippet: null,
+    raw_text_snippet: "AI extraction failed - sending to manual review",
+  };
+}
+
+/**
+ * If AI extraction completely fails, route to manual review instead of auto-rejecting.
+ */
+function makeFallbackDecision(): DecisionResult {
+  return {
+    decision: "review_required",
+    reasons: ["AI extraction failed; document sent for manual review"],
+    confidence: 0,
+    expiry_date: null,
   };
 }
 
@@ -431,9 +443,13 @@ serve(async (req) => {
 
     // 3. Extract document fields via AI
     const extraction = await extractDocumentFields(fileData, declared_status);
+    console.log("Extraction result:", JSON.stringify(extraction));
 
-    // 4. Make rule-based decision
-    const result = makeDecision(extraction, declared_status, fullName);
+    // 4. Make rule-based decision (use fallback if AI completely failed)
+    const result = extraction.confidence === 0 && !extraction.is_readable
+      ? makeFallbackDecision()
+      : makeDecision(extraction, declared_status, fullName);
+    console.log("Decision:", JSON.stringify(result));
 
     // 5. Update verification request
     await supabase
@@ -472,7 +488,7 @@ serve(async (req) => {
       }
     }
 
-    if (result.decision === "review_required") {
+    if (result.decision === "review_required" || result.decision === "rejected") {
       profileUpdate.verification_review_reason = result.reasons.join("; ");
     }
 
