@@ -180,7 +180,7 @@ export default function Settings() {
           {/* Sidebar — plain text links with active left border */}
           <nav className="shrink-0 md:w-48">
             <ul className="flex flex-row md:flex-col gap-1">
-              {sidebarItems.map((item) => {
+              {filteredSidebarItems.map((item) => {
                 const isActive = activeSection === item.id;
                 return (
                   <li key={item.id}>
