@@ -13,6 +13,8 @@ import {
   Star,
   Save,
   CheckCheck,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/contexts/AuthContext";
