@@ -22,7 +22,7 @@ interface SocialProfileViewProps {
   verificationStatus?: string;
 }
 
-export function SocialProfileView({ profile }: SocialProfileViewProps) {
+export function SocialProfileView({ profile, verificationStatus }: SocialProfileViewProps) {
   const locationParts = [profile.suburb, profile.city, profile.region, profile.country]
     .filter(Boolean);
   const locationString = locationParts.join(", ");
