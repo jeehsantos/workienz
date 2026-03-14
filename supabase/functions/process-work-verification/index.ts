@@ -239,6 +239,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
     const parsed = JSON.parse(toolCall.function.arguments);
     return {
       name: parsed.name || null,
+      date_of_birth: parsed.date_of_birth || null,
       document_type: parsed.document_type || null,
       expiry_date: parsed.expiry_date || null,
       expiry_date_source: parsed.expiry_date_source || "unknown",
