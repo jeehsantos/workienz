@@ -408,7 +408,22 @@ function makeDecision(
     decision = decision === "verified" ? "review_required" : decision;
   }
 
-  // 6. Visa-specific: for work_visa/student_visa, check visa type presence
+  // 5b. Date of birth check
+  if (profileDateOfBirth && extraction.date_of_birth) {
+    const profileDob = profileDateOfBirth.replace(/[^0-9-]/g, "");
+    const docDob = extraction.date_of_birth.replace(/[^0-9-]/g, "");
+    if (profileDob && docDob && profileDob !== docDob) {
+      reasons.push(
+        `Date of birth mismatch: profile="${profileDateOfBirth}", document="${extraction.date_of_birth}". Please update your profile if incorrect.`
+      );
+      if (extraction.confidence > 0.7) {
+        decision = "rejected";
+      } else {
+        decision = decision === "verified" ? "review_required" : decision;
+      }
+    }
+  }
+
   if (
     (declaredStatus === "work_visa" || declaredStatus === "student_visa") &&
     !extraction.visa_type
