@@ -535,7 +535,7 @@ serve(async (req) => {
     // 4. Make rule-based decision (use fallback if AI completely failed)
     const result = extraction.confidence === 0 && !extraction.is_readable
       ? makeFallbackDecision()
-      : makeDecision(extraction, declared_status, fullName);
+      : makeDecision(extraction, declared_status, fullName, dateOfBirth);
     console.log("Decision:", JSON.stringify(result));
 
     // 5. Update verification request
