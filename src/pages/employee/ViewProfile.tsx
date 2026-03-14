@@ -179,7 +179,7 @@ export default function ViewProfile() {
 
         {/* Profile Views */}
         {viewMode === 'social' ? (
-          <SocialProfileView profile={profileData} />
+          <SocialProfileView profile={profileData} verificationStatus={verificationStatus} />
         ) : (
           <FormalCVView profile={profileData} />
         )}
