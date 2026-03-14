@@ -16,6 +16,7 @@ interface VerificationInput {
 
 interface ExtractionResult {
   name: string | null;
+  date_of_birth: string | null;
   document_type: string | null;
   expiry_date: string | null;
   expiry_date_source: "explicit_expiry" | "issued_or_start_date" | "unknown";
