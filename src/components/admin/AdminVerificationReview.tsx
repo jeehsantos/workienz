@@ -178,6 +178,11 @@ export default function AdminVerificationReview() {
             adminNotes || "Rejected by admin review";
         }
 
+        if (decision === "suspended") {
+          profileUpdate.verification_review_reason =
+            adminNotes || "Account suspended due to fraud concerns";
+        }
+
         const { error: profErr } = await supabase
           .from("employee_profiles")
           .update(profileUpdate)
