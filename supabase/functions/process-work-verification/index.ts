@@ -548,6 +548,7 @@ serve(async (req) => {
           name: extraction.name,
           document_type: extraction.document_type,
           date_of_birth: extraction.date_of_birth,
+          expiry_date: extraction.expiry_date,
           expiry_date_source: extraction.expiry_date_source,
           expiry_evidence_text: extraction.expiry_evidence_text,
           no_expiry_indefinite: extraction.no_expiry_indefinite,
