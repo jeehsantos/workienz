@@ -81,7 +81,6 @@ export default function ViewProfile() {
       };
       setProfileData(transformedProfile);
       setVerificationStatus(empProfile.work_verification_status || "unverified");
-      setProfileData(null);
     }
 
     setIsLoading(false);
