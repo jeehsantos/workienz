@@ -24,6 +24,7 @@ interface ExtractionResult {
   no_expiry_indefinite: boolean;
   visa_type: string | null;
   work_conditions: string | null;
+  issuing_country: string | null;
   is_readable: boolean;
   confidence: number; // 0-1
   raw_text_snippet: string | null;
@@ -92,7 +93,11 @@ Critical date rules:
 - Do NOT treat issue/start/approval/grant dates as expiry.
 - If the document indicates indefinite/permanent stay rights and no explicit expiry, set expiry_date to null and no_expiry_indefinite to true.
 - Set expiry_date_source to "explicit_expiry", "issued_or_start_date", or "unknown".
-Be honest about confidence — if the document is blurry, partially visible, or unreadable, set is_readable to false and confidence low.`;
+Be honest about confidence — if the document is blurry, partially visible, or unreadable, set is_readable to false and confidence low.
+Country identification:
+- Identify the issuing country of the document. Look for country names, government logos, coat of arms, or immigration authority names.
+- For NZ documents, the issuing country should be "New Zealand".
+- This platform only accepts documents issued by New Zealand.`;
 
   const userPrompt = `The user declared their work status as: "${declaredStatus}".
 Please analyze this document and extract all relevant information.
@@ -109,7 +114,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
             {
@@ -204,11 +209,17 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
                       description:
                         "A brief snippet of text visible on the document for audit purposes",
                     },
+                    issuing_country: {
+                      type: "string",
+                      description:
+                        "The country that issued this document (e.g. 'New Zealand', 'Australia', 'United Kingdom'). Identify from government logos, coat of arms, immigration authority names, or country names on the document.",
+                    },
                   },
                   required: [
                     "document_type",
                     "is_readable",
                     "confidence",
+                    "issuing_country",
                   ],
                   additionalProperties: false,
                 },
@@ -247,6 +258,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
       no_expiry_indefinite: parsed.no_expiry_indefinite ?? false,
       visa_type: parsed.visa_type || null,
       work_conditions: parsed.work_conditions || null,
+      issuing_country: parsed.issuing_country || null,
       is_readable: parsed.is_readable ?? false,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
       raw_text_snippet: parsed.raw_text_snippet || null,
@@ -268,6 +280,7 @@ function fallbackExtraction(): ExtractionResult {
     no_expiry_indefinite: false,
     visa_type: null,
     work_conditions: null,
+    issuing_country: null,
     is_readable: false,
     confidence: 0,
     raw_text_snippet: "AI extraction failed - sending to manual review",
@@ -351,7 +364,23 @@ function makeDecision(
     }
   }
 
-  // 4. Document type vs declared status matching
+  // 4. Issuing country validation (must be New Zealand)
+  if (extraction.issuing_country) {
+    const country = extraction.issuing_country.toLowerCase().trim();
+    const isNZ = country === "new zealand" || country === "nz" || country === "aotearoa";
+    if (!isNZ) {
+      reasons.push(
+        `This document was issued by ${extraction.issuing_country}, not New Zealand. Only NZ-issued documents are accepted.`
+      );
+      if (extraction.confidence > 0.7) {
+        return { decision: "rejected", reasons, confidence: extraction.confidence, expiry_date: null };
+      } else {
+        decision = "review_required";
+      }
+    }
+  }
+
+  // 5. Document type vs declared status matching
   const typeMatchMap: Record<string, string[]> = {
     nz_citizen: ["passport", "birth_certificate", "national_id"],
     resident: ["passport", "visa", "national_id"],
@@ -554,6 +583,7 @@ serve(async (req) => {
           no_expiry_indefinite: extraction.no_expiry_indefinite,
           visa_type: extraction.visa_type,
           work_conditions: extraction.work_conditions,
+          issuing_country: extraction.issuing_country,
           is_readable: extraction.is_readable,
           raw_text_snippet: extraction.raw_text_snippet,
           decision_reasons: result.reasons,

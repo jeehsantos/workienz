@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   FileText,
   X,
+  Info,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -211,6 +212,15 @@ export default function VerifyWorkRightsSection() {
               to me. I understand that submitting false, misleading, or fraudulent information may
               result in my account being <strong>suspended or permanently banned</strong> from Workie.
             </label>
+          </div>
+
+          {/* Data Retention Info */}
+          <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-muted/10">
+            <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p><strong>Document privacy:</strong> Your uploaded document is deleted immediately after automated processing. If manual review is required, it is retained for up to 7 days then permanently deleted.</p>
+              <p>Once verified, you do not need to re-upload unless your verification expires or is rejected.</p>
+            </div>
           </div>
 
           <Button onClick={handleSubmit} disabled={!canSubmit} className="w-full" size="lg">

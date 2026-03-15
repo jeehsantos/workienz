@@ -1,41 +1,63 @@
 
 
-## Plan: Cost Optimization, Data Retention Transparency, and NZ Country Validation
+## Plan: Fix 4 Pooling Process Issues
 
-### Cost Estimate: Gemini 2.5 Flash at 10K uploads/month
+### Issue 1: "Approved_to_pool" status label is unprofessional
 
-Gemini 2.5 Flash pricing (via Lovable AI gateway):
-- Input: ~$0.15 per 1M tokens; Output: ~$0.60 per 1M tokens
-- A typical visa PDF/image with the structured extraction prompt uses roughly **~2,000 input tokens** (image + system/user prompt) and **~300 output tokens** (tool call response)
-- Per request: ~$0.0003 input + $0.00018 output ≈ **$0.0005/request**
-- **10,000 requests/month ≈ $5/month** (vs ~$25-40/month with Gemini 2.5 Pro)
+**Problem**: Raw database status `approved_to_pool` is displayed as-is in badges across the UI.
 
-Note: Lovable AI charges per request on top of model costs. Actual billing depends on your workspace plan and credit balance. The model cost itself is minimal.
+**Fix**: Add a display label map in `ApplicantList.tsx` StatusBadge and any other location showing this status. Map `approved_to_pool` to "In Talent Pool" (already done in `JobApplicants.tsx` but missing in `ApplicantList.tsx`).
+
+**Files to edit**:
+- `src/components/applicants/ApplicantList.tsx` -- Update `StatusBadge` to use friendly labels: `approved_to_pool` -> "In Talent Pool", `pending` -> "Pending", etc.
+- `src/pages/contractor/ContractorJobDetail.tsx` -- If status badges appear here, apply the same label map.
 
 ---
 
-### Changes
+### Issue 2: No chat message sent when applicant is approved to pool
 
-#### 1. Switch to `google/gemini-2.5-flash` (Edge Function)
-- **File:** `supabase/functions/process-work-verification/index.ts` line 112
-- Change `model: "google/gemini-2.5-pro"` → `model: "google/gemini-2.5-flash"`
+**Problem**: The `update-application-status` edge function upserts the pool membership but never sends a message to the existing conversation or creates a notification.
 
-#### 2. Add NZ Country Validation (Edge Function)
-- Add `issuing_country` field to the extraction tool schema (string, e.g. "New Zealand", "Australia")
-- Add it to the `ExtractionResult` interface
-- Add a new check in `makeDecision()` after the document type check:
-  - If `issuing_country` is extracted and does not match "New Zealand" / "NZ", reject with reason: `"This document was issued by [country], not New Zealand. Only NZ-issued documents are accepted."`
-  - Low confidence → route to `review_required` instead of hard reject
-- Update the AI system prompt to instruct: "Identify the issuing country of the document"
+**Fix**: After successful pool upsert in the edge function, insert a system-style message into the conversation (if one exists) and create a notification for the employee.
 
-#### 3. Add Data Retention Messaging (UI)
-- **File:** `src/components/settings/VerifyWorkRightsSection.tsx`
-- Add an info box below the upload area explaining:
-  - Documents are deleted immediately after automated processing
-  - If manual review is needed, documents are retained for up to 7 days then permanently deleted
-  - Once verified, users do not need to re-upload unless their verification expires or is rejected
-- Use a subtle `Info` icon with muted styling to keep it non-intrusive
+**File to edit**:
+- `supabase/functions/update-application-status/index.ts` -- After the `approved_to_pool` block (line ~148), look up the conversation for this application, insert a message like: "You've been added to [Company]'s talent pool for [category]. You can now browse and request available shifts from your Talent Pools page." Also insert a notification row.
 
-#### 4. Redeploy Edge Function
-- Deploy updated `process-work-verification` function with both the model switch and country validation changes
+---
+
+### Issue 3: No dedicated "My Shifts" page for employees
+
+**Problem**: Employees can only see shifts buried inside the "My Pools" page by expanding each pool. There's no unified view of all their shift assignments (confirmed, requested, completed).
+
+**Fix**: Create a new `src/pages/employee/MyShifts.tsx` page showing all the employee's shift assignments across all jobs/pools, grouped by status (Upcoming Confirmed, Pending Requests, Past/Completed). Add a route `/employee/shifts` and a dashboard card.
+
+**Files to create/edit**:
+- `src/pages/employee/MyShifts.tsx` (new) -- Query `shift_assignments` for the current user, join with `job_shifts` and `jobs` for context. Group by: Upcoming Confirmed, Pending Requests, Past shifts.
+- `src/App.tsx` -- Add lazy import and route for `/employee/shifts`.
+- `src/pages/Dashboard.tsx` -- Add a "My Shifts" card for employees linking to `/employee/shifts`.
+
+---
+
+### Issue 4: Employee self-assignment to shifts (configurable by contractor)
+
+**Problem**: Currently only contractors can assign workers to shifts. Employees should be able to self-assign based on the job's `shift_allocation_mode` (already partially implemented via `EmployeeShiftBrowser`).
+
+**Analysis**: The `EmployeeShiftBrowser` component and the `manage-shifts` edge function already support `request_shift` and `claim_shift` actions with atomic RPCs. The `MyPools` page already renders `EmployeeShiftBrowser` per job. The new `MyShifts` page will also link to available shifts. The infrastructure is largely in place.
+
+**Fix**: Ensure the new `MyShifts` page includes a section/link to browse available shifts. The `EmployeeShiftBrowser` already handles both modes. Add a prominent "Browse Available Shifts" link from `MyShifts` to `MyPools` (where shift browsing lives). Optionally, surface available shifts directly on `MyShifts` as well.
+
+**Files to edit**:
+- `src/pages/employee/MyShifts.tsx` (new, from Issue 3) -- Include an "Available Shifts" section that reuses `EmployeeShiftBrowser` or links to pools page.
+
+---
+
+### Summary of changes
+
+| File | Action |
+|------|--------|
+| `src/components/applicants/ApplicantList.tsx` | Fix status label display |
+| `supabase/functions/update-application-status/index.ts` | Add chat message + notification on pool approval |
+| `src/pages/employee/MyShifts.tsx` | New page: employee shift dashboard |
+| `src/App.tsx` | Add route `/employee/shifts` |
+| `src/pages/Dashboard.tsx` | Add "My Shifts" card for employees |
 
