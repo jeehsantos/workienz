@@ -93,7 +93,11 @@ Critical date rules:
 - Do NOT treat issue/start/approval/grant dates as expiry.
 - If the document indicates indefinite/permanent stay rights and no explicit expiry, set expiry_date to null and no_expiry_indefinite to true.
 - Set expiry_date_source to "explicit_expiry", "issued_or_start_date", or "unknown".
-Be honest about confidence — if the document is blurry, partially visible, or unreadable, set is_readable to false and confidence low.`;
+Be honest about confidence — if the document is blurry, partially visible, or unreadable, set is_readable to false and confidence low.
+Country identification:
+- Identify the issuing country of the document. Look for country names, government logos, coat of arms, or immigration authority names.
+- For NZ documents, the issuing country should be "New Zealand".
+- This platform only accepts documents issued by New Zealand.`;
 
   const userPrompt = `The user declared their work status as: "${declaredStatus}".
 Please analyze this document and extract all relevant information.
