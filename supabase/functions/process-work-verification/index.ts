@@ -364,7 +364,23 @@ function makeDecision(
     }
   }
 
-  // 4. Document type vs declared status matching
+  // 4. Issuing country validation (must be New Zealand)
+  if (extraction.issuing_country) {
+    const country = extraction.issuing_country.toLowerCase().trim();
+    const isNZ = country === "new zealand" || country === "nz" || country === "aotearoa";
+    if (!isNZ) {
+      reasons.push(
+        `This document was issued by ${extraction.issuing_country}, not New Zealand. Only NZ-issued documents are accepted.`
+      );
+      if (extraction.confidence > 0.7) {
+        return { decision: "rejected", reasons, confidence: extraction.confidence, expiry_date: null };
+      } else {
+        decision = "review_required";
+      }
+    }
+  }
+
+  // 5. Document type vs declared status matching
   const typeMatchMap: Record<string, string[]> = {
     nz_citizen: ["passport", "birth_certificate", "national_id"],
     resident: ["passport", "visa", "national_id"],
