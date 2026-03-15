@@ -114,7 +114,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
             {
