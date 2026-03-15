@@ -209,11 +209,17 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
                       description:
                         "A brief snippet of text visible on the document for audit purposes",
                     },
+                    issuing_country: {
+                      type: "string",
+                      description:
+                        "The country that issued this document (e.g. 'New Zealand', 'Australia', 'United Kingdom'). Identify from government logos, coat of arms, immigration authority names, or country names on the document.",
+                    },
                   },
                   required: [
                     "document_type",
                     "is_readable",
                     "confidence",
+                    "issuing_country",
                   ],
                   additionalProperties: false,
                 },
