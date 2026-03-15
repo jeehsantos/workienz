@@ -258,6 +258,7 @@ Important: many NZ visa letters include issue/start dates. Do not classify those
       no_expiry_indefinite: parsed.no_expiry_indefinite ?? false,
       visa_type: parsed.visa_type || null,
       work_conditions: parsed.work_conditions || null,
+      issuing_country: parsed.issuing_country || null,
       is_readable: parsed.is_readable ?? false,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
       raw_text_snippet: parsed.raw_text_snippet || null,
