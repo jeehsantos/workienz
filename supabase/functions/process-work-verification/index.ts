@@ -583,6 +583,7 @@ serve(async (req) => {
           no_expiry_indefinite: extraction.no_expiry_indefinite,
           visa_type: extraction.visa_type,
           work_conditions: extraction.work_conditions,
+          issuing_country: extraction.issuing_country,
           is_readable: extraction.is_readable,
           raw_text_snippet: extraction.raw_text_snippet,
           decision_reasons: result.reasons,
