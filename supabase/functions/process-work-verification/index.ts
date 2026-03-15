@@ -24,6 +24,7 @@ interface ExtractionResult {
   no_expiry_indefinite: boolean;
   visa_type: string | null;
   work_conditions: string | null;
+  issuing_country: string | null;
   is_readable: boolean;
   confidence: number; // 0-1
   raw_text_snippet: string | null;
