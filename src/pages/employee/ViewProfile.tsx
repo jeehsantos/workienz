@@ -81,7 +81,6 @@ export default function ViewProfile() {
       };
       setProfileData(transformedProfile);
       setVerificationStatus(empProfile.work_verification_status || "unverified");
-      setProfileData(null);
     }
 
     setIsLoading(false);
@@ -124,15 +123,28 @@ export default function ViewProfile() {
   }
 
   if (!profileData) {
+    const needsVerification = verificationStatus === "unverified" || !verificationStatus;
     return (
       <div className="min-h-screen bg-background">
         <div className="container-tight py-8">
           <div className="text-center py-16">
-            <h1 className="text-2xl font-bold mb-4">Complete Your Profile</h1>
-            <p className="text-muted-foreground mb-6">Set up your profile to start applying for jobs.</p>
-            <Button asChild>
-              <Link to="/employee/profile">Set Up Profile</Link>
-            </Button>
+            {needsVerification ? (
+              <>
+                <h1 className="text-2xl font-bold mb-4">Verify Your Work Rights</h1>
+                <p className="text-muted-foreground mb-6">You need to verify your NZ work rights before viewing your full profile.</p>
+                <Button asChild>
+                  <Link to="/settings?section=verification">Verify Now</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold mb-4">Complete Your Profile</h1>
+                <p className="text-muted-foreground mb-6">Set up your profile to start applying for jobs.</p>
+                <Button asChild>
+                  <Link to="/employee/profile">Set Up Profile</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
