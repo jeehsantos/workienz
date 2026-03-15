@@ -280,6 +280,7 @@ function fallbackExtraction(): ExtractionResult {
     no_expiry_indefinite: false,
     visa_type: null,
     work_conditions: null,
+    issuing_country: null,
     is_readable: false,
     confidence: 0,
     raw_text_snippet: "AI extraction failed - sending to manual review",
