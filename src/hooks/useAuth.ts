@@ -17,6 +17,7 @@ interface AuthState {
 export function useAuth() {
   const hasAttemptedReferral = useRef(false);
   const { toast } = useToast();
+  const authStateRef = useRef<AuthState | null>(null);
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     session: null,
@@ -217,7 +218,7 @@ export function useAuth() {
         clearAuthState();
       });
 
-    // Extra safety: when the tab becomes visible again, re-sync the session once.
+    // Extra safety: when the tab becomes visible again, re-sync only if the user changed.
     const onVisibility = () => {
       if (!isMounted) return;
       if (document.visibilityState !== "visible") return;
@@ -230,12 +231,17 @@ export function useAuth() {
             clearAuthState();
             return;
           }
-          setAuthState((prev) => ({
-            ...prev,
-            session,
-            user: session?.user ?? null,
-            isLoading: false,
-          }));
+          // Only update state if the session user actually changed
+          const currentUserId = authStateRef.current?.user?.id ?? null;
+          const newUserId = session?.user?.id ?? null;
+          if (currentUserId !== newUserId) {
+            setAuthState((prev) => ({
+              ...prev,
+              session,
+              user: session?.user ?? null,
+              isLoading: false,
+            }));
+          }
         })
         .catch(() => {
           clearAuthStorage();
