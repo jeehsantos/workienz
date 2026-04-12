@@ -155,7 +155,9 @@ export default function JobDetail() {
       });
       setIsLoading(false);
 
-      // Always load questionnaire for AI-powered screening
+      // Load questionnaire only for authenticated users
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (currentSession?.user) {
         setIsLoadingQuestionnaire(true);
         try {
           const qRes = await supabase.functions.invoke('generate-job-questionnaire', {
@@ -167,6 +169,7 @@ export default function JobDetail() {
         } finally {
           setIsLoadingQuestionnaire(false);
         }
+      }
       
     }
     fetchJob();
