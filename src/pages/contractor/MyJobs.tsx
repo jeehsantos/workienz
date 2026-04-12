@@ -37,7 +37,7 @@ export default function MyJobs() {
   const [isLoading, setIsLoading] = useState(true);
   const [contractorProfileId, setContractorProfileId] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<Job | null>(null);
-  const [isValidatingDeletion, setIsValidatingDeletion] = useState(false);
+  
   const [activeApplicationsWarning, setActiveApplicationsWarning] = useState<{
     show: boolean;
     message: string;
@@ -94,66 +94,41 @@ export default function MyJobs() {
     }
   }, [user, isContractor, toast]);
 
-  // Validate deletion before showing the dialog
-  const handleDeleteClick = async (job: Job) => {
-    setIsValidatingDeletion(true);
-    
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      
-      if (!accessToken) {
-        toast({
-          title: "Error",
-          description: "Please log in to continue.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await supabase.functions.invoke("validate-job-deletion", {
-        body: { job_id: job.id },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      const result = response.data;
-
-      if (!result.can_delete) {
-        if (result.error_code === "ERR_ACTIVE_APPLICATIONS") {
-          setActiveApplicationsWarning({
-            show: true,
-            message: result.message,
-            count: result.active_applications_count,
-          });
-        } else {
-          toast({
-            title: "Cannot Delete",
-            description: result.message || "Unable to delete this job.",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      // Validation passed, show deletion dialog
-      setDeletingJob(job);
-    } catch (error) {
-      console.error("Error validating deletion:", error);
-      toast({
-        title: "Error",
-        description: "Failed to validate deletion. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsValidatingDeletion(false);
-    }
+  // Show dialog immediately, validate when user confirms
+  const handleDeleteClick = (job: Job) => {
+    setDeletingJob(job);
   };
 
   const handleDelete = async (reason: string, customReason?: string) => {
     if (!deletingJob || !user) return;
+
+    // Validate deletion before proceeding
+    const response = await supabase.functions.invoke("validate-job-deletion", {
+      body: { job_id: deletingJob.id },
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const validationResult = response.data;
+    if (!validationResult.can_delete) {
+      if (validationResult.error_code === "ERR_ACTIVE_APPLICATIONS") {
+        setDeletingJob(null);
+        setActiveApplicationsWarning({
+          show: true,
+          message: validationResult.message,
+          count: validationResult.active_applications_count,
+        });
+      } else {
+        toast({
+          title: "Cannot Delete",
+          description: validationResult.message || "Unable to delete this job.",
+          variant: "destructive",
+        });
+      }
+      throw new Error(validationResult.message || "Cannot delete");
+    }
 
     // First insert the deletion tracking record
     const { error: trackingError } = await supabase
@@ -336,13 +311,8 @@ export default function MyJobs() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteClick(job)}
-                          disabled={isValidatingDeletion}
                         >
-                          {isValidatingDeletion ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          )}
+                          <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Delete</TooltipContent>
