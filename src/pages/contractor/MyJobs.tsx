@@ -102,6 +102,34 @@ export default function MyJobs() {
   const handleDelete = async (reason: string, customReason?: string) => {
     if (!deletingJob || !user) return;
 
+    // Validate deletion before proceeding
+    const response = await supabase.functions.invoke("validate-job-deletion", {
+      body: { job_id: deletingJob.id },
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message);
+    }
+
+    const validationResult = response.data;
+    if (!validationResult.can_delete) {
+      if (validationResult.error_code === "ERR_ACTIVE_APPLICATIONS") {
+        setDeletingJob(null);
+        setActiveApplicationsWarning({
+          show: true,
+          message: validationResult.message,
+          count: validationResult.active_applications_count,
+        });
+      } else {
+        toast({
+          title: "Cannot Delete",
+          description: validationResult.message || "Unable to delete this job.",
+          variant: "destructive",
+        });
+      }
+      throw new Error(validationResult.message || "Cannot delete");
+    }
+
     // First insert the deletion tracking record
     const { error: trackingError } = await supabase
       .from("job_deletion_tracking")
