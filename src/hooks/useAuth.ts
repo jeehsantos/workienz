@@ -83,6 +83,11 @@ export function useAuth() {
     }
   }, [toast]);
 
+  // Keep ref in sync for the visibility handler
+  useEffect(() => {
+    authStateRef.current = authState;
+  }, [authState]);
+
   useEffect(() => {
     let isMounted = true;
 
