@@ -37,7 +37,7 @@ export default function MyJobs() {
   const [isLoading, setIsLoading] = useState(true);
   const [contractorProfileId, setContractorProfileId] = useState<string | null>(null);
   const [deletingJob, setDeletingJob] = useState<Job | null>(null);
-  const [isValidatingDeletion, setIsValidatingDeletion] = useState(false);
+  
   const [activeApplicationsWarning, setActiveApplicationsWarning] = useState<{
     show: boolean;
     message: string;
@@ -311,11 +311,8 @@ export default function MyJobs() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteClick(job)}
-                          disabled={isValidatingDeletion}
                         >
-                          {isValidatingDeletion ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
+                          <Trash2 className="w-4 h-4 text-destructive" />
                             <Trash2 className="w-4 h-4 text-destructive" />
                           )}
                         </Button>
