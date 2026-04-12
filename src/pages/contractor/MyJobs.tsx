@@ -94,62 +94,9 @@ export default function MyJobs() {
     }
   }, [user, isContractor, toast]);
 
-  // Validate deletion before showing the dialog
-  const handleDeleteClick = async (job: Job) => {
-    setIsValidatingDeletion(true);
-    
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      
-      if (!accessToken) {
-        toast({
-          title: "Error",
-          description: "Please log in to continue.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await supabase.functions.invoke("validate-job-deletion", {
-        body: { job_id: job.id },
-      });
-
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      const result = response.data;
-
-      if (!result.can_delete) {
-        if (result.error_code === "ERR_ACTIVE_APPLICATIONS") {
-          setActiveApplicationsWarning({
-            show: true,
-            message: result.message,
-            count: result.active_applications_count,
-          });
-        } else {
-          toast({
-            title: "Cannot Delete",
-            description: result.message || "Unable to delete this job.",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      // Validation passed, show deletion dialog
-      setDeletingJob(job);
-    } catch (error) {
-      console.error("Error validating deletion:", error);
-      toast({
-        title: "Error",
-        description: "Failed to validate deletion. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsValidatingDeletion(false);
-    }
+  // Show dialog immediately, validate when user confirms
+  const handleDeleteClick = (job: Job) => {
+    setDeletingJob(job);
   };
 
   const handleDelete = async (reason: string, customReason?: string) => {
