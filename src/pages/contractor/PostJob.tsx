@@ -159,37 +159,40 @@ export default function PostJob() {
     async function fetchData() {
       if (!user) return;
 
-      // Fetch contractor profile
-      const { data: profile, error } = await supabase
-        .from("contractor_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Run all three requests in parallel
+      const [profileResult, settingsResult, entitlementResult] = await Promise.all([
+        supabase
+          .from("contractor_profiles")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("platform_settings")
+          .select("setting_value")
+          .eq("setting_key", "max_positions_per_job")
+          .maybeSingle(),
+        supabase.functions.invoke("validate-job-posting"),
+      ]);
 
-      if (error) {
-        console.error("Error fetching contractor profile:", error);
+      // Process contractor profile
+      if (profileResult.error) {
+        console.error("Error fetching contractor profile:", profileResult.error);
         toast({ title: "Profile not found", description: "Please complete your contractor profile first.", variant: "destructive" });
+        setIsLoadingProfile(false);
         return;
       }
-      setContractorProfile(profile);
+      setContractorProfile(profileResult.data);
 
-      // Fetch max positions setting
-      const { data: settings } = await supabase
-        .from("platform_settings")
-        .select("setting_value")
-        .eq("setting_key", "max_positions_per_job")
-        .maybeSingle();
-
-      if (settings?.setting_value) {
-        setMaxPositions(parseInt(settings.setting_value) || 10);
+      // Process max positions setting
+      if (settingsResult.data?.setting_value) {
+        setMaxPositions(parseInt(settingsResult.data.setting_value) || 10);
       }
 
-      // Check posting entitlements from backend
-      const { data: entitlementData, error: entError } = await supabase.functions.invoke("validate-job-posting");
-      
-      if (entError) {
-        console.error("Error checking entitlements:", entError);
-      } else if (entitlementData) {
+      // Process entitlements
+      if (entitlementResult.error) {
+        console.error("Error checking entitlements:", entitlementResult.error);
+      } else if (entitlementResult.data) {
+        const entitlementData = entitlementResult.data;
         setCanPostJob(entitlementData.can_post);
         setRemainingPosts(entitlementData.remaining_posts);
         if (!entitlementData.can_post) {
@@ -197,7 +200,6 @@ export default function PostJob() {
           setEntitlementErrorCode(entitlementData.error_code);
         }
         
-        // Check if user is on free tier
         const isFreeTierPlan = entitlementData.plan_type === "free_tier" || entitlementData.plan_type === "free_contractor";
         if (isFreeTierPlan) {
           setIsFreeTier(true);
