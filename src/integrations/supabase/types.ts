@@ -1922,7 +1922,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      partners_public: {
+        Row: {
+          created_at: string | null
+          discount_percent: number | null
+          display_name: string | null
+          id: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          discount_percent?: number | null
+          display_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          discount_percent?: number | null
+          display_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_referral_bonus_credits: {
@@ -1942,6 +1971,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_scheduled_conversations: { Args: never; Returns: number }
+      consume_referral_credit: { Args: { _amount?: number }; Returns: boolean }
       contractor_has_published_jobs: {
         Args: { _contractor_profile_id: string }
         Returns: boolean
