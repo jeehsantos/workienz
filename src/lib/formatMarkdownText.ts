@@ -1,8 +1,20 @@
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+const isSafeUrl = (url: string) => {
+  const trimmed = url.trim().toLowerCase();
+  return (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("mailto:") ||
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("#")
+  );
+};
+
 const formatInlineMarkdown = (text: string) => {
-  let formatted = text;
+  // CRITICAL: escape HTML first to prevent XSS, then apply markdown transforms
+  let formatted = escapeHtml(text);
 
   formatted = formatted.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
   formatted = formatted.replace(/__(.*?)__/g, "<strong>$1</strong>");
@@ -151,9 +163,16 @@ export const formatMarkdownText = (text: string): string => {
     if (imageMatch) {
       flushParagraph();
       closeLists();
-      htmlParts.push(
-        `<img src="${imageMatch[2]}" alt="${imageMatch[1] || ""}" class="w-full rounded-lg my-6" />`
-      );
+      const rawSrc = imageMatch[2] || "";
+      const rawAlt = imageMatch[1] || "";
+      // Reject unsafe URL schemes (e.g. javascript:) and escape attribute values
+      const safeSrc = isSafeUrl(rawSrc) ? escapeHtml(rawSrc) : "";
+      const safeAlt = escapeHtml(rawAlt);
+      if (safeSrc) {
+        htmlParts.push(
+          `<img src="${safeSrc}" alt="${safeAlt}" class="w-full rounded-lg my-6" />`
+        );
+      }
       continue;
     }
 

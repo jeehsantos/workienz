@@ -710,7 +710,7 @@ export default function GuideHub() {
                 <div
                   className="prose prose-slate dark:prose-invert max-w-none"
                   dangerouslySetInnerHTML={{
-                    __html: fullArticle.content.replace(/\n/g, "<br />"),
+                    __html: formatMarkdownText(fullArticle.content),
                   }}
                 />
               ) : (

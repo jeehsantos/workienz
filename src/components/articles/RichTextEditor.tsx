@@ -122,7 +122,11 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
       }
 
       // Handle inline formatting in paragraphs
-      const formatInline = (text: string) => {
+      const escapeHtml = (s: string) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+      const formatInline = (rawText: string) => {
+        // CRITICAL: escape HTML first to prevent XSS, then apply markdown transforms
+        let text = escapeHtml(rawText);
         // Bold
         text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         // Italic
@@ -152,7 +156,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         <p 
           key={idx} 
           className="text-base md:text-lg leading-relaxed mb-6"
-          dangerouslySetInnerHTML={{ __html: formatInline(lines.join('<br />')) }}
+          dangerouslySetInnerHTML={{ __html: formatInline(lines.join('\n')).replace(/\n/g, '<br />') }}
         />
       );
     });
