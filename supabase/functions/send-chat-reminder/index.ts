@@ -32,6 +32,17 @@ serve(async (req) => {
   }
 
   try {
+    // Require service-role authorization (function is invoked by other edge functions / cron)
+    const authHeader = req.headers.get("authorization") ?? "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const expected = `Bearer ${serviceKey}`;
+    if (!serviceKey || authHeader !== expected) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
     logStep("Function started");
 
     const {
