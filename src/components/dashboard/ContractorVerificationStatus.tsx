@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, ShieldAlert, XCircle } from "lucide-react";
+import { useNzbnVerificationEnabled } from "@/hooks/useNzbnVerificationEnabled";
 
 interface Props {
   userId: string | undefined;
