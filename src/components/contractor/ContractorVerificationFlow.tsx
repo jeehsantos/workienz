@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, ShieldAlert, Loader2, ExternalLink, XCircle, Building2 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Loader2, ExternalLink, XCircle, Building2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export function ContractorVerificationFlow() {
@@ -16,6 +16,7 @@ export function ContractorVerificationFlow() {
   const queryClient = useQueryClient();
   const [nzbn, setNzbn] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["contractor-verification", user?.id],
