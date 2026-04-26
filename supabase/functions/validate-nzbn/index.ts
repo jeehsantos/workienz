@@ -73,6 +73,22 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
+    // Check global admin toggle — verification only runs when enabled
+    const { data: toggleSetting } = await serviceClient
+      .from("platform_settings")
+      .select("setting_value")
+      .eq("setting_key", "nzbn_verification_enabled")
+      .maybeSingle();
+    if (toggleSetting?.setting_value !== "true") {
+      return json(
+        {
+          error: "NZBN verification is currently disabled by the platform administrator.",
+          code: "VERIFICATION_DISABLED",
+        },
+        403,
+      );
+    }
+
     // Look up contractor profile
     const { data: contractor, error: cpErr } = await serviceClient
       .from("contractor_profiles")

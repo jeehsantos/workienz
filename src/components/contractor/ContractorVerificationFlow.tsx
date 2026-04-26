@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, ShieldAlert, Loader2, ExternalLink, XCircle, Building2, RefreshCw } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Loader2, ExternalLink, XCircle, Building2, RefreshCw, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
+import { useNzbnVerificationEnabled } from "@/hooks/useNzbnVerificationEnabled";
 
 export function ContractorVerificationFlow() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export function ContractorVerificationFlow() {
   const [nzbn, setNzbn] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  const { enabled: nzbnEnabled, isLoading: toggleLoading } = useNzbnVerificationEnabled();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["contractor-verification", user?.id],
@@ -95,11 +97,34 @@ export function ContractorVerificationFlow() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || toggleLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Admin has disabled NZBN verification globally — block the flow but keep verified users informed
+  if (!nzbnEnabled && status !== "verified") {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="w-12 h-12 rounded-lg bg-muted text-muted-foreground flex items-center justify-center mb-2">
+            <ShieldOff className="w-6 h-6" />
+          </div>
+          <CardTitle className="font-display">Verification currently unavailable</CardTitle>
+          <CardDescription>
+            NZBN company verification has been disabled by the platform administrator.
+            You can still post jobs without it. We'll let you know when verification is enabled again.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 

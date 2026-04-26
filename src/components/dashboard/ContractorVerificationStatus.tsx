@@ -3,12 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, ShieldAlert, XCircle } from "lucide-react";
+import { useNzbnVerificationEnabled } from "@/hooks/useNzbnVerificationEnabled";
 
 interface Props {
   userId: string | undefined;
 }
 
 export function ContractorVerificationStatus({ userId }: Props) {
+  const { enabled: nzbnEnabled, isLoading: toggleLoading } = useNzbnVerificationEnabled();
+
   const { data } = useQuery({
     queryKey: ["contractor-verification-status", userId],
     queryFn: async () => {
@@ -29,6 +32,11 @@ export function ContractorVerificationStatus({ userId }: Props) {
     (data?.nzbn_data as { entityName?: string } | null)?.entityName ||
     data?.company_name ||
     "";
+
+  // When the admin toggle is OFF, only render the card if the contractor is already verified
+  // (so they keep seeing their verified badge). Otherwise hide it entirely.
+  if (toggleLoading) return null;
+  if (!nzbnEnabled && status !== "verified") return null;
 
   const config = {
     verified: {
