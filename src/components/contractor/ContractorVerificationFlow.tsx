@@ -33,10 +33,24 @@ export function ContractorVerificationFlow() {
   });
 
   const status = profile?.verification_status ?? "unverified";
+  const previousNzbn = profile?.nzbn ?? "";
   const entityName = useMemo(() => {
     const data = profile?.nzbn_data as { entityName?: string } | null;
     return data?.entityName || profile?.company_name || "";
   }, [profile]);
+
+  // Prefill the NZBN field with the previously submitted value (one-time, on rejection)
+  useEffect(() => {
+    if (!prefilled && status === "rejected" && previousNzbn && !nzbn) {
+      setNzbn(previousNzbn);
+      setPrefilled(true);
+    }
+  }, [status, previousNzbn, nzbn, prefilled]);
+
+  const handleClear = () => {
+    setNzbn("");
+    setPrefilled(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
