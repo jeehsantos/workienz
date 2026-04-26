@@ -117,9 +117,10 @@ serve(async (req) => {
     }
 
     // Call MBIE NZBN API
+    // Per https://portal.api.business.govt.nz: prod uses /gateway/, sandbox uses /sandbox/
     const baseUrl = isProd
-      ? "https://api.business.govt.nz/services/v5/nzbn/entities"
-      : "https://api.business.govt.nz/sandbox/services/v5/nzbn/entities";
+      ? "https://api.business.govt.nz/gateway/nzbn/v5/entities"
+      : "https://api.business.govt.nz/sandbox/nzbn/v5/entities";
     const apiUrl = `${baseUrl}/${rawNzbn}`;
 
     log("Calling NZBN API", { env, nzbn: rawNzbn });
@@ -148,9 +149,14 @@ serve(async (req) => {
     }
 
     if (nzbnRes.status === 401 || nzbnRes.status === 403) {
-      log("NZBN API auth error", { status: nzbnRes.status });
+      const text = await nzbnRes.text();
+      log("NZBN API auth error", { status: nzbnRes.status, body: text.slice(0, 300) });
       return json(
-        { error: "Verification service authentication failed", code: "UPSTREAM_AUTH_ERROR" },
+        {
+          error:
+            "Verification service is misconfigured (invalid NZBN subscription key). Please contact support.",
+          code: "UPSTREAM_AUTH_ERROR",
+        },
         500,
       );
     }
