@@ -134,21 +134,30 @@ interface JobData {
 
       logStep("Contractor profile found", { contractorId: contractorProfile.id });
 
-      // Block publishing if company is not verified
+      // Block publishing if company is not verified — only when admin has enabled NZBN gating
       if (
         (status === "published" || status === "private") &&
         contractorProfile.verification_status !== "verified"
       ) {
-        logStep("Verification gate blocked", { status, verification: contractorProfile.verification_status });
-        return new Response(
-          JSON.stringify({
-            error: "VERIFICATION_REQUIRED",
-            message:
-              "Your company must be verified with the NZ Business Number (NZBN) before posting jobs.",
-            code: "VERIFICATION_REQUIRED",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
-        );
+        const { data: nzbnSetting } = await serviceClient
+          .from("platform_settings")
+          .select("setting_value")
+          .eq("setting_key", "nzbn_verification_enabled")
+          .maybeSingle();
+        const nzbnGateEnabled = nzbnSetting?.setting_value === "true";
+
+        if (nzbnGateEnabled) {
+          logStep("Verification gate blocked", { status, verification: contractorProfile.verification_status });
+          return new Response(
+            JSON.stringify({
+              error: "VERIFICATION_REQUIRED",
+              message:
+                "Your company must be verified with the NZ Business Number (NZBN) before posting jobs.",
+              code: "VERIFICATION_REQUIRED",
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
+          );
+        }
       }
  
       // If publishing or posting as private, validate entitlements
