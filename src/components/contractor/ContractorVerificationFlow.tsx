@@ -164,26 +164,66 @@ export function ContractorVerificationFlow() {
           )}
         </div>
         <CardTitle className="font-display">
-          {status === "rejected" ? "Verification Rejected" : "Verify Your Company"}
+          {status === "rejected" ? "Resubmit Your NZBN" : "Verify Your Company"}
         </CardTitle>
         <CardDescription>
-          We verify your business against the official{" "}
-          <a
-            href="https://www.nzbn.govt.nz/"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="text-primary underline inline-flex items-center gap-1"
-          >
-            NZ Business Number (NZBN) Register
-            <ExternalLink className="w-3 h-3" />
-          </a>
-          . You must verify before posting any jobs.
+          {status === "rejected" ? (
+            <>
+              Your previous NZBN couldn't be verified. Update the number below and resubmit —
+              your contractor profile and other details are kept as-is.
+            </>
+          ) : (
+            <>
+              We verify your business against the official{" "}
+              <a
+                href="https://www.nzbn.govt.nz/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-primary underline inline-flex items-center gap-1"
+              >
+                NZ Business Number (NZBN) Register
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              . You must verify before posting any jobs.
+            </>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {status === "rejected" && previousNzbn && (
+          <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            <p className="font-medium text-destructive mb-1">Previous attempt rejected</p>
+            <p className="text-muted-foreground">
+              NZBN <span className="font-mono">{previousNzbn}</span> wasn't found or wasn't
+              an active registered entity. Double-check the number on your{" "}
+              <a
+                href="https://www.nzbn.govt.nz/search/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-primary hover:underline"
+              >
+                NZBN search
+              </a>{" "}
+              and try again.
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nzbn">Your 13-digit NZBN</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="nzbn">Your 13-digit NZBN</Label>
+              {status === "rejected" && nzbn && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Try a different NZBN
+                </button>
+              )}
+            </div>
             <Input
               id="nzbn"
               inputMode="numeric"
@@ -207,23 +247,27 @@ export function ContractorVerificationFlow() {
             </div>
           </div>
 
-          {status === "rejected" && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              Your previous verification attempt was unsuccessful. Please check the NZBN
-              and try again.
-            </div>
-          )}
-
-          <Button type="submit" disabled={submitting || nzbn.length !== 13} className="w-full">
+          <Button
+            type="submit"
+            disabled={submitting || nzbn.length !== 13 || (status === "rejected" && nzbn === previousNzbn)}
+            className="w-full"
+          >
             {submitting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Verifying with NZBN…
               </>
+            ) : status === "rejected" ? (
+              "Resubmit for Verification"
             ) : (
               "Verify Company"
             )}
           </Button>
+          {status === "rejected" && nzbn === previousNzbn && nzbn.length === 13 && (
+            <p className="text-xs text-muted-foreground text-center">
+              Change the NZBN above to enable resubmission.
+            </p>
+          )}
         </form>
       </CardContent>
     </Card>
