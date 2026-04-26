@@ -18,6 +18,7 @@ export function ContractorVerificationFlow() {
   const [nzbn, setNzbn] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  const { enabled: nzbnEnabled, isLoading: toggleLoading } = useNzbnVerificationEnabled();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["contractor-verification", user?.id],
