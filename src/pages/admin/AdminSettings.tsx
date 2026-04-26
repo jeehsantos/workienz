@@ -29,6 +29,8 @@ export default function AdminSettings() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [hideUpgradeButtons, setHideUpgradeButtons] = useState(false);
   const [isSavingUpgradeVisibility, setIsSavingUpgradeVisibility] = useState(false);
+  const [nzbnVerificationEnabled, setNzbnVerificationEnabled] = useState(false);
+  const [isSavingNzbn, setIsSavingNzbn] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || !isAdmin())) {
