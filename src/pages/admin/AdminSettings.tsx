@@ -74,6 +74,7 @@ export default function AdminSettings() {
           case "14_day_sprint_duration_days": setSprintDurationDays(setting.setting_value); break;
           case "14_day_sprint_job_limit": setSprintJobLimit(setting.setting_value); break;
           case "hide_upgrade_buttons": setHideUpgradeButtons(setting.setting_value === "true"); break;
+          case "nzbn_verification_enabled": setNzbnVerificationEnabled(setting.setting_value === "true"); break;
         }
       });
     }
