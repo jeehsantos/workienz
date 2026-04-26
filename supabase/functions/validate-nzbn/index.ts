@@ -117,9 +117,10 @@ serve(async (req) => {
     }
 
     // Call MBIE NZBN API
+    // Per https://portal.api.business.govt.nz: prod uses /gateway/, sandbox uses /sandbox/
     const baseUrl = isProd
-      ? "https://api.business.govt.nz/services/v5/nzbn/entities"
-      : "https://api.business.govt.nz/sandbox/services/v5/nzbn/entities";
+      ? "https://api.business.govt.nz/gateway/nzbn/v5/entities"
+      : "https://api.business.govt.nz/sandbox/nzbn/v5/entities";
     const apiUrl = `${baseUrl}/${rawNzbn}`;
 
     log("Calling NZBN API", { env, nzbn: rawNzbn });
