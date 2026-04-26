@@ -97,11 +97,34 @@ export function ContractorVerificationFlow() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || toggleLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Admin has disabled NZBN verification globally — block the flow but keep verified users informed
+  if (!nzbnEnabled && status !== "verified") {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="w-12 h-12 rounded-lg bg-muted text-muted-foreground flex items-center justify-center mb-2">
+            <ShieldOff className="w-6 h-6" />
+          </div>
+          <CardTitle className="font-display">Verification currently unavailable</CardTitle>
+          <CardDescription>
+            NZBN company verification has been disabled by the platform administrator.
+            You can still post jobs without it. We'll let you know when verification is enabled again.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
