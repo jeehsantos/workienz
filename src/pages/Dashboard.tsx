@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import MyConversations from "@/components/dashboard/MyConversations";
 import { SettingsCard } from "@/components/dashboard/SettingsCard";
+import { ContractorVerificationStatus } from "@/components/dashboard/ContractorVerificationStatus";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +108,9 @@ export default function Dashboard() {
             </div>
           )}
 
+
+          {/* Contractor: Verification status */}
+          {showContractorCards && <ContractorVerificationStatus userId={user?.id} />}
 
           {/* Profile Card - Contractor */}
           {showContractorCards && (

@@ -24,6 +24,7 @@ const MyJobs = lazy(() => import("./pages/contractor/MyJobs"));
 const ContractorJobDetail = lazy(() => import("./pages/contractor/ContractorJobDetail"));
 const SearchWorkers = lazy(() => import("./pages/contractor/SearchWorkers"));
 const ContractorProfile = lazy(() => import("./pages/contractor/ContractorProfile"));
+const VerifyCompany = lazy(() => import("./pages/contractor/VerifyCompany"));
 const JobApplicants = lazy(() => import("./pages/contractor/JobApplicants"));
 const TalentPool = lazy(() => import("./pages/contractor/TalentPool"));
 const JobSearch = lazy(() => import("./pages/employee/JobSearch"));
@@ -99,6 +100,7 @@ const App = () => (
                 <Route path="/contractor/jobs/:jobId/applicants" element={<JobApplicants />} />
                 <Route path="/contractor/talent-pool" element={<TalentPool />} />
                 <Route path="/contractor/profile" element={<ContractorProfile />} />
+                <Route path="/contractor/verify" element={<VerifyCompany />} />
                 <Route path="/contractor/search-workers" element={<SearchWorkers />} />
                 <Route path="/employee/profile" element={<EmployeeProfile />} />
                 <Route path="/employee/view-profile" element={<ViewProfile />} />

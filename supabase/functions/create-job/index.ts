@@ -115,24 +115,41 @@ interface JobData {
        );
      }
  
-     // Verify user is a contractor and get contractor profile
-     const { data: contractorProfile, error: cpError } = await serviceClient
-       .from("contractor_profiles")
-       .select("id")
-       .eq("user_id", userId)
-       .single();
- 
-     if (cpError || !contractorProfile) {
-       return new Response(
-         JSON.stringify({
-           error: "ERR_NO_CONTRACTOR_PROFILE",
-           message: "You must complete your contractor profile first",
-         }),
-         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
-       );
-     }
- 
-     logStep("Contractor profile found", { contractorId: contractorProfile.id });
+      // Verify user is a contractor and get contractor profile
+      const { data: contractorProfile, error: cpError } = await serviceClient
+        .from("contractor_profiles")
+        .select("id, verification_status")
+        .eq("user_id", userId)
+        .single();
+
+      if (cpError || !contractorProfile) {
+        return new Response(
+          JSON.stringify({
+            error: "ERR_NO_CONTRACTOR_PROFILE",
+            message: "You must complete your contractor profile first",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
+        );
+      }
+
+      logStep("Contractor profile found", { contractorId: contractorProfile.id });
+
+      // Block publishing if company is not verified
+      if (
+        (status === "published" || status === "private") &&
+        contractorProfile.verification_status !== "verified"
+      ) {
+        logStep("Verification gate blocked", { status, verification: contractorProfile.verification_status });
+        return new Response(
+          JSON.stringify({
+            error: "VERIFICATION_REQUIRED",
+            message:
+              "Your company must be verified with the NZ Business Number (NZBN) before posting jobs.",
+            code: "VERIFICATION_REQUIRED",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 },
+        );
+      }
  
       // If publishing or posting as private, validate entitlements
       if (status === "published" || status === "private") {
