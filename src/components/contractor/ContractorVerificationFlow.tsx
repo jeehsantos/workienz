@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, ShieldAlert, Loader2, ExternalLink, XCircle, Building2, RefreshCw } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Loader2, ExternalLink, XCircle, Building2, RefreshCw, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
+import { useNzbnVerificationEnabled } from "@/hooks/useNzbnVerificationEnabled";
 
 export function ContractorVerificationFlow() {
   const navigate = useNavigate();
