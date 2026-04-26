@@ -525,12 +525,16 @@ export type Database = {
           industry: string | null
           is_entrepreneur: boolean | null
           is_verified: boolean | null
+          nzbn: string | null
+          nzbn_data: Json | null
           phone: string | null
           pre_employment_file_name: string | null
           pre_employment_file_url: string | null
           suburb: string | null
           updated_at: string
           user_id: string
+          verification_date: string | null
+          verification_status: string
           website: string | null
         }
         Insert: {
@@ -545,12 +549,16 @@ export type Database = {
           industry?: string | null
           is_entrepreneur?: boolean | null
           is_verified?: boolean | null
+          nzbn?: string | null
+          nzbn_data?: Json | null
           phone?: string | null
           pre_employment_file_name?: string | null
           pre_employment_file_url?: string | null
           suburb?: string | null
           updated_at?: string
           user_id: string
+          verification_date?: string | null
+          verification_status?: string
           website?: string | null
         }
         Update: {
@@ -565,12 +573,16 @@ export type Database = {
           industry?: string | null
           is_entrepreneur?: boolean | null
           is_verified?: boolean | null
+          nzbn?: string | null
+          nzbn_data?: Json | null
           phone?: string | null
           pre_employment_file_name?: string | null
           pre_employment_file_url?: string | null
           suburb?: string | null
           updated_at?: string
           user_id?: string
+          verification_date?: string | null
+          verification_status?: string
           website?: string | null
         }
         Relationships: []
