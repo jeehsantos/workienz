@@ -59,6 +59,7 @@ export default function AdminSettings() {
         "14_day_sprint_duration_days",
         "14_day_sprint_job_limit",
         "hide_upgrade_buttons",
+        "nzbn_verification_enabled",
       ]);
 
     if (data) {
