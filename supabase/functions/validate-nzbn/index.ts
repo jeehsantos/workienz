@@ -149,9 +149,14 @@ serve(async (req) => {
     }
 
     if (nzbnRes.status === 401 || nzbnRes.status === 403) {
-      log("NZBN API auth error", { status: nzbnRes.status });
+      const text = await nzbnRes.text();
+      log("NZBN API auth error", { status: nzbnRes.status, body: text.slice(0, 300) });
       return json(
-        { error: "Verification service authentication failed", code: "UPSTREAM_AUTH_ERROR" },
+        {
+          error:
+            "Verification service is misconfigured (invalid NZBN subscription key). Please contact support.",
+          code: "UPSTREAM_AUTH_ERROR",
+        },
         500,
       );
     }
