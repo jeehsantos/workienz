@@ -246,7 +246,41 @@ export default function AdminSettings() {
                   </div>
                 </div>
 
-                {/* Contractor Tier Settings */}
+                {/* NZBN Verification Toggle */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="text-lg font-semibold">Company Verification (NZBN)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Control whether contractors must verify their NZ Business Number with the MBIE NZBN Register before publishing jobs.
+                    Disable this while waiting for NZBN API approval, or to make verification optional.
+                  </p>
+                  <div className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg border border-border/50">
+                    <Switch
+                      id="nzbnVerification"
+                      checked={nzbnVerificationEnabled}
+                      onCheckedChange={toggleNzbnVerification}
+                      disabled={isSavingNzbn}
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="nzbnVerification" className="font-medium cursor-pointer">
+                        Require NZBN Verification
+                      </Label>
+                      <p className="text-xs text-muted-foreground">When enabled:</p>
+                      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+                        <li>Contractors must verify their NZBN before publishing jobs</li>
+                        <li>The "Verify Company" page calls the MBIE NZBN API</li>
+                        <li>The dashboard shows a verification status card</li>
+                      </ul>
+                      <p className="text-xs text-muted-foreground mt-2">When disabled:</p>
+                      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1">
+                        <li>The verification gate is skipped — contractors can post jobs freely</li>
+                        <li>Already-verified contractors keep their verified badge</li>
+                        <li>The verification page shows a "currently unavailable" notice</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+
                 <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-lg font-semibold">Contractor Tier Limits</h3>
                   <p className="text-sm text-muted-foreground">Configure job posting limits and durations for one-time contractor plans.</p>
