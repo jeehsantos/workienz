@@ -97,6 +97,25 @@ export default function AdminSettings() {
     setIsSavingUpgradeVisibility(false);
   }
 
+  async function toggleNzbnVerification(checked: boolean) {
+    setIsSavingNzbn(true);
+    const { error } = await supabase
+      .from("platform_settings")
+      .update({ setting_value: checked ? "true" : "false" })
+      .eq("setting_key", "nzbn_verification_enabled");
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update setting", variant: "destructive" });
+    } else {
+      setNzbnVerificationEnabled(checked);
+      toast({
+        title: "Success",
+        description: `NZBN verification ${checked ? "enabled — contractors must verify before posting jobs" : "disabled — contractors can post jobs without NZBN verification"}`,
+      });
+    }
+    setIsSavingNzbn(false);
+  }
+
   async function saveSettings() {
     setIsSavingSettings(true);
     const updates = [
