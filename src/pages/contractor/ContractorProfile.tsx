@@ -105,6 +105,7 @@ export default function ContractorProfile() {
       company_description: formData.company_description || null,
       industry: formData.industry || null,
       website: formData.website || null,
+      region: formData.region || null,
       city: formData.city || null,
       suburb: formData.suburb || null,
       country: formData.country || null,
