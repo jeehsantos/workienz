@@ -346,30 +346,61 @@ export default function ContractorProfile() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="country">Country</Label>
-                      <Input
-                        id="country"
-                        value={formData.country}
-                        onChange={(e) => updateField("country", e.target.value)}
-                      />
+                      <Label>Country</Label>
+                      <Input value="New Zealand" disabled className="bg-muted" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="city">City</Label>
-                      <Input
-                        id="city"
+                      <Label>Region</Label>
+                      <Select
+                        value={formData.region}
+                        onValueChange={(v) => updateField("region", v) || setFormData(prev => ({ ...prev, region: v, city: "", suburb: "" }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                        <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                          {NZ_REGIONS.map((r) => (
+                            <SelectItem key={r.region} value={r.region}>{r.region}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>City</Label>
+                      <Select
                         value={formData.city}
-                        onChange={(e) => updateField("city", e.target.value)}
-                        placeholder="e.g., Auckland"
-                      />
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, city: v, suburb: "" }))}
+                        disabled={!formData.region}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={formData.region ? "Select city" : "Select region first"} />
+                        </SelectTrigger>
+                        <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                          {getCitiesByRegion(formData.region).map((city) => (
+                            <SelectItem key={city} value={city}>{city}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="suburb">Suburb</Label>
-                      <Input
-                        id="suburb"
+                      <Label>Suburb</Label>
+                      <Select
                         value={formData.suburb}
-                        onChange={(e) => updateField("suburb", e.target.value)}
-                        placeholder="e.g., Ponsonby"
-                      />
+                        onValueChange={(v) => updateField("suburb", v)}
+                        disabled={!formData.city}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={formData.city ? "Select suburb" : "Select city first"} />
+                        </SelectTrigger>
+                        <SelectContent position="popper" sideOffset={4} className="max-h-[300px]">
+                          {getSuburbsByCity(formData.region, formData.city).map((suburb) => (
+                            <SelectItem key={suburb} value={suburb}>{suburb}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </CardContent>
