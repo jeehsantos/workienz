@@ -39,6 +39,7 @@ export default function ContractorProfile() {
     company_description: "",
     industry: "",
     website: "",
+    region: "",
     city: "",
     suburb: "",
     country: "New Zealand",
