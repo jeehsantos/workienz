@@ -1,0 +1,1 @@
+ALTER TABLE public.contractor_profiles ADD COLUMN region text;

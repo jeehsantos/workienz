@@ -530,6 +530,7 @@ export type Database = {
           phone: string | null
           pre_employment_file_name: string | null
           pre_employment_file_url: string | null
+          region: string | null
           suburb: string | null
           updated_at: string
           user_id: string
@@ -554,6 +555,7 @@ export type Database = {
           phone?: string | null
           pre_employment_file_name?: string | null
           pre_employment_file_url?: string | null
+          region?: string | null
           suburb?: string | null
           updated_at?: string
           user_id: string
@@ -578,6 +580,7 @@ export type Database = {
           phone?: string | null
           pre_employment_file_name?: string | null
           pre_employment_file_url?: string | null
+          region?: string | null
           suburb?: string | null
           updated_at?: string
           user_id?: string
