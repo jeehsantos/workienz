@@ -353,7 +353,7 @@ export default function ContractorProfile() {
                       <Label>Region</Label>
                       <Select
                         value={formData.region}
-                        onValueChange={(v) => updateField("region", v) || setFormData(prev => ({ ...prev, region: v, city: "", suburb: "" }))}
+                        onValueChange={(v) => setFormData(prev => ({ ...prev, region: v, city: "", suburb: "" }))}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select region" />
