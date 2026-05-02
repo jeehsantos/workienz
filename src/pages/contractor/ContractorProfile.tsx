@@ -69,11 +69,13 @@ export default function ContractorProfile() {
       } else if (data) {
         setExistingProfile(data.id);
         setAvatarUrl(data.avatar_url || null);
+        const existingRegion = (data as any).region || getRegionByCity(data.city || "") || "";
         setFormData({
           company_name: data.company_name || "",
           company_description: data.company_description || "",
           industry: data.industry || "",
           website: data.website || "",
+          region: existingRegion,
           city: data.city || "",
           suburb: data.suburb || "",
           country: data.country || "New Zealand",
