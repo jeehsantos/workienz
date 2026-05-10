@@ -36,9 +36,18 @@ export default function Settings() {
   const initialSection = (searchParams.get("section") as SettingsSection) || "password";
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const navigate = useNavigate();
-  const { user, isEmployee } = useAuthContext();
+  const { user, isEmployee, isContractor, isAdmin } = useAuthContext();
 
-  const filteredSidebarItems = sidebarItems.filter((item) => !item.employeeOnly || isEmployee());
+  const filteredSidebarItems = sidebarItems.filter((item) => {
+    if (item.employeeOnly && !isEmployee()) return false;
+    if (item.rolesOnly) {
+      const allowed = item.rolesOnly.some((role) =>
+        role === "employee" ? isEmployee() : role === "contractor" ? isContractor() : false,
+      );
+      if (!allowed) return false;
+    }
+    return true;
+  });
 
   const renderContent = () => {
     switch (activeSection) {
