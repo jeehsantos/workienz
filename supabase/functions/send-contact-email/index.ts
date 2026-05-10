@@ -5,8 +5,7 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface ContactEmailRequest {
@@ -27,11 +26,11 @@ const subjectLabels: Record<string, string> = {
 // HTML escape function to prevent XSS
 function escapeHtml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 // Validate email format
@@ -57,13 +56,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
-      return new Response(
-        JSON.stringify({ error: "All fields are required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      return new Response(JSON.stringify({ error: "All fields are required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     // Validate input formats
@@ -73,28 +69,22 @@ const handler = async (req: Request): Promise<Response> => {
         {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        },
       );
     }
 
     if (!isValidEmail(email)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email format" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Invalid email format" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     if (message.length > 5000) {
-      return new Response(
-        JSON.stringify({ error: "Message is too long. Maximum 5000 characters." }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Message is too long. Maximum 5000 characters." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     // Escape all user inputs for safe HTML embedding
@@ -103,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
     const safeMessage = escapeHtml(message);
 
     const subjectLabel = subjectLabels[subject] || escapeHtml(subject);
-    const companyEmail = "support@workie.co.nz";
+    const companyEmail = "hello@workie.co.nz";
 
     // Send notification email to the company
     console.log("Sending notification email to company...");
@@ -145,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               <div class="field">
                 <div class="field-label">Message</div>
-                <div class="message-box">${safeMessage.replace(/\n/g, '<br>')}</div>
+                <div class="message-box">${safeMessage.replace(/\n/g, "<br>")}</div>
               </div>
               <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
                 You can reply directly to this email to respond to ${safeName}.
@@ -191,7 +181,7 @@ const handler = async (req: Request): Promise<Response> => {
               <div class="highlight">
                 <p style="margin: 0;"><strong>Subject:</strong> ${subjectLabel}</p>
                 <p style="margin: 10px 0 0;"><strong>Your message:</strong></p>
-                <p style="margin: 5px 0 0; color: #6b7280;">${safeMessage.substring(0, 200)}${message.length > 200 ? '...' : ''}</p>
+                <p style="margin: 5px 0 0; color: #6b7280;">${safeMessage.substring(0, 200)}${message.length > 200 ? "..." : ""}</p>
               </div>
               
               <p><strong>What happens next?</strong></p>
@@ -213,24 +203,21 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Confirmation email sent:", confirmationResponse);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Emails sent successfully" 
+      JSON.stringify({
+        success: true,
+        message: "Emails sent successfully",
       }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      },
     );
   } catch (error: any) {
     console.error("Error in send-contact-email function:", error);
-    return new Response(
-      JSON.stringify({ error: "An error occurred while processing your request" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ error: "An error occurred while processing your request" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 };
 

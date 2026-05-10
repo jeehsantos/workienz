@@ -35,9 +35,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user, isEmployee } = useAuthContext();
 
-  const filteredSidebarItems = sidebarItems.filter(
-    (item) => !item.employeeOnly || isEmployee()
-  );
+  const filteredSidebarItems = sidebarItems.filter((item) => !item.employeeOnly || isEmployee());
 
   const renderContent = () => {
     switch (activeSection) {
@@ -70,9 +68,7 @@ export default function Settings() {
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold font-display">Work Rights Verification</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Verify your right to work in New Zealand.
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Verify your right to work in New Zealand.</p>
             </div>
             <Suspense fallback={<Loader2 className="w-6 h-6 animate-spin text-primary" />}>
               <VerifyWorkRightsContent />
@@ -113,7 +109,9 @@ export default function Settings() {
                   Request a copy of all personal information we hold about you. We will respond within 20 working days.
                 </p>
                 <Button variant="outline" size="sm" asChild>
-                  <a href={`mailto:privacy@workie.co.nz?subject=Data%20Access%20Request&body=Hi%20Workie%20Privacy%20Team%2C%0A%0AI%20would%20like%20to%20request%20a%20copy%20of%20all%20personal%20data%20you%20hold%20about%20me.%0A%0AAccount%20email%3A%20${encodeURIComponent(user?.email ?? "")}%0A%0AThank%20you.`}>
+                  <a
+                    href={`mailto:hello@workie.co.nz?subject=Data%20Access%20Request&body=Hi%20Workie%20Privacy%20Team%2C%0A%0AI%20would%20like%20to%20request%20a%20copy%20of%20all%20personal%20data%20you%20hold%20about%20me.%0A%0AAccount%20email%3A%20${encodeURIComponent(user?.email ?? "")}%0A%0AThank%20you.`}
+                  >
                     Request Data Export
                   </a>
                 </Button>
@@ -125,10 +123,18 @@ export default function Settings() {
                   <h3 className="font-medium text-sm">Delete My Account</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Request permanent deletion of your account and all associated personal data. This action cannot be undone.
+                  Request permanent deletion of your account and all associated personal data. This action cannot be
+                  undone.
                 </p>
-                <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" asChild>
-                  <a href={`mailto:privacy@workie.co.nz?subject=Account%20Deletion%20Request&body=Hi%20Workie%20Privacy%20Team%2C%0A%0AI%20would%20like%20to%20request%20the%20deletion%20of%20my%20account%20and%20all%20associated%20personal%20data.%0A%0AAccount%20email%3A%20${encodeURIComponent(user?.email ?? "")}%0A%0AI%20understand%20this%20action%20is%20permanent.%0A%0AThank%20you.`}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  asChild
+                >
+                  <a
+                    href={`mailto:hello@workie.co.nz?subject=Account%20Deletion%20Request&body=Hi%20Workie%20Privacy%20Team%2C%0A%0AI%20would%20like%20to%20request%20the%20deletion%20of%20my%20account%20and%20all%20associated%20personal%20data.%0A%0AAccount%20email%3A%20${encodeURIComponent(user?.email ?? "")}%0A%0AI%20understand%20this%20action%20is%20permanent.%0A%0AThank%20you.`}
+                  >
                     Request Account Deletion
                   </a>
                 </Button>
@@ -140,8 +146,12 @@ export default function Settings() {
                   <h3 className="font-medium text-sm">Data Correction</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  You can update most of your information directly from your profile. For other corrections, contact us at{" "}
-                  <a href="mailto:privacy@workie.co.nz" className="text-primary hover:underline">privacy@workie.co.nz</a>.
+                  You can update most of your information directly from your profile. For other corrections, contact us
+                  at{" "}
+                  <a href="mailto:hello@workie.co.nz" className="text-primary hover:underline">
+                    hello@workie.co.nz
+                  </a>
+                  .
                 </p>
               </div>
 
@@ -163,12 +173,7 @@ export default function Settings() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="container-tight px-4 sm:px-6 pt-8 pb-2 flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/dashboard")}
-          className="shrink-0 -ml-2"
-        >
+        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="shrink-0 -ml-2">
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-2xl font-semibold font-display text-foreground">Settings</h1>
@@ -190,7 +195,7 @@ export default function Settings() {
                         "w-full text-left px-4 py-2 rounded-md text-sm font-medium transition-colors",
                         isActive
                           ? "bg-primary/10 text-primary border-l-2 border-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                       )}
                     >
                       {item.label}
@@ -203,9 +208,7 @@ export default function Settings() {
 
           {/* Content area */}
           <div className="flex-1 min-w-0">
-            <div className="rounded-xl border bg-card p-6 sm:p-8 shadow-soft">
-              {renderContent()}
-            </div>
+            <div className="rounded-xl border bg-card p-6 sm:p-8 shadow-soft">{renderContent()}</div>
           </div>
         </div>
       </div>
