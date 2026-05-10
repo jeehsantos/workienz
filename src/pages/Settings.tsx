@@ -176,6 +176,18 @@ export default function Settings() {
             </div>
           </div>
         );
+      case "support":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold font-display">Contact Support</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Have a question or need help? Send a message to our support team.
+              </p>
+            </div>
+            <ContactSupportSection />
+          </div>
+        );
       default:
         return null;
     }
