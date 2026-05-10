@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResetPasswordSection } from "@/components/dashboard/settings/ResetPasswordSection";
 import { ReferralProgramSection } from "@/components/dashboard/settings/ReferralProgramSection";
+import { ContactSupportSection } from "@/components/dashboard/settings/ContactSupportSection";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Shield, Download, Trash2, ExternalLink, ShieldCheck } from "lucide-react";
 import { lazy, Suspense } from "react";
@@ -12,12 +13,13 @@ import { Loader2 } from "lucide-react";
 
 const VerifyWorkRightsContent = lazy(() => import("@/components/settings/VerifyWorkRightsSection"));
 
-type SettingsSection = "password" | "referral" | "billing" | "privacy" | "verification";
+type SettingsSection = "password" | "referral" | "billing" | "privacy" | "verification" | "support";
 
 interface SidebarItem {
   id: SettingsSection;
   label: string;
   employeeOnly?: boolean;
+  rolesOnly?: ("employee" | "contractor")[];
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -26,6 +28,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "referral", label: "Referral Program" },
   { id: "billing", label: "Billing & Subscription" },
   { id: "privacy", label: "Privacy & Data" },
+  { id: "support", label: "Contact Support", rolesOnly: ["employee", "contractor"] },
 ];
 
 export default function Settings() {
