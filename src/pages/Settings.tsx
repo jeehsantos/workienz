@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResetPasswordSection } from "@/components/dashboard/settings/ResetPasswordSection";
 import { ReferralProgramSection } from "@/components/dashboard/settings/ReferralProgramSection";
+import { ContactSupportSection } from "@/components/dashboard/settings/ContactSupportSection";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Shield, Download, Trash2, ExternalLink, ShieldCheck } from "lucide-react";
 import { lazy, Suspense } from "react";
@@ -12,12 +13,13 @@ import { Loader2 } from "lucide-react";
 
 const VerifyWorkRightsContent = lazy(() => import("@/components/settings/VerifyWorkRightsSection"));
 
-type SettingsSection = "password" | "referral" | "billing" | "privacy" | "verification";
+type SettingsSection = "password" | "referral" | "billing" | "privacy" | "verification" | "support";
 
 interface SidebarItem {
   id: SettingsSection;
   label: string;
   employeeOnly?: boolean;
+  rolesOnly?: ("employee" | "contractor")[];
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -26,6 +28,7 @@ const sidebarItems: SidebarItem[] = [
   { id: "referral", label: "Referral Program" },
   { id: "billing", label: "Billing & Subscription" },
   { id: "privacy", label: "Privacy & Data" },
+  { id: "support", label: "Contact Support", rolesOnly: ["employee", "contractor"] },
 ];
 
 export default function Settings() {
@@ -33,9 +36,18 @@ export default function Settings() {
   const initialSection = (searchParams.get("section") as SettingsSection) || "password";
   const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const navigate = useNavigate();
-  const { user, isEmployee } = useAuthContext();
+  const { user, isEmployee, isContractor, isAdmin } = useAuthContext();
 
-  const filteredSidebarItems = sidebarItems.filter((item) => !item.employeeOnly || isEmployee());
+  const filteredSidebarItems = sidebarItems.filter((item) => {
+    if (item.employeeOnly && !isEmployee()) return false;
+    if (item.rolesOnly) {
+      const allowed = item.rolesOnly.some((role) =>
+        role === "employee" ? isEmployee() : role === "contractor" ? isContractor() : false,
+      );
+      if (!allowed) return false;
+    }
+    return true;
+  });
 
   const renderContent = () => {
     switch (activeSection) {
@@ -162,6 +174,18 @@ export default function Settings() {
                 </Link>
               </div>
             </div>
+          </div>
+        );
+      case "support":
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold font-display">Contact Support</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Have a question or need help? Send a message to our support team.
+              </p>
+            </div>
+            <ContactSupportSection />
           </div>
         );
       default:
