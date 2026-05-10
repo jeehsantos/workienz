@@ -4,13 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Footer } from "@/components/landing/Footer";
@@ -65,7 +59,7 @@ export default function Contact() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -108,14 +102,14 @@ export default function Contact() {
             <ArrowLeft className="w-4 h-4" />
             Back to home
           </Link>
-          
+
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-4xl lg:text-5xl font-bold font-display mb-6">
               Get in <span className="text-primary">Touch</span>
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Have a question or need assistance? We're here to help. Send us a message 
-              and our team will get back to you within 24 hours.
+              Have a question or need assistance? We're here to help. Send us a message and our team will get back to
+              you within 24 hours.
             </p>
           </div>
         </div>
@@ -141,11 +135,11 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Email</h3>
-                    <a 
-                      href="mailto:support@workie.co.nz" 
+                    <a
+                      href="mailto:hello@workie.co.nz"
                       className="text-muted-foreground hover:text-primary transition-colors"
                     >
-                      support@workie.co.nz
+                      hello@workie.co.nz
                     </a>
                   </div>
                 </div>
@@ -156,9 +150,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Location</h3>
-                    <p className="text-muted-foreground">
-                      Auckland, New Zealand
-                    </p>
+                    <p className="text-muted-foreground">Auckland, New Zealand</p>
                   </div>
                 </div>
 
@@ -168,9 +160,7 @@ export default function Contact() {
                   </div>
                   <div>
                     <h3 className="font-semibold mb-1">Response Time</h3>
-                    <p className="text-muted-foreground">
-                      Within 24 hours on business days
-                    </p>
+                    <p className="text-muted-foreground">Within 24 hours on business days</p>
                   </div>
                 </div>
               </div>
@@ -191,7 +181,7 @@ export default function Contact() {
             <div className="lg:col-span-3">
               <div className="bg-card rounded-2xl border border-border/50 shadow-soft p-6 lg:p-8">
                 <h2 className="text-xl font-bold font-display mb-6">Send us a message</h2>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
@@ -204,9 +194,7 @@ export default function Contact() {
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="mt-1.5"
                       />
-                      {errors.name && (
-                        <p className="text-sm text-destructive mt-1">{errors.name}</p>
-                      )}
+                      {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
                     </div>
                     <div>
                       <Label htmlFor="email">Email Address</Label>
@@ -218,9 +206,7 @@ export default function Contact() {
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className="mt-1.5"
                       />
-                      {errors.email && (
-                        <p className="text-sm text-destructive mt-1">{errors.email}</p>
-                      )}
+                      {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
                     </div>
                   </div>
 
@@ -241,9 +227,7 @@ export default function Contact() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.subject && (
-                      <p className="text-sm text-destructive mt-1">{errors.subject}</p>
-                    )}
+                    {errors.subject && <p className="text-sm text-destructive mt-1">{errors.subject}</p>}
                   </div>
 
                   <div>
@@ -255,21 +239,11 @@ export default function Contact() {
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       className="mt-1.5 min-h-[150px] resize-none"
                     />
-                    {errors.message && (
-                      <p className="text-sm text-destructive mt-1">{errors.message}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1 text-right">
-                      {formData.message.length}/2000
-                    </p>
+                    {errors.message && <p className="text-sm text-destructive mt-1">{errors.message}</p>}
+                    <p className="text-xs text-muted-foreground mt-1 text-right">{formData.message.length}/2000</p>
                   </div>
 
-                  <Button
-                    type="submit"
-                    variant="hero"
-                    size="lg"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
+                  <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
